@@ -2,6 +2,20 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 3 — 2026-10-30: second review (ADR 0003 amendment)
+
+| Request | Implementation |
+| --- | --- |
+| Sub-agent topology elements were shifted | Indentation and tree connectors now live inside the fixed label column (no overflowing margins); lane connectors are drawn from row centres |
+| Commits should not be spaced by calendar time (keep it as an option) | *Axis → Commit order* (default): evenly spaced commits in time order; *Calendar time* is the toggle (`features/dashboard/timeline.ts`) |
+| Date range too compressed; should go back further; axis shared across projects | One axis for all repositories, sticky at the top, scrolling horizontally through all loaded history (default *All loaded*, up to 1 year selectable) |
+| Commit messages on hover should be more visible | Custom hover cards with larger hit targets for commits, branch heads/pointers, uncommitted-change markers, agent rows and bars |
+| One line per agent: name/alias and status; the rest collapsed | 24 px agent rows; details on hover, per-row expansion (chevron, →/←) or *Expand agent details*, and in the details panel |
+| A legend | *Legend* toggle explaining node, edge, marker and bar styles and colours |
+| Branch relationships should be visible | Labels *from X*, *→ X*, *at X*; fork/merge curves; dashed pointers for branches without their own commits |
+
+Verification (2026-10-30, this machine): typecheck, lint and build exit 0; `npm test` 13 files / 113 tests passed; `npm run test:integration` 6 files / 73 tests passed; `npm run test:e2e` 18 passed (Edge); `npm run docs:build` exit 0. Backend unchanged in this round.
+
 ## Checkpoint 2 — 2026-10-30: dashboard redesign (owner feedback, ADR 0003)
 
 ### Owner feedback addressed

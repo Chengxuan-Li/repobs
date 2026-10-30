@@ -81,6 +81,18 @@ describe('layoutRepository', () => {
     expect(all.rows.filter((r) => r.kind === 'session')).toHaveLength(30)
   })
 
+  it('records which branch each branch forked from and merged into', () => {
+    const s = setup()
+    const topic = branch('r', 'refs/heads/topic', { tipOid: 'X' })
+    const l = layoutRepository(s.r, { ...s, branches: [...s.branches, topic], annotations: new Map() })
+    const byLabel = (label: string) => l.rows.find((r) => r.kind === 'branch' && r.label === label) as import('./layout').BranchRow
+    expect(byLabel('feature').forkedFrom).toBe('main')
+    expect(byLabel('old').pointsAt).toBe('main') // tip A is a main commit; no commits of its own
+    expect(byLabel('feature').pointsAt).toBeUndefined()
+    expect(byLabel('topic')).toMatchObject({ forkedFrom: 'main', mergedInto: ['main'] })
+    expect(l.commits.get('X')!.rowId).toBe('branch:r|refs/heads/topic')
+  })
+
   it('orders agents newest-first by start time regardless of arrival order', () => {
     const s = setup()
     const old = session('codex:old', { worktreeId: 'wt_main', repoId: 'r', firstSeenAt: '2026-10-01T00:00:00Z' })

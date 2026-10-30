@@ -17,38 +17,50 @@ Only the panels scroll; the page itself never does. Panel widths, filters, toggl
 ## Reading a repository
 
 ```text
-repo-a  C:\src\repo-a                                    3 need attention · 8 agents
-            Oct 25        Oct 27        Oct 29
-main            ●───────────────────────────────◇        branch row: commits on a timeline
-  Codex  Add rename detection test   Needs input  ▮      agent cards under their branch
-  Claude Tighten status parser       Needs input  ▮
-feature/tracked  ╰──○                                    forked from main; ○ = local only
-  Claude Claude session c3d2e4f6     Working     ▬
-    ↳ Explore Map the feature module Needs input  ▮      spawned agent, linked to its parent
+COMMITS IN ORDER →       Oct 25        Oct 26        Oct 27   now
+repo-a
+main                     ●─────────────────────────────────◇    branch row: commits in order
+ › C Tighten status parser          Needs input           ▮    one line per agent
+ › X Review ref grouping            Needs review          ▮
+feature/tracked from main   ╰──○                                forked from main; ○ = not pushed
+ › C Claude session c3d2e4f6        Working               ▬
+   └ › C Map the feature module     Needs input           ▮    spawned by the agent above
+unicode-branch at main   ┊○                                     no commits of its own: points at a main commit
 ```
 
+Click **Legend** in the filter bar for the meaning of every mark.
+
 - **One row per branch.** Local branches come first (the primary checkout's branch at the top, then other checked-out branches, then the rest by newest commit), then detached worktrees, *Unassigned sessions*, and — if *Remote-only branches* is ticked — remote refs without a local branch. The *Branches* menu shows all, only checked-out ones, or only branches with agents.
-- **Commits are nodes, parent links are edges**, placed by commit time. A commit sits on the row of the first branch that reaches it along first parents, so a fork appears as a curve from the parent branch's row and a merge as a curve back into it. The branch name is drawn at its head.
-- **Node styles:** filled = on a remote-tracking ref (pushed); hollow amber with dashed edges = only local, not pushed; grey dashed = on the upstream but not pulled yet; the dashed **diamond** after a head = uncommitted or untracked changes in that branch's worktree (red when there are conflicts). Hover a node for the commit id, subject and date.
-- The label column shows the worktree(s), operations in progress (merge, rebase, …), `↑ahead ↓behind` against the **configured** upstream, `upstream gone`, `local only` or `remote only`. Remote refs reflect your last fetch — repobs never fetches. Only the most recent 400 commits per repository are drawn.
-- **Timeline** sets the visible period (24 hours to all). The dotted vertical line is *now*.
+- **Relationships are spelled out.** The label says *from main* when a branch's first own commit was made on top of `main`, *→ main* when it was merged into `main`, and *at main* when it has no commits of its own and points at a commit on `main`. On the lanes, forks and merges are curves between rows and "at" branches get a dashed pointer to the commit they sit on.
+- **Commits are nodes, parent links are edges.** A commit sits on the row of the first branch that reaches it along first parents; commits reached only through merges of deleted branches are drawn on the merging row.
+- **Node styles:** filled = on a remote-tracking ref (pushed); hollow amber with dashed edges = only local, not pushed; grey dashed = on the upstream but not pulled yet; hollow blue = a branch pointer; the dashed **diamond** after a head = uncommitted or untracked changes in that branch's worktree (red when conflicted). A small square above a head marks an open pull request (when the GitHub integration is on).
+- **Hover** any commit for its subject, id, date, branch and push state; any branch label or pointer for its upstream, relations and worktree; any diamond for the change counts; any agent row or bar for the agent's details.
 
-## Agent cards
+### The shared axis
 
-Each Claude Code or Codex session is a card under the branch whose worktree it ran in, newest first, with a bar on the timeline from its first to its last activity. A card shows:
+All repositories share one horizontal axis, labelled at the top; scroll sideways to go back through history (the view opens at the newest end).
 
-- provider, title (provider title, your alias, or a fallback such as *Claude session 1a2b3c4d*) and the age of its last activity;
-- **workflow status** — *Needs input*, *Working*, *Needs review*, *Ready*, *Complete* or *Unknown* — plus the observed execution state with its confidence (see [Status semantics](status-semantics.md));
-- the **latest message excerpt**: the agent's last reply, or the tool it is running with the tool's own description (for example *Bash: Run the unit tests*). It is read mechanically from the provider's file, truncated, with obvious secrets redacted, and never stored; Settings → Privacy turns it off;
-- spawned agents (Claude Code subagents, Codex sub-threads) as indented cards linked to their parent; **Hide spawned agents** removes them;
-- a **review dropdown** to set your review state without opening anything;
-- with **Show notes & tags**: your alias, tags, full notes (line breaks preserved) and checklist progress.
+- **Axis → Commit order** (default): commits from every visible repository are evenly spaced in the order they were made; dates are labels, not distances. Agent bars sit between the commits made around the same time.
+- **Axis → Calendar time**: distances are proportional to elapsed time.
+- **History** limits how far back the axis goes (24 hours … 1 year, or everything loaded — the newest 400 commits per repository).
 
-Long lists show the 12 newest agents per branch and a *Show N more agents* row.
+## Agents
+
+Each Claude Code or Codex session is **one line** under the branch whose worktree it ran in, newest first: an expand chevron, a provider mark (**C** = Claude Code, **X** = Codex), the name (your alias if you set one, else the provider title or a fallback such as *Claude session 1a2b3c4d*) and its **workflow status** — *Needs input*, *Working*, *Needs review*, *Ready*, *Complete* or *Unknown* (see [Status semantics](status-semantics.md)). Its bar on the lanes runs from its first to its last activity, coloured by that status.
+
+Everything else is collapsed:
+
+- **Hover** the row or its bar for the observed state and why, last activity, the **latest message excerpt** (the agent's last reply, or the tool it is running with the tool's own description), review state, tags, notes and checklist progress.
+- **Expand** one agent with its chevron (or → on the keyboard; ← collapses), or all agents with **Expand agent details**. The expanded block shows the state, the excerpt, a review dropdown, tags and full notes (line breaks kept).
+- **Select** it (click its name, or Enter) to open it in the details panel.
+
+Excerpts are read mechanically from the provider's files, truncated, with obvious secrets redacted, and never stored; Settings → Privacy turns them off.
+
+Spawned agents (Claude Code subagents, Codex sub-threads) are indented under the agent that started them with a tree connector, and linked to it on the lanes; **Hide spawned agents** removes them. Long lists show the 12 newest agents per branch and a *Show N more agents* row.
 
 ## Your notes
 
-Select a card (click its title, or use the keyboard) to open it in the details panel:
+Select an agent (click its name, or use the keyboard) to open it in the details panel:
 
 - **Review state** dropdown: Unreviewed, Needs review, Reviewed, Complete, Flagged.
 - **Display alias**.
@@ -75,8 +87,8 @@ Everything saves automatically to the local repobs database. Notes belong to the
 | --- | --- |
 | Tab to the dashboard, then ↓ | Focus the first row |
 | ↑ / ↓, Home / End | Move between branch and agent rows across repositories |
+| → / ← | Expand / collapse the focused agent |
 | Enter or Space | Select the row (opens it in the details panel) |
-| Tab inside a card | Reach its review dropdown |
 | Esc | Close dialogs and suggestion lists |
 | ← / → on a panel divider | Resize the panel |
 

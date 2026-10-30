@@ -186,3 +186,60 @@
 .link:hover {
   text-decoration: underline;
 }
+
+.scroller {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  outline: none;
+  position: relative;
+}
+.scroller:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+.canvas {
+  min-width: 100%;
+  position: relative;
+}
+.axis {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  display: flex;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+.axisLabel {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.tick {
+  stroke: var(--color-border-interactive);
+}
+.tickLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--color-text-muted);
+}
+.stickyNote {
+  position: sticky;
+  left: 0;
+  margin: 0;
+  padding: var(--space-3);
+}
+.orphans {
+  border-bottom: 1px solid var(--color-border);
+}

@@ -22,7 +22,10 @@ test('dashboard screenshot for the documentation', async ({ page }) => {
   // Collapse the bulk-session repository so the screenshot shows the interesting one.
   await page.getByRole('button', { name: 'Collapse repo-b' }).click()
   const card = page.getByRole('listitem', { name: /^Review ref grouping/ })
+  await card.getByRole('button', { name: /^Expand / }).click()
   await card.getByLabel(/Review state for/).selectOption('flagged')
+  await card.getByRole('button', { name: /^Collapse / }).click()
+  await page.getByRole('button', { name: 'Legend' }).click()
   await page.getByRole('listitem', { name: /^Tighten status parser/ }).getByText('Tighten status parser', { exact: true }).click()
   await expect(page.getByRole('complementary', { name: 'Details panel' }).getByLabel('Review state')).toBeVisible()
   await page.mouse.move(0, 0)

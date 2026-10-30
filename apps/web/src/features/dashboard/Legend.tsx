@@ -1,0 +1,60 @@
+import styles from './legend.module.css'
+
+// What the graph marks mean. Shapes and line styles carry the meaning; colours repeat it.
+
+export function Legend({ axisMode }: { axisMode: 'sequence' | 'time' }) {
+  return (
+    <div className={styles.legend} role="region" aria-label="Legend">
+      <Item label="Commit on a remote branch (pushed)">
+        <circle cx="10" cy="8" r="4" className={styles.pushed} />
+      </Item>
+      <Item label="Local only, not pushed">
+        <line x1="0" y1="8" x2="6" y2="8" className={styles.edgeLocal} />
+        <circle cx="11" cy="8" r="4" className={styles.local} />
+      </Item>
+      <Item label="On the upstream, not pulled">
+        <circle cx="10" cy="8" r="4" className={styles.incoming} />
+      </Item>
+      <Item label="Branch head">
+        <circle cx="10" cy="8" r="5" className={styles.pushed} />
+      </Item>
+      <Item label="Uncommitted changes (red: conflicts)">
+        <rect x="5" y="3" width="9" height="9" transform="rotate(45 9.5 7.5)" className={styles.pending} />
+      </Item>
+      <Item label="Branched from / merged into another branch">
+        <path d="M1,13 C8,13 8,3 18,3" className={styles.fork} fill="none" />
+      </Item>
+      <Item label="Branch with no commits of its own, pointing at a commit on another branch">
+        <path d="M1,3 C7,3 7,12 13,12" className={styles.fork} fill="none" strokeDasharray="2 2" />
+        <circle cx="16" cy="12" r="3" className={styles.local} style={{ stroke: 'var(--color-accent)' }} />
+      </Item>
+      <Item label="Agent activity, first to last message (colour = status)">
+        <rect x="1" y="5" width="7" height="6" className={styles.barWorking} />
+        <rect x="11" y="5" width="7" height="6" className={styles.barAttention} />
+      </Item>
+      <Item label="Spawned by the agent above">
+        <path d="M4,0 V9 H12" className={styles.spawn} fill="none" />
+      </Item>
+      <Item label="Now">
+        <line x1="10" y1="0" x2="10" y2="16" className={styles.now} />
+      </Item>
+      <p className={styles.note}>
+        {axisMode === 'sequence'
+          ? 'Axis: commits in order, evenly spaced (dates are labels, not distances). Agent bars sit between the commits made around the same time.'
+          : 'Axis: calendar time. Distances are proportional to elapsed time.'}{' '}
+        Status colours: blue = working, amber = needs input or review, green = ready, grey = complete or unknown. Hover any node, bar or row for details.
+      </p>
+    </div>
+  )
+}
+
+function Item({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <span className={styles.item}>
+      <svg width="20" height="16" aria-hidden="true">
+        {children}
+      </svg>
+      {label}
+    </span>
+  )
+}

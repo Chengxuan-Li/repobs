@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Activity, Moon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Settings as SettingsIcon, Sun, SunMoon } from 'lucide-react'
 import {
   type AgentSession,
@@ -12,20 +12,18 @@ import {
   workflowStatus,
 } from '@repobs/contracts'
 import { Dialog, EmptyState, InlineAlert, useNow } from '../components/primitives'
+import { Dashboard } from '../features/dashboard/Dashboard'
 import { BranchDetails, SessionDetails } from '../features/dashboard/DetailsPanel'
-import { FilterBar } from '../features/dashboard/FilterBar'
 import { knownTags as collectTags, sessionMatches } from '../features/dashboard/filters'
-import { type BranchRow, type LayoutOptions, repositoryLastActivity } from '../features/dashboard/layout'
-import { RepoBoard, type TimeDomain } from '../features/dashboard/RepoBoard'
+import { type BranchRow, type LayoutOptions, layoutRepository, type RepoLayout, repositoryLastActivity } from '../features/dashboard/layout'
 import { RepoListPanel, type RepoSummary } from '../features/dashboard/RepoListPanel'
-import { SessionCard } from '../features/dashboard/SessionCard'
 import { AddRepositoryDialog } from '../features/settings/AddRepositoryDialog'
 import { DiagnosticsPanel } from '../features/settings/DiagnosticsPanel'
 import { SettingsPanel } from '../features/settings/SettingsPanel'
 import { api, ApiError } from './api'
 import type { Connection } from './store'
 import { applyTheme } from './theme'
-import { clamp, RANGE_MS, type RepoSort, useViewState } from './viewState'
+import { clamp, type RepoSort, useViewState } from './viewState'
 import styles from './shell.module.css'
 
 // Workbench (ADR 0003): one primary working panel — the repository dashboard — plus optional
@@ -38,7 +36,6 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
   const [confirmRemove, setConfirmRemove] = useState<Repository | undefined>()
   const [theme, setTheme] = useState<ThemePreference>(() => (localStorage.getItem('repobs.theme') as ThemePreference | null) ?? 'system')
   const [notice, setNotice] = useState<string>()
-  const boardsRef = useRef<HTMLDivElement>(null)
   const now = useNow(30_000)
 
   useEffect(() => {
@@ -79,7 +76,6 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
   }, [snapshot, annotations, view.repoSort])
 
   const hidden = useMemo(() => new Set(view.hiddenRepos), [view.hiddenRepos])
-  const collapsed = useMemo(() => new Set(view.collapsedRepos), [view.collapsedRepos])
   const layoutOptions: LayoutOptions = useMemo(
     () => ({
       branchMode: view.branchMode,
@@ -91,15 +87,28 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     [view.branchMode, view.showSpawned, view.showRemoteOnly, view.expandedBranches],
   )
 
-  const domain: TimeDomain = useMemo(() => {
-    const end = now + 60 * 60_000
-    if (view.timeRange !== 'all') return { start: now - RANGE_MS[view.timeRange], end }
-    const times = [
-      ...snapshot.commitGraphs.flatMap((g) => g.commits.map((c) => c.time * 1000)),
-      ...snapshot.sessions.map((s) => Date.parse(s.firstSeenAt ?? '') || now),
-    ]
-    return { start: Math.min(now - 86_400_000, ...times), end }
-  }, [now, view.timeRange, snapshot.commitGraphs, snapshot.sessions])
+  // Layouts are computed once here so the dashboard and the details panel agree (branch relations).
+  const layouts = useMemo(() => {
+    const m = new Map<string, RepoLayout>()
+    for (const { repo } of summaries) {
+      if (hidden.has(repo.id)) continue
+      m.set(
+        repo.id,
+        layoutRepository(
+          repo,
+          {
+            branches: snapshot.branches.filter((b) => b.repoId === repo.id),
+            worktrees: snapshot.worktrees.filter((w) => w.repoId === repo.id),
+            sessions: filtered.filter((s) => s.repoId === repo.id),
+            annotations,
+            graph: snapshot.commitGraphs.find((g) => g.repoId === repo.id),
+          },
+          layoutOptions,
+        ),
+      )
+    }
+    return m
+  }, [summaries, hidden, snapshot.branches, snapshot.worktrees, snapshot.commitGraphs, filtered, annotations, layoutOptions])
 
   const select = useCallback((id: string) => setView({ selectedId: id, rightOpen: true }), [setView])
 
@@ -142,32 +151,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     }
   }
 
-  // Keyboard: arrows move between rows across repositories; Enter/Space selects.
-  const onBoardsKeyDown = (e: React.KeyboardEvent) => {
-    const target = e.target as HTMLElement
-    if (['SELECT', 'INPUT', 'TEXTAREA', 'BUTTON'].includes(target.tagName) && target.closest('[data-nav-row]') !== target) {
-      if (!(target.tagName === 'BUTTON' && (e.key === 'ArrowDown' || e.key === 'ArrowUp'))) return
-    }
-    const rows = [...(boardsRef.current?.querySelectorAll<HTMLElement>('[data-nav-row]') ?? [])]
-    if (!rows.length) return
-    const current = rows.indexOf(target.closest<HTMLElement>('[data-nav-row]')!)
-    const focus = (i: number) => {
-      const el = rows[clamp(i, 0, rows.length - 1)]!
-      el.focus()
-      el.scrollIntoView({ block: 'nearest' })
-    }
-    if (e.key === 'ArrowDown') focus(current + 1)
-    else if (e.key === 'ArrowUp') focus(current < 0 ? 0 : current - 1)
-    else if (e.key === 'Home') focus(0)
-    else if (e.key === 'End') focus(rows.length - 1)
-    else if ((e.key === 'Enter' || e.key === ' ') && current >= 0) rows[current]!.click()
-    else return
-    e.preventDefault()
-  }
-
-  const selected = useMemo(() => resolveSelection(snapshot, view.selectedId), [snapshot, view.selectedId])
-  const visibleRepos = summaries.filter((s) => !hidden.has(s.repo.id))
-  const orphans = filtered.filter((s) => !s.repoId)
+  const selected = useMemo(() => resolveSelection(snapshot, layouts, view.selectedId), [snapshot, layouts, view.selectedId])
   const empty = snapshot.repositories.length === 0
   const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : SunMoon
 
@@ -285,38 +269,19 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
               </EmptyState>
             </div>
           ) : (
-            <>
-              <FilterBar view={view} setView={setView} knownTags={tags} shown={filtered.length} total={snapshot.sessions.length} />
-              <div ref={boardsRef} className={styles.boards} onKeyDown={onBoardsKeyDown} tabIndex={0} aria-label="Branches and agents. Use the arrow keys to move between rows, Enter to open one.">
-                {visibleRepos.length === 0 ? <p className="small muted" style={{ padding: 16 }}>All repositories are hidden. Tick them in the repositories panel.</p> : null}
-                {visibleRepos.map(({ repo }) => (
-                  <RepoBoard
-                    key={repo.id}
-                    repo={repo}
-                    branches={branchesOf(snapshot, repo.id)}
-                    worktrees={worktreesOf(snapshot, repo.id)}
-                    sessions={sessionsOf(filtered, repo.id)}
-                    totalSessions={snapshot.sessions.filter((s) => s.repoId === repo.id).length}
-                    annotations={annotations}
-                    graph={snapshot.commitGraphs.find((g) => g.repoId === repo.id)}
-                    options={layoutOptions}
-                    domain={domain}
-                    details={view.details}
-                    now={now}
-                    collapsed={collapsed.has(repo.id)}
-                    selectedId={view.selectedId}
-                    tabbableId={view.selectedId}
-                    onToggleCollapsed={() =>
-                      setView((v) => ({ collapsedRepos: v.collapsedRepos.includes(repo.id) ? v.collapsedRepos.filter((x) => x !== repo.id) : [...v.collapsedRepos, repo.id] }))
-                    }
-                    onSelect={select}
-                    onReview={(id, r) => void setReview(id, r)}
-                    onExpandBranch={(rowId) => setView((v) => ({ expandedBranches: [...v.expandedBranches, rowId] }))}
-                  />
-                ))}
-                {orphans.length ? <OrphanSessions sessions={orphans} annotations={annotations} details={view.details} now={now} onSelect={select} onReview={setReview} /> : null}
-              </div>
-            </>
+            <Dashboard
+              snapshot={snapshot}
+              filtered={filtered}
+              annotations={annotations}
+              layouts={layouts}
+              repos={summaries.filter((s) => !hidden.has(s.repo.id))}
+              tags={tags}
+              view={view}
+              setView={setView}
+              now={now}
+              onSelect={select}
+              onReview={(id, r) => void setReview(id, r)}
+            />
           )}
         </main>
 
@@ -401,95 +366,18 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
   )
 }
 
-const branchesOf = memoBy((s: Snapshot, repoId: string) => s.branches.filter((b) => b.repoId === repoId))
-const worktreesOf = memoBy((s: Snapshot, repoId: string) => s.worktrees.filter((w) => w.repoId === repoId))
-const sessionsOf = memoBy((sessions: AgentSession[], repoId: string) => sessions.filter((s) => s.repoId === repoId))
-
-/** Memoize per (source array/object, repoId) so boards receive stable props between renders. */
-function memoBy<S extends object, T>(fn: (source: S, repoId: string) => T[]) {
-  const cache = new WeakMap<S, Map<string, T[]>>()
-  return (source: S, repoId: string): T[] => {
-    let m = cache.get(source)
-    if (!m) {
-      m = new Map()
-      cache.set(source, m)
-    }
-    let v = m.get(repoId)
-    if (!v) {
-      v = fn(source, repoId)
-      m.set(repoId, v)
-    }
-    return v
-  }
-}
-
-function resolveSelection(snapshot: Snapshot, id: string | undefined): { session?: AgentSession; branch?: BranchRow } | undefined {
+/** The selected agent, or the selected branch row as laid out on the dashboard (with its relations). */
+function resolveSelection(snapshot: Snapshot, layouts: Map<string, RepoLayout>, id: string | undefined): { session?: AgentSession; branch?: BranchRow } | undefined {
   if (!id) return undefined
   if (id.startsWith('session:')) {
     const session = snapshot.sessions.find((s) => s.id === id.slice('session:'.length))
     return session ? { session } : undefined
   }
-  const pending = (w: { status: { state: string; staged: number; unstaged: number; untracked: number; conflicted: number } }) =>
-    w.status.state === 'ok' ? w.status.staged + w.status.unstaged + w.status.untracked + w.status.conflicted : 0
-  if (id.startsWith('branch:')) {
-    const branch = snapshot.branches.find((b) => b.id === id.slice('branch:'.length))
-    if (!branch) return undefined
-    const worktrees = snapshot.worktrees.filter((w) => branch.worktreeIds.includes(w.id))
-    return {
-      branch: {
-        kind: 'branch',
-        id,
-        label: branch.shortName,
-        branch,
-        worktrees,
-        detached: false,
-        remoteOnly: branch.classification === 'remote_only',
-        headOid: branch.tipOid,
-        pendingChanges: worktrees.reduce((n, w) => n + pending(w), 0),
-        conflicted: worktrees.reduce((n, w) => n + w.status.conflicted, 0),
-      },
-    }
-  }
-  if (id.startsWith('detached:')) {
-    const w = snapshot.worktrees.find((x) => x.id === id.slice('detached:'.length))
-    if (!w) return undefined
-    return {
-      branch: { kind: 'branch', id, label: `${w.displayName} (detached)`, worktrees: [w], detached: true, remoteOnly: false, headOid: w.headOid, pendingChanges: pending(w), conflicted: w.status.conflicted },
-    }
+  for (const layout of layouts.values()) {
+    const row = layout.rows.find((r): r is BranchRow => r.kind === 'branch' && r.id === id)
+    if (row) return { branch: row }
   }
   return undefined
-}
-
-function OrphanSessions({
-  sessions,
-  annotations,
-  details,
-  now,
-  onSelect,
-  onReview,
-}: {
-  sessions: AgentSession[]
-  annotations: Map<string, AnnotationSummary>
-  details: boolean
-  now: number
-  onSelect: (id: string) => void
-  onReview: (id: string, r: ReviewState) => Promise<void>
-}) {
-  return (
-    <section className={styles.orphans} aria-label="Sessions without a repository">
-      <div className="section-strip">
-        <span className="label">Sessions without a repository</span>
-        <span className="small muted">Annotated sessions whose repository is no longer registered</span>
-      </div>
-      <div role="list">
-        {sessions.map((s) => (
-          <div key={s.id} role="listitem" data-nav-row="" data-row-id={`session:${s.id}`} tabIndex={-1} className={styles.orphanRow} onClick={() => onSelect(`session:${s.id}`)}>
-            <SessionCard session={s} annotation={annotations.get(s.id)} depth={0} details={details} now={now} onReview={(r) => void onReview(s.id, r)} />
-          </div>
-        ))}
-      </div>
-    </section>
-  )
 }
 
 function GlobalStatusBar({

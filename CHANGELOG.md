@@ -6,11 +6,17 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Changed
 
+- Commits are spaced in commit order by default on one axis shared by all repositories, scrolling horizontally through all loaded history; calendar time is a toggle (ADR 0003 amendment).
+- Agents are one line (name or alias + status); details appear on hover, by expanding a row (chevron or →/←) or all rows, and in the details panel.
+- Spawned-agent tree connectors stay inside the label column and line up with their rows.
+
 - Workbench redesigned around one primary dashboard with optional repositories and details side panels (ADR 0003); the page no longer scrolls, only panels do.
 - Review state is a dropdown; tags autocomplete from existing tags; notes keep line breaks.
 
 ### Added
 
+- Branch relationships: *from X* (forked from), *→ X* (merged into) and *at X* (no own commits; dashed pointer to the commit it sits on).
+- A legend for every graph mark and colour; richer hover cards for commits, branches, uncommitted changes and agents.
 - Commit graph per repository on a timeline: one row per branch, fork/merge edges, pushed vs local-only vs not-pulled commits, uncommitted-changes markers (read-only `git log`, at most 400 commits).
 - Agent cards under their branch with workflow status, observed state, activity bars and an optional, truncated, redacted latest-message excerpt (in memory only; Settings → Privacy).
 - Spawned agents (Claude Code subagents, Codex sub-threads) as linked child sessions, with a toggle to hide them.

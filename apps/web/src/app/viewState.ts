@@ -2,11 +2,12 @@ import { useCallback, useState } from 'react'
 import { type WorkflowStatus } from '@repobs/contracts'
 import { DEFAULT_FILTERS, type DashboardFilters } from '../features/dashboard/filters'
 import type { BranchMode } from '../features/dashboard/layout'
+import type { AxisMode } from '../features/dashboard/timeline'
 
 // Per-browser view preferences (panels, filters, toggles, selection). Conveniences, not user data:
 // annotations and settings live on the server.
 
-export type TimeRange = '1d' | '7d' | '30d' | '90d' | 'all'
+export type TimeRange = '1d' | '7d' | '30d' | '90d' | '365d' | 'all'
 export type RepoSort = 'activity' | 'active' | 'name' | 'manual'
 
 export interface ViewState {
@@ -16,7 +17,11 @@ export interface ViewState {
   rightWidth: number
   selectedId?: string
   filters: DashboardFilters
+  /** Expand every agent row (otherwise rows are one line; expand individually). */
   details: boolean
+  expandedAgents: string[]
+  axisMode: AxisMode
+  legendOpen: boolean
   showSpawned: boolean
   branchMode: BranchMode
   showRemoteOnly: boolean
@@ -36,10 +41,13 @@ export const DEFAULT_VIEW: ViewState = {
   rightWidth: 360,
   filters: DEFAULT_FILTERS,
   details: false,
+  expandedAgents: [],
+  axisMode: 'sequence',
+  legendOpen: false,
   showSpawned: true,
   branchMode: 'all',
   showRemoteOnly: false,
-  timeRange: '7d',
+  timeRange: 'all',
   repoSort: 'activity',
   hiddenRepos: [],
   collapsedRepos: [],
@@ -63,6 +71,10 @@ export function loadView(): ViewState {
       hiddenRepos: Array.isArray(p.hiddenRepos) ? p.hiddenRepos : [],
       collapsedRepos: Array.isArray(p.collapsedRepos) ? p.collapsedRepos : [],
       expandedBranches: Array.isArray(p.expandedBranches) ? p.expandedBranches : [],
+      expandedAgents: Array.isArray(p.expandedAgents) ? p.expandedAgents : [],
+      axisMode: p.axisMode === 'time' ? 'time' : 'sequence',
+      // Views saved before the commit-order axis existed defaulted to a 7-day window.
+      timeRange: p.axisMode ? (p.timeRange ?? 'all') : 'all',
     }
   } catch {
     return DEFAULT_VIEW
@@ -94,4 +106,5 @@ export const RANGE_MS: Record<Exclude<TimeRange, 'all'>, number> = {
   '7d': 7 * 86_400_000,
   '30d': 30 * 86_400_000,
   '90d': 90 * 86_400_000,
+  '365d': 365 * 86_400_000,
 }

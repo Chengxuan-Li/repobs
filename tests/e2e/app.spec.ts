@@ -79,16 +79,60 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     expect(await svg.locator('circle[class*="pushed"]').count()).toBeGreaterThan(0)
     expect(await svg.locator('rect[class*="pending"]').count()).toBeGreaterThan(0)
     await expect(svg.locator('text', { hasText: 'feature/tracked' })).toBeAttached()
+    // Branch relationships are spelled out: forks, and branches pointing at another branch's commit.
+    await expect(row(page, /^feature\/tracked branch, branched from main/)).toContainText('from main')
+    await expect(row(page, /^unicode-branch branch, at main/)).toContainText('at main')
+    expect(await svg.locator('circle[class*="pointer"]').count()).toBeGreaterThan(0)
   })
 
-  test('agents are cards with excerpts; spawned agents can be hidden', async ({ page }) => {
+  test('the axis is shared, in commit order by default, and can switch to calendar time', async ({ page }) => {
+    await pair(page)
+    const axis = page.getByText('Commits in order →')
+    await expect(axis).toBeVisible()
+    // Every repository uses the same width (one shared axis).
+    const widths = await page.getByRole('region', { name: /repository$/ }).evaluateAll((els) => els.map((e) => (e as HTMLElement).style.width))
+    expect(new Set(widths).size).toBe(1)
+    await page.getByLabel('Axis').selectOption('time')
+    await expect(page.getByText('Calendar time →')).toBeVisible()
+    await page.getByLabel('Axis').selectOption('sequence')
+  })
+
+  test('hovering a commit shows its message; the legend explains the marks', async ({ page }) => {
+    await pair(page)
+    const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()
+    const node = svg.locator('circle[class*="local"]').first()
+    await node.scrollIntoViewIfNeeded()
+    const box = (await node.boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    const tip = page.getByRole('tooltip')
+    await expect(tip).toBeVisible()
+    await expect(tip).toContainText('Local only — not pushed')
+    await page.mouse.move(5, 5)
+    await page.getByRole('button', { name: 'Legend' }).click()
+    const legend = page.getByRole('region', { name: 'Legend' })
+    await expect(legend).toContainText('Local only, not pushed')
+    await expect(legend).toContainText('Agent activity')
+    await page.getByRole('button', { name: 'Hide legend' }).click()
+  })
+
+  test('agents are one line; details expand on demand or on hover; spawned agents can be hidden', async ({ page }) => {
     await pair(page)
     const parent = row(page, /^Claude session c3d2e4f6, Claude Code agent/)
-    await expect(parent).toContainText('Running subagents')
+    await expect(parent).toContainText('Working')
+    await expect(parent).not.toContainText('synthetic answer')
+    const box = (await parent.boundingBox())!
+    expect(box.height).toBeLessThanOrEqual(30)
+    // Hover card shows the details.
+    await parent.getByText('Claude session c3d2e4f6').hover()
+    await expect(page.getByRole('tooltip')).toContainText('synthetic answer')
+    // The chevron expands one agent.
+    await parent.getByRole('button', { name: /^Expand / }).click()
     await expect(parent).toContainText('synthetic answer')
+    await expect(parent).toContainText('Running subagents')
+    await parent.getByRole('button', { name: /^Collapse / }).click()
+    await expect(parent).not.toContainText('synthetic answer')
     const child = row(page, /^Map the feature module/)
-    await expect(child).toContainText('Explore')
-    await expect(child).toContainText('Bash')
+    await expect(child).toBeVisible()
     await page.getByLabel('Hide spawned agents').check()
     await expect(child).toBeHidden()
     await page.getByLabel('Hide spawned agents').uncheck()
@@ -119,6 +163,12 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await page.keyboard.press('ArrowDown')
     await expect(row(page, /^main branch/).first()).toBeFocused()
     await page.keyboard.press('ArrowDown')
+    const focused = page.locator('[data-nav-row]:focus')
+    await expect(focused).toHaveAttribute('aria-expanded', 'false')
+    await page.keyboard.press('ArrowRight')
+    await expect(focused).toHaveAttribute('aria-expanded', 'true')
+    await page.keyboard.press('ArrowLeft')
+    await expect(focused).toHaveAttribute('aria-expanded', 'false')
     await page.keyboard.press('Enter')
     await expect(details(page).getByRole('heading', { level: 2 })).toBeVisible()
     await expect(details(page).getByLabel('Review state')).toBeVisible()
@@ -155,7 +205,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(d.getByRole('checkbox', { name: 'Verify fixture coverage' })).toBeChecked()
 
     // Details mode shows notes (with the line break) and tags on the card; the tag filter narrows.
-    await page.getByLabel('Show notes & tags').check()
+    await page.getByLabel('Expand agent details').check()
     const card = row(page, /^Review ref grouping/)
     // innerText honours the card's pre-wrap styling, so the line break must survive rendering.
     expect(await card.locator('p', { hasText: 'Line one' }).evaluate((e) => (e as HTMLElement).innerText)).toBe('Line one\nLine two')
@@ -165,13 +215,14 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(row(page, /^Document worktree states/)).toBeHidden()
     await expect(row(page, /^Tighten status parser/)).toBeVisible()
     await page.getByRole('button', { name: 'Clear filters' }).click()
-    await page.getByLabel('Show notes & tags').uncheck()
+    await page.getByLabel('Expand agent details').uncheck()
   })
 
   test('the review dropdown on a card updates the workflow status', async ({ page }) => {
     await pair(page)
     const card = row(page, /^Document worktree states/)
     await expect(card).toContainText('Ready')
+    await card.getByRole('button', { name: /^Expand / }).click()
     await card.getByLabel(/Review state for/).selectOption('complete')
     await expect(card).not.toContainText('Ready')
   })
@@ -187,7 +238,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('external Git and agent changes appear without a browser refresh', async ({ page }) => {
     await pair(page)
-    await expect(row(page, /^unicode-branch branch$/)).toBeVisible()
+    await expect(row(page, /^unicode-branch branch, at main$/)).toBeVisible()
     fs.writeFileSync(path.join(state().git.worktrees.unicode, 'from-outside.txt'), 'x')
     await expect(row(page, /^unicode-branch branch, 1 uncommitted change/)).toBeVisible({ timeout: 15_000 })
 
@@ -215,6 +266,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('settings: turning off message excerpts removes them from cards', async ({ page }) => {
     await pair(page)
+    await page.getByLabel('Expand agent details').check()
     await expect(row(page, /^Document worktree states/)).toContainText('synthetic answer')
     await page.getByRole('button', { name: 'Settings' }).click()
     const settings = page.getByRole('dialog', { name: 'Settings' })
@@ -224,6 +276,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await page.getByRole('button', { name: 'Settings' }).click()
     await settings.getByLabel('Show latest message excerpts on agent cards').check()
     await settings.getByRole('button', { name: 'Save settings' }).click()
+    await page.getByLabel('Expand agent details').uncheck()
   })
 
   test('diagnostics report adapters without transcript text', async ({ page }) => {

@@ -22,6 +22,12 @@ export interface BranchRow {
   /** Sum of working-tree changes over this row's worktrees (staged + unstaged + untracked + conflicted). */
   pendingChanges: number
   conflicted: number
+  /** Branch whose commit this branch's first own commit was made on top of. */
+  forkedFrom?: string
+  /** Branches that merged this branch's commits. */
+  mergedInto: string[]
+  /** The head is a commit drawn on another branch's row (this branch has no commits of its own). */
+  pointsAt?: string
 }
 
 export interface SessionRow {
@@ -152,6 +158,7 @@ export function layoutRepository(
         headOid: b.tipOid || undefined,
         pendingChanges: wts.reduce((n, w) => n + pending(w), 0),
         conflicted: wts.reduce((n, w) => n + w.status.conflicted, 0),
+        mergedInto: [],
       },
       sessions: sessionsForWorktrees(new Set(b.worktreeIds)),
       upstreamTip: b.upstream && !b.upstream.gone && (b.upstream.behind ?? 0) > 0 ? remoteTips.get(b.upstream.fullRef) : undefined,
@@ -170,6 +177,7 @@ export function layoutRepository(
         headOid: w.headOid,
         pendingChanges: pending(w),
         conflicted: w.status.conflicted,
+        mergedInto: [],
       },
       sessions: sessionsForWorktrees(new Set([w.id])),
     })
@@ -177,13 +185,13 @@ export function layoutRepository(
   const unassigned = roots.filter((s) => !s.worktreeId)
   if (unassigned.length) {
     branchRows.push({
-      row: { kind: 'branch', id: `unassigned:${repo.id}`, label: 'Unassigned sessions', worktrees: [], detached: false, remoteOnly: false, unassigned: true, pendingChanges: 0, conflicted: 0 },
+      row: { kind: 'branch', id: `unassigned:${repo.id}`, label: 'Unassigned sessions', worktrees: [], detached: false, remoteOnly: false, unassigned: true, pendingChanges: 0, conflicted: 0, mergedInto: [] },
       sessions: unassigned,
     })
   }
   for (const b of remoteOnly) {
     branchRows.push({
-      row: { kind: 'branch', id: `branch:${b.id}`, label: b.shortName, branch: b, worktrees: [], detached: false, remoteOnly: true, headOid: b.tipOid, pendingChanges: 0, conflicted: 0 },
+      row: { kind: 'branch', id: `branch:${b.id}`, label: b.shortName, branch: b, worktrees: [], detached: false, remoteOnly: true, headOid: b.tipOid, pendingChanges: 0, conflicted: 0, mergedInto: [] },
       sessions: [],
     })
   }
@@ -222,6 +230,21 @@ export function layoutRepository(
       if (!parent) return
       edges.push({ from: p, to: commit.oid, kind: parent.rowId === rowId ? 'lane' : i === 0 ? 'fork' : 'merge', localOnly: !commit.pushed })
     })
+  }
+
+  // Branch relationships for the label column: where each branch forked from, where it merged into,
+  // and — for branches without commits of their own — which branch's commit they point at.
+  const rowById = new Map(branchRows.map(({ row }) => [row.id, row]))
+  for (const { row } of branchRows) {
+    const owner = row.headOid ? commits.get(row.headOid)?.rowId : undefined
+    if (owner && owner !== row.id) row.pointsAt = rowById.get(owner)?.label
+  }
+  for (const e of edges) {
+    const from = rowById.get(commits.get(e.from)!.rowId)
+    const to = rowById.get(commits.get(e.to)!.rowId)
+    if (!from || !to || from === to) continue
+    if (e.kind === 'fork' && !to.forkedFrom) to.forkedFrom = from.label
+    if (e.kind === 'merge' && !from.mergedInto.includes(to.label)) from.mergedInto.push(to.label)
   }
 
   // Rows: optionally drop branches without agents / worktrees, then interleave session rows.

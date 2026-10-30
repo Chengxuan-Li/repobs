@@ -4,6 +4,7 @@ import type { RepoSort, TimeRange, ViewState } from '../../app/viewState'
 import { TagInput } from '../annotations/TagInput'
 import { DEFAULT_FILTERS, filtersActive, LAST_MESSAGE_OPTIONS } from './filters'
 import type { BranchMode } from './layout'
+import type { AxisMode } from './timeline'
 import styles from './dashboard.module.css'
 
 const STATUSES: WorkflowStatus[] = ['needs_input', 'working', 'needs_review', 'ready', 'complete', 'unknown']
@@ -80,7 +81,7 @@ export function FilterBar({
         </fieldset>
         <span className={styles.spacer} />
         <label className={styles.chip}>
-          <input type="checkbox" checked={view.details} onChange={(e) => setView({ details: e.target.checked })} /> Show notes &amp; tags
+          <input type="checkbox" checked={view.details} onChange={(e) => setView({ details: e.target.checked })} /> Expand agent details
         </label>
         <label className={styles.chip}>
           <input type="checkbox" checked={!view.showSpawned} onChange={(e) => setView({ showSpawned: !e.target.checked })} /> Hide spawned agents
@@ -97,13 +98,21 @@ export function FilterBar({
           </select>
         </label>
         <label className={styles.inline}>
-          <span className="label">Timeline</span>
+          <span className="label">Axis</span>
+          <select className="input" value={view.axisMode} onChange={(e) => setView({ axisMode: e.target.value as AxisMode })}>
+            <option value="sequence">Commit order</option>
+            <option value="time">Calendar time</option>
+          </select>
+        </label>
+        <label className={styles.inline}>
+          <span className="label">History</span>
           <select className="input" value={view.timeRange} onChange={(e) => setView({ timeRange: e.target.value as TimeRange })}>
             <option value="1d">24 hours</option>
             <option value="7d">7 days</option>
             <option value="30d">30 days</option>
             <option value="90d">90 days</option>
-            <option value="all">All</option>
+            <option value="365d">1 year</option>
+            <option value="all">All loaded</option>
           </select>
         </label>
         <label className={styles.inline}>
@@ -115,6 +124,9 @@ export function FilterBar({
             <option value="manual">Manual order</option>
           </select>
         </label>
+        <button type="button" className="btn btn-quiet" aria-pressed={view.legendOpen} onClick={() => setView({ legendOpen: !view.legendOpen })}>
+          {view.legendOpen ? 'Hide legend' : 'Legend'}
+        </button>
       </div>
     </div>
   )

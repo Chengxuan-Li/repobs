@@ -15,7 +15,14 @@
 
 ## Consequences
 
-- The Git allowlist gains exactly one read-only command: `git log` with a fixed NUL-separated format, `--topo-order`, a bounded `--max-count`, `--branches`, `--remotes` and explicit commit ids for detached heads. It is tested like the other commands and never writes.
+- The Git allowlist gains exactly one read-only command: `git log -z` with a fixed format, a bounded `--max-count`, `--branches`, `--remotes` and explicit commit ids for detached heads. It is tested like the other commands and never writes.
 - Commit subjects become visible in the UI (tooltips). They are local repository data, shown only to the paired browser.
 - Session ids for Claude subagents take the form `claude:<session-id>__agent-<agent-id>`; their annotations are independent of the parent's.
 - The keyboard model moves from a tree to a list of focusable rows with arrow-key navigation.
+
+## Amendment (owner feedback, 2026-10-30, second review)
+
+- **Commit-order axis by default.** Commits are evenly spaced in time order rather than placed by calendar time; calendar time remains available as a toggle. The axis is shared by all repositories and scrolls horizontally back through all loaded history (the default range is everything loaded, not the last week).
+- **One line per agent.** Rows show only the name (or alias) and workflow status; details are in a hover card, an expandable block (per agent, or all at once) and the details panel.
+- **Visible branch relationships.** Labels and lanes show where a branch forked from, where it was merged into, and which branch's commit a branch without its own commits points at.
+- **A legend** explains every graph mark and colour.
