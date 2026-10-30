@@ -11,134 +11,185 @@ const state = () => readE2EState(port)
 
 async function pair(page: Page) {
   await page.goto(`/#pair=${mintPairingToken(state().dataDir) as string}`)
-  await expect(page.getByRole('button', { name: 'Add repository' }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add repositories' }).first()).toBeVisible()
 }
 
-const tree = (page: Page) => page.getByRole('tree')
-const item = (page: Page, name: string | RegExp) => tree(page).getByRole('treeitem', { name })
+const board = (page: Page, repo: string) => page.getByRole('region', { name: `${repo} repository` })
+const row = (page: Page, name: string | RegExp) => page.getByRole('listitem', { name })
+const details = (page: Page) => page.getByRole('complementary', { name: 'Details panel' })
+/** Click a card by its title (the row centre can be the card's own review dropdown). */
+const openCard = (page: Page, title: string) => row(page, new RegExp('^' + title)).getByText(title, { exact: true }).click()
 
-test.describe.serial('repobs workbench (synthetic data)', () => {
+test.describe.serial('repobs dashboard (synthetic data)', () => {
   test('an unpaired browser gets instructions, not data', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'This browser is not paired with repobs' })).toBeVisible()
-    const res = await page.request.get('/api/v1/snapshot')
-    expect(res.status()).toBe(401)
+    expect((await page.request.get('/api/v1/snapshot')).status()).toBe(401)
   })
 
-  test('first launch shows a real empty state; registering repositories fills the tree', async ({ page }) => {
+  test('first launch: empty state, then several repositories added at once from session candidates', async ({ page }) => {
     await pair(page)
     await expect(page.getByRole('heading', { name: /Observe your Git worktrees/ })).toBeVisible()
-    await expect(page.getByText('0 repos')).toBeVisible()
-
-    for (const repoPath of [state().git.worktrees.feature, state().git.repoB]) {
-      await page.getByRole('button', { name: 'Add repository' }).first().click()
-      const dialog = page.getByRole('dialog', { name: 'Add repository' })
-      await dialog.getByLabel('Local repository path').fill(repoPath)
-      await dialog.getByRole('button', { name: 'Add repository' }).click()
-      await expect(dialog).toBeHidden()
-    }
-    await expect(item(page, 'repo-a repository')).toBeVisible()
-    await expect(item(page, 'repo-b repository')).toBeVisible()
-    await expect(item(page, /^main branch/).first()).toBeVisible()
-    await expect(item(page, /Tighten status parser/)).toBeVisible()
-    await expect(item(page, /Review ref grouping/)).toBeVisible()
-    await expect(tree(page).getByRole('treeitem', { name: /^conflict worktree/ })).toContainText('merge')
+    await page.getByRole('button', { name: 'Add repositories' }).first().click()
+    const dialog = page.getByRole('dialog', { name: 'Add repositories' })
+    const list = dialog.getByRole('list', { name: 'Repositories to add' })
+    await expect(list.getByRole('checkbox')).toHaveCount(2)
+    await dialog.getByLabel('Select all').check()
+    await dialog.getByRole('button', { name: 'Add 2 repositories' }).click()
+    await expect(dialog).toBeHidden()
+    await expect(board(page, 'repo-a')).toBeVisible()
+    await expect(board(page, 'repo-b')).toBeVisible()
     await expect(page.getByText('2 repos')).toBeVisible()
   })
 
-  test('duplicate and invalid registrations are explained', async ({ page }) => {
+  test('invalid and duplicate paths are reported per path', async ({ page }) => {
     await pair(page)
-    await page.getByRole('button', { name: 'Add repository' }).first().click()
-    const dialog = page.getByRole('dialog', { name: 'Add repository' })
-    await dialog.getByLabel('Local repository path').fill(state().git.repoA)
-    await dialog.getByRole('button', { name: 'Add repository' }).click()
+    await page.getByRole('button', { name: 'Add repositories' }).first().click()
+    const dialog = page.getByRole('dialog', { name: 'Add repositories' })
+    for (const p of [state().git.repoA, path.join(state().root, 'nowhere')]) {
+      await dialog.getByLabel('Local repository path').fill(p)
+      await dialog.getByRole('button', { name: 'Add to list' }).click()
+    }
+    await dialog.getByRole('button', { name: 'Add 2 repositories' }).click()
     await expect(dialog.getByRole('alert')).toContainText('already registered')
-    await dialog.getByLabel('Local repository path').fill(path.join(state().root, 'nowhere'))
-    await dialog.getByRole('button', { name: 'Add repository' }).click()
     await expect(dialog.getByRole('alert')).toContainText('does not exist')
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
   })
 
-  test('the tree is fully keyboard operable', async ({ page }) => {
+  test('the page itself never scrolls; only panels do', async ({ page }) => {
     await pair(page)
-    const first = item(page, 'repo-a repository')
-    await first.click()
-    await expect(page.getByRole('heading', { level: 1, name: 'repo-a' })).toBeVisible()
-    await page.keyboard.press('ArrowDown') // main
-    await page.keyboard.press('ArrowDown') // primary worktree
+    await page.mouse.move(700, 500)
+    await page.mouse.wheel(0, 3000)
+    const metrics = await page.evaluate(() => ({
+      scrollY: window.scrollY,
+      overflow: document.scrollingElement!.scrollHeight - document.scrollingElement!.clientHeight,
+    }))
+    expect(metrics).toEqual({ scrollY: 0, overflow: 0 })
+  })
+
+  test('branches are drawn as a commit graph with local-only commits and pending changes', async ({ page }) => {
+    await pair(page)
+    const a = board(page, 'repo-a')
+    await expect(row(page, /^main branch, \d+ uncommitted changes/)).toBeVisible()
+    await expect(row(page, /^feature\/tracked branch/)).toBeVisible()
+    const svg = a.locator('svg[aria-hidden="true"]').last()
+    await expect(svg.locator('circle').first()).toBeAttached()
+    expect(await svg.locator('circle[class*="local"]').count()).toBeGreaterThan(0)
+    expect(await svg.locator('circle[class*="pushed"]').count()).toBeGreaterThan(0)
+    expect(await svg.locator('rect[class*="pending"]').count()).toBeGreaterThan(0)
+    await expect(svg.locator('text', { hasText: 'feature/tracked' })).toBeAttached()
+  })
+
+  test('agents are cards with excerpts; spawned agents can be hidden', async ({ page }) => {
+    await pair(page)
+    const parent = row(page, /^Claude session c3d2e4f6, Claude Code agent/)
+    await expect(parent).toContainText('Running subagents')
+    await expect(parent).toContainText('synthetic answer')
+    const child = row(page, /^Map the feature module/)
+    await expect(child).toContainText('Explore')
+    await expect(child).toContainText('Bash')
+    await page.getByLabel('Hide spawned agents').check()
+    await expect(child).toBeHidden()
+    await page.getByLabel('Hide spawned agents').uncheck()
+    await expect(child).toBeVisible()
+  })
+
+  test('filters by harness, status and last-message time', async ({ page }) => {
+    await pair(page)
+    await expect(row(page, /^Add rename detection test/)).toBeVisible()
+    await page.getByLabel('Codex', { exact: true }).uncheck()
+    await expect(row(page, /^Add rename detection test/)).toBeHidden()
+    await expect(row(page, /^Tighten status parser/)).toBeVisible()
+    await page.getByLabel('Codex', { exact: true }).check()
+    await page.getByRole('button', { name: 'Needs input', exact: true }).click()
+    await expect(row(page, /^Add rename detection test/)).toBeVisible()
+    await expect(row(page, /^Document worktree states/)).toBeHidden()
+    await page.getByRole('button', { name: 'Needs input', exact: true }).click()
+    await page.getByLabel('Last message').selectOption({ label: 'Last 24 hours' })
+    await expect(row(page, /^Resolve merge plan/)).toBeHidden()
+    await expect(row(page, /^Document worktree states/)).toBeVisible()
+    await page.getByRole('button', { name: 'Clear filters' }).click()
+    await expect(row(page, /^Resolve merge plan/)).toBeVisible()
+  })
+
+  test('keyboard: arrows move between rows, Enter opens details', async ({ page }) => {
+    await pair(page)
+    await page.getByLabel(/^Branches and agents\. Use the arrow keys/).focus()
+    await page.keyboard.press('ArrowDown')
+    await expect(row(page, /^main branch/).first()).toBeFocused()
+    await page.keyboard.press('ArrowDown')
     await page.keyboard.press('Enter')
-    await expect(page.getByRole('heading', { level: 1, name: 'repo-a' })).toBeVisible()
-    await expect(page.getByText('Primary worktree')).toBeVisible()
-    await page.keyboard.press('ArrowLeft') // collapse the worktree
-    await expect(item(page, /Tighten status parser/)).toBeHidden()
-    await page.keyboard.press('ArrowRight') // expand again
-    await expect(item(page, /Tighten status parser/)).toBeVisible()
-    await page.keyboard.press('Shift+F10')
-    const menu = page.getByRole('menu')
-    await expect(menu.getByRole('menuitem', { name: 'Copy worktree path' })).toBeFocused()
-    await page.keyboard.press('Escape')
-    await expect(menu).toBeHidden()
-    await page.keyboard.press('Home')
-    await expect(first).toBeFocused()
+    await expect(details(page).getByRole('heading', { level: 2 })).toBeVisible()
+    await expect(details(page).getByLabel('Review state')).toBeVisible()
   })
 
-  test('long session lists are virtualized and still navigable', async ({ page }) => {
+  test('notes: review dropdown, tag autocomplete, multi-line notes, checklist collapse, persistence', async ({ page }) => {
     await pair(page)
-    const total = await page.evaluate(async () => (await (await fetch('/api/v1/snapshot')).json()).sessions.length)
-    expect(total).toBeGreaterThan(350)
-    const rendered = await tree(page).getByRole('treeitem').count()
-    expect(rendered).toBeLessThan(total)
-    await item(page, 'repo-a repository').focus()
-    await page.keyboard.press('End')
-    await expect(tree(page).getByRole('treeitem').last()).toBeFocused()
-  })
+    await openCard(page, 'Review ref grouping')
+    const d = details(page)
+    await d.getByLabel('Review state').selectOption('flagged')
+    await d.getByRole('combobox', { name: 'Tags' }).fill('needs-tests')
+    await d.getByRole('combobox', { name: 'Tags' }).press('Enter')
+    await d.getByLabel('Notes').fill('Line one\nLine two')
+    await d.getByLabel('New checklist item').fill('Verify fixture coverage')
+    await d.getByLabel('New checklist item').press('Enter')
+    await expect(d.getByText(/^Saved /)).toBeVisible()
+    await d.getByRole('checkbox', { name: 'Verify fixture coverage' }).click() // collapses on completion
+    await expect(d.getByText('All 1 checklist item complete')).toBeVisible()
+    await expect(d.getByText(/^Saved /)).toBeVisible()
 
-  test('session status shows evidence; annotations save, collapse when done, and survive reload', async ({ page }) => {
-    await pair(page)
-    await item(page, /Review ref grouping/).click()
-    await expect(page.getByRole('heading', { level: 1, name: 'Review ref grouping' })).toBeVisible()
-    await expect(page.getByText('Inferred from local session records')).toBeVisible()
-
-    const notes = page.getByRole('complementary', { name: 'Inspector' })
-    await notes.getByRole('radio', { name: 'Flagged' }).click()
-    await notes.getByLabel('Tags').fill('needs-tests')
-    await notes.getByLabel('Tags').press('Enter')
-    await notes.getByLabel('Scratch note').fill('<img src=x onerror=alert(1)> check this literally')
-    await notes.getByLabel('New checklist item').fill('Verify fixture coverage')
-    await notes.getByLabel('New checklist item').press('Enter')
-    await expect(notes.getByText(/^Saved /)).toBeVisible()
-    await notes.getByRole('checkbox', { name: 'Verify fixture coverage' }).click() // collapses on completion
-    await expect(notes.getByText('All 1 checklist item complete')).toBeVisible()
-    await expect(notes.getByRole('checkbox', { name: 'Verify fixture coverage' })).toBeHidden()
-    await expect(notes.getByText(/^Saved /)).toBeVisible()
+    // Another session: typing a prefix and Tab completes the existing tag.
+    await openCard(page, 'Tighten status parser')
+    await d.getByRole('combobox', { name: 'Tags' }).fill('need')
+    await expect(d.getByRole('option', { name: 'needs-tests' })).toBeVisible()
+    await d.getByRole('combobox', { name: 'Tags' }).press('Tab')
+    await expect(d.getByRole('button', { name: 'Remove tag needs-tests' })).toBeVisible()
+    await expect(d.getByText(/^Saved /)).toBeVisible()
 
     await page.reload()
-    await expect(notes.getByLabel('Scratch note')).toHaveValue('<img src=x onerror=alert(1)> check this literally')
-    await expect(notes.getByRole('radio', { name: 'Flagged' })).toHaveAttribute('aria-checked', 'true')
-    await notes.getByRole('button', { name: 'Show completed' }).click()
-    await expect(notes.getByRole('checkbox', { name: 'Verify fixture coverage' })).toBeChecked()
-    await expect(item(page, /Review ref grouping/)).toContainText('Flagged')
+    await openCard(page, 'Review ref grouping')
+    await expect(d.getByLabel('Notes')).toHaveValue('Line one\nLine two')
+    await expect(d.getByLabel('Review state')).toHaveValue('flagged')
+    await d.getByRole('button', { name: 'Show completed' }).click()
+    await expect(d.getByRole('checkbox', { name: 'Verify fixture coverage' })).toBeChecked()
+
+    // Details mode shows notes (with the line break) and tags on the card; the tag filter narrows.
+    await page.getByLabel('Show notes & tags').check()
+    const card = row(page, /^Review ref grouping/)
+    // innerText honours the card's pre-wrap styling, so the line break must survive rendering.
+    expect(await card.locator('p', { hasText: 'Line one' }).evaluate((e) => (e as HTMLElement).innerText)).toBe('Line one\nLine two')
+    await expect(card).toContainText('needs-tests')
+    await page.getByRole('combobox', { name: 'Filter by tags' }).fill('needs')
+    await page.getByRole('combobox', { name: 'Filter by tags' }).press('Enter')
+    await expect(row(page, /^Document worktree states/)).toBeHidden()
+    await expect(row(page, /^Tighten status parser/)).toBeVisible()
+    await page.getByRole('button', { name: 'Clear filters' }).click()
+    await page.getByLabel('Show notes & tags').uncheck()
   })
 
-  test('two sessions on one worktree keep independent notes', async ({ page }) => {
+  test('the review dropdown on a card updates the workflow status', async ({ page }) => {
     await pair(page)
-    const notes = page.getByRole('complementary', { name: 'Inspector' })
-    await item(page, /Tighten status parser/).click()
-    await notes.getByLabel('Scratch note').fill('note for the parser session')
-    await expect(notes.getByText(/^Saved /)).toBeVisible()
-    await item(page, /Document worktree states/).click()
-    await expect(notes.getByLabel('Scratch note')).toHaveValue('')
-    await item(page, /Tighten status parser/).click()
-    await expect(notes.getByLabel('Scratch note')).toHaveValue('note for the parser session')
+    const card = row(page, /^Document worktree states/)
+    await expect(card).toContainText('Ready')
+    await card.getByLabel(/Review state for/).selectOption('complete')
+    await expect(card).not.toContainText('Ready')
+  })
+
+  test('long agent lists collapse behind "show more"', async ({ page }) => {
+    await pair(page)
+    const more = board(page, 'repo-b').getByRole('listitem', { name: /^Show \d+ more agents/ })
+    await expect(more).toBeVisible()
+    await more.click()
+    await expect(more).toBeHidden()
+    expect(await board(page, 'repo-b').getByRole('listitem', { name: /Bulk session/ }).count()).toBeGreaterThan(300)
   })
 
   test('external Git and agent changes appear without a browser refresh', async ({ page }) => {
     await pair(page)
-    const unicode = tree(page).getByRole('treeitem', { name: /^wt ü space worktree/ })
-    await expect(unicode).toContainText('clean')
+    await expect(row(page, /^unicode-branch branch$/)).toBeVisible()
     fs.writeFileSync(path.join(state().git.worktrees.unicode, 'from-outside.txt'), 'x')
-    await expect(unicode).toContainText('?1', { timeout: 15_000 })
+    await expect(row(page, /^unicode-branch branch, 1 uncommitted change/)).toBeVisible({ timeout: 15_000 })
 
     const cwd = state().git.repoB
     const { writeClaudeSession } = await import('../../fixtures/session-fixtures.ts')
@@ -146,24 +197,8 @@ test.describe.serial('repobs workbench (synthetic data)', () => {
       claude.title('live0000-0000-4000-8000-000000000001', 'Started after repobs'),
       claude.prompt('live0000-0000-4000-8000-000000000001', cwd, Date.now()),
     ])
-    // repo-b holds hundreds of sessions (virtualized), so narrow the tree to the new one.
-    await page.getByLabel('Filter the tree').fill('Started after')
-    await expect(item(page, /Started after repobs/)).toBeVisible({ timeout: 15_000 })
-    await expect(item(page, /Started after repobs/)).toContainText('Running')
-    await page.getByLabel('Filter the tree').fill('')
-  })
-
-  test('the attention filter narrows the tree to what needs a human', async ({ page }) => {
-    await pair(page)
-    await page.getByRole('radio', { name: 'Attention' }).click()
-    await expect(item(page, /Add rename detection test/)).toBeVisible() // approval request recorded
-    await expect(item(page, /Review ref grouping/)).toBeVisible() // flagged by the user
-    await expect(item(page, /Document worktree states/)).toBeHidden()
-    await page.getByRole('radio', { name: 'All' }).click()
-    await page.getByLabel('Filter the tree').fill('needs-tests')
-    await expect(item(page, /Review ref grouping/)).toBeVisible()
-    await expect(item(page, /Tighten status parser/)).toBeHidden()
-    await page.getByLabel('Filter the tree').fill('')
+    await expect(row(page, /^Started after repobs/)).toBeVisible({ timeout: 15_000 })
+    await expect(row(page, /^Started after repobs/)).toContainText('Working')
   })
 
   test('theme choice persists across reloads', async ({ page }) => {
@@ -176,31 +211,37 @@ test.describe.serial('repobs workbench (synthetic data)', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
     await page.reload()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-    const settings = await page.evaluate(async () => (await (await fetch('/api/v1/settings')).json()).theme)
-    expect(settings).toBe('dark')
   })
 
-  test('removing a repository only removes the dashboard entry', async ({ page }) => {
+  test('settings: turning off message excerpts removes them from cards', async ({ page }) => {
     await pair(page)
-    await item(page, 'repo-b repository').click({ button: 'right' })
-    await page.getByRole('menuitem', { name: 'Remove from dashboard…' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Remove repository from dashboard' })
-    await expect(dialog).toContainText('No files, branches or worktrees are deleted')
-    await dialog.getByRole('button', { name: 'Remove from dashboard' }).click()
-    await expect(item(page, 'repo-b repository')).toBeHidden()
-    expect(fs.existsSync(path.join(state().git.repoB, 'b.txt'))).toBe(true)
-  })
-
-  test('settings and diagnostics open, explain themselves and report no transcript text', async ({ page }) => {
-    await pair(page)
+    await expect(row(page, /^Document worktree states/)).toContainText('synthetic answer')
     await page.getByRole('button', { name: 'Settings' }).click()
     const settings = page.getByRole('dialog', { name: 'Settings' })
-    await expect(settings.getByText('Nothing is sent while this is off')).toBeVisible()
-    await settings.getByRole('button', { name: 'Cancel' }).click()
+    await settings.getByLabel('Show latest message excerpts on agent cards').uncheck()
+    await settings.getByRole('button', { name: 'Save settings' }).click()
+    await expect(row(page, /^Document worktree states/)).not.toContainText('synthetic answer', { timeout: 15_000 })
+    await page.getByRole('button', { name: 'Settings' }).click()
+    await settings.getByLabel('Show latest message excerpts on agent cards').check()
+    await settings.getByRole('button', { name: 'Save settings' }).click()
+  })
+
+  test('diagnostics report adapters without transcript text', async ({ page }) => {
+    await pair(page)
     await page.getByRole('button', { name: 'Diagnostics' }).click()
     const diag = page.getByRole('dialog', { name: 'Diagnostics' })
     await expect(diag.getByRole('cell', { name: 'Claude Code' })).toBeVisible()
     await expect(diag).not.toContainText('synthetic prompt')
     await page.keyboard.press('Escape')
+  })
+
+  test('removing a repository only removes the dashboard entry', async ({ page }) => {
+    await pair(page)
+    await page.getByRole('button', { name: 'Remove repo-b from the dashboard' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Remove repository from dashboard' })
+    await expect(dialog).toContainText('No files, branches or worktrees are deleted')
+    await dialog.getByRole('button', { name: 'Remove from dashboard' }).click()
+    await expect(board(page, 'repo-b')).toBeHidden()
+    expect(fs.existsSync(path.join(state().git.repoB, 'b.txt'))).toBe(true)
   })
 })

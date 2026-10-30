@@ -1,0 +1,324 @@
+.repo {
+  border-bottom: 1px solid var(--color-border);
+}
+.repoHeader {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 34px;
+  padding: 0 var(--space-3);
+  background: var(--color-surface-raised);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.repoName {
+  margin: 0;
+  font-size: var(--font-size-title);
+  font-weight: 600;
+}
+.collapse {
+  display: inline-flex;
+  border: 0;
+  background: none;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+.spacer {
+  flex: 1;
+}
+
+.board {
+  position: relative;
+}
+.axis {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+.tick {
+  stroke: var(--color-border);
+}
+.tickLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--color-text-muted);
+}
+.rows {
+  position: relative;
+}
+.overlay {
+  position: absolute;
+  top: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.emptyRow {
+  margin: 0;
+  padding: var(--space-3);
+}
+
+.row {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+  cursor: default;
+  outline: none;
+}
+.row > :first-child {
+  width: 420px;
+  flex: none;
+  border-right: 1px solid var(--color-border);
+}
+.row:hover > :first-child {
+  background: var(--color-hover-bg);
+}
+.row:focus-visible > :first-child {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+.selected > :first-child,
+.selected:hover > :first-child {
+  background: var(--color-selected-bg);
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+.row_branch {
+  background: var(--color-surface);
+}
+.row_more > :first-child {
+  padding: 2px var(--space-3);
+}
+
+.branchLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 var(--space-3);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.branchIcon {
+  color: var(--color-text-muted);
+  flex: none;
+}
+.branchName {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dim {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-label);
+  font-family: var(--font-mono);
+}
+.more {
+  font-size: var(--font-size-small);
+}
+
+.card {
+  padding: 6px var(--space-3) 7px calc(var(--space-3) + 18px);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  border-left: 3px solid transparent;
+}
+.card[data-status='needs_input'],
+.card[data-status='needs_review'] {
+  border-left-color: var(--tone-warning-text);
+}
+.card[data-status='working'] {
+  border-left-color: var(--tone-info-text);
+}
+.cardHistorical .cardTitle {
+  color: var(--color-text-muted);
+}
+.cardTop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.provider {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  padding: 0 3px;
+  line-height: 15px;
+}
+.spawned {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  color: var(--color-text-muted);
+}
+.cardTitle {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+.age {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  color: var(--color-text-muted);
+}
+.cardMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.reviewSelect {
+  margin-left: auto;
+}
+.reviewSelect select {
+  height: 20px;
+  border: 1px solid var(--color-border-interactive);
+  border-radius: 0;
+  background: var(--color-surface);
+  font-size: var(--font-size-label);
+  padding: 0 2px;
+}
+.excerpt {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+.clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.excerptKind {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.cardDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 2px;
+  border-top: 1px dashed var(--color-border);
+}
+.plain {
+  color: var(--color-text);
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.tag {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+  padding: 0 5px;
+  line-height: 17px;
+}
+.note {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-small);
+}
+
+/* Timeline (SVG) */
+.baseline {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+.nowLine {
+  stroke: var(--color-accent);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  opacity: 0.6;
+}
+.edge {
+  stroke: var(--color-accent);
+  stroke-width: 2;
+}
+.edgeLocal {
+  stroke: var(--tone-warning-text);
+  stroke-dasharray: 4 3;
+}
+.edgeIncoming {
+  stroke: var(--color-text-muted);
+  stroke-dasharray: 2 3;
+}
+.edgePending {
+  stroke: var(--tone-warning-text);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+.commit {
+  stroke-width: 2;
+  pointer-events: all;
+}
+.pushed {
+  fill: var(--color-accent);
+  stroke: var(--color-accent);
+}
+.local {
+  fill: var(--color-bg);
+  stroke: var(--tone-warning-text);
+}
+.incoming {
+  fill: var(--color-bg);
+  stroke: var(--color-text-muted);
+  stroke-dasharray: 2 2;
+}
+.headLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--color-text-muted);
+}
+.pending {
+  fill: var(--tone-warning-bg);
+  stroke: var(--tone-warning-text);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+  pointer-events: all;
+}
+.pendingConflict {
+  fill: var(--tone-danger-bg);
+  stroke: var(--tone-danger-text);
+}
+.bar {
+  pointer-events: all;
+  opacity: 0.85;
+}
+.bar_info {
+  fill: var(--tone-info-text);
+}
+.bar_warning {
+  fill: var(--tone-warning-text);
+}
+.bar_success {
+  fill: var(--tone-success-text);
+}
+.bar_neutral {
+  fill: var(--color-text-muted);
+}
+.bar_danger {
+  fill: var(--tone-danger-text);
+}
+.spawnLink {
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+}

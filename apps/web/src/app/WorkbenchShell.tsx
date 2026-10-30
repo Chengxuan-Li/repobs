@@ -1,38 +1,45 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Activity, Moon, PanelRightClose, PanelRightOpen, Plus, Search, Settings as SettingsIcon, Sun, SunMoon } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Activity, Moon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Settings as SettingsIcon, Sun, SunMoon } from 'lucide-react'
 import {
+  type AgentSession,
+  type AnnotationSummary,
   isLiveKind,
-  REVIEW_LABELS,
+  type Repository,
   type ReviewState,
   type Settings,
   type Snapshot,
-  sessionNeedsAttention,
   type ThemePreference,
-  worktreeNeedsAttention,
+  workflowStatus,
 } from '@repobs/contracts'
-import { AnnotationEditor } from '../features/annotations/AnnotationEditor'
-import { BranchInspector, Overview, RepositoryView, SessionInspector, WorktreeInspector } from '../features/git-inspector/views'
-import { buildTree, filterTree, findNode, flattenTree, ancestorsOf, type TreeNode } from '../features/repository-tree/buildTree'
-import { RepositoryTree, reviewActions, type TreeAction } from '../features/repository-tree/RepositoryTree'
+import { Dialog, EmptyState, InlineAlert, useNow } from '../components/primitives'
+import { BranchDetails, SessionDetails } from '../features/dashboard/DetailsPanel'
+import { FilterBar } from '../features/dashboard/FilterBar'
+import { knownTags as collectTags, sessionMatches } from '../features/dashboard/filters'
+import { type BranchRow, type LayoutOptions, repositoryLastActivity } from '../features/dashboard/layout'
+import { RepoBoard, type TimeDomain } from '../features/dashboard/RepoBoard'
+import { RepoListPanel, type RepoSummary } from '../features/dashboard/RepoListPanel'
+import { SessionCard } from '../features/dashboard/SessionCard'
 import { AddRepositoryDialog } from '../features/settings/AddRepositoryDialog'
 import { DiagnosticsPanel } from '../features/settings/DiagnosticsPanel'
 import { SettingsPanel } from '../features/settings/SettingsPanel'
-import { Dialog, EmptyState, InlineAlert } from '../components/primitives'
 import { api, ApiError } from './api'
 import type { Connection } from './store'
 import { applyTheme } from './theme'
-import { clamp, useViewState } from './viewState'
+import { clamp, RANGE_MS, type RepoSort, useViewState } from './viewState'
 import styles from './shell.module.css'
 
-// Three-pane workbench: ribbon, repository tree, center view, inspector, status bar. Pane ids are
-// stable (tree / center / inspector) so docking could be added later without reshaping state.
+// Workbench (ADR 0003): one primary working panel — the repository dashboard — plus optional
+// side panels: repositories on the left, details and notes on the right. Only the panels scroll;
+// the page itself never does.
 
 export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snapshot; connection: Connection; error?: string }) {
   const [view, setView] = useViewState()
   const [dialog, setDialog] = useState<'add' | 'settings' | 'diagnostics' | undefined>()
-  const [confirmRemove, setConfirmRemove] = useState<{ id: string; name: string } | undefined>()
+  const [confirmRemove, setConfirmRemove] = useState<Repository | undefined>()
   const [theme, setTheme] = useState<ThemePreference>(() => (localStorage.getItem('repobs.theme') as ThemePreference | null) ?? 'system')
   const [notice, setNotice] = useState<string>()
+  const boardsRef = useRef<HTMLDivElement>(null)
+  const now = useNow(30_000)
 
   useEffect(() => {
     api<Settings>('GET', '/settings').then(
@@ -44,34 +51,59 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     )
   }, [])
 
-  const tree = useMemo(() => buildTree(snapshot), [snapshot])
+  const annotations = useMemo(() => new Map(snapshot.annotations.map((a) => [a.sessionId, a])), [snapshot.annotations])
+  const tags = useMemo(() => collectTags(snapshot.annotations), [snapshot.annotations])
   const filtered = useMemo(
-    () => filterTree(tree, { mode: view.filter, query: view.query, showHistorical: view.showHistorical }),
-    [tree, view.filter, view.query, view.showHistorical],
-  )
-  const rows = useMemo(() => flattenTree(filtered.nodes, view.expanded, filtered.forced), [filtered, view.expanded])
-  const selected = view.selectedId ? findNode(tree, view.selectedId) : undefined
-
-  const select = useCallback(
-    (id: string) => {
-      const ancestors = ancestorsOf(tree, id) ?? []
-      setView((v) => ({ selectedId: id, expanded: { ...v.expanded, ...Object.fromEntries(ancestors.map((a) => [a, true])) } }))
-    },
-    [tree, setView],
+    () => snapshot.sessions.filter((s) => sessionMatches(s, annotations.get(s.id), view.filters, now)),
+    [snapshot.sessions, annotations, view.filters, now],
   )
 
-  const cycleTheme = async () => {
-    const next: ThemePreference = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system'
-    setTheme(next)
-    applyTheme(next)
-    try {
-      await api('PATCH', '/settings', { theme: next })
-    } catch {
-      setNotice('The theme could not be saved on the server; it applies to this browser only.')
+  const summaries: RepoSummary[] = useMemo(() => {
+    const list = snapshot.repositories.map((repo) => {
+      const sessions = snapshot.sessions.filter((s) => s.repoId === repo.id)
+      return {
+        repo,
+        lastActivity: repositoryLastActivity(snapshot.commitGraphs.find((g) => g.repoId === repo.id), sessions),
+        agents: sessions.length,
+        active: sessions.filter((s) => isLiveKind(s.state.kind)).length,
+        attention: sessions.filter((s) => ['needs_input', 'needs_review'].includes(workflowStatus(s, annotations.get(s.id)))).length,
+      }
+    })
+    const by: Record<RepoSort, (a: RepoSummary, b: RepoSummary) => number> = {
+      activity: (a, b) => b.lastActivity - a.lastActivity,
+      active: (a, b) => b.active - a.active || b.attention - a.attention || b.lastActivity - a.lastActivity,
+      name: (a, b) => a.repo.displayName.localeCompare(b.repo.displayName),
+      manual: (a, b) => a.repo.order - b.repo.order,
     }
-  }
+    return list.sort(by[view.repoSort])
+  }, [snapshot, annotations, view.repoSort])
 
-  const setReview = async (sessionId: string, review: ReviewState) => {
+  const hidden = useMemo(() => new Set(view.hiddenRepos), [view.hiddenRepos])
+  const collapsed = useMemo(() => new Set(view.collapsedRepos), [view.collapsedRepos])
+  const layoutOptions: LayoutOptions = useMemo(
+    () => ({
+      branchMode: view.branchMode,
+      showSpawned: view.showSpawned,
+      showRemoteOnly: view.showRemoteOnly,
+      sessionLimit: 12,
+      expandedBranches: new Set(view.expandedBranches),
+    }),
+    [view.branchMode, view.showSpawned, view.showRemoteOnly, view.expandedBranches],
+  )
+
+  const domain: TimeDomain = useMemo(() => {
+    const end = now + 60 * 60_000
+    if (view.timeRange !== 'all') return { start: now - RANGE_MS[view.timeRange], end }
+    const times = [
+      ...snapshot.commitGraphs.flatMap((g) => g.commits.map((c) => c.time * 1000)),
+      ...snapshot.sessions.map((s) => Date.parse(s.firstSeenAt ?? '') || now),
+    ]
+    return { start: Math.min(now - 86_400_000, ...times), end }
+  }, [now, view.timeRange, snapshot.commitGraphs, snapshot.sessions])
+
+  const select = useCallback((id: string) => setView({ selectedId: id, rightOpen: true }), [setView])
+
+  const setReview = useCallback(async (sessionId: string, review: ReviewState) => {
     try {
       const current = await api<{ annotation: { displayAlias?: string; tags: string[]; note: string; checklist: unknown[] } | null }>(
         'GET',
@@ -85,111 +117,104 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
         note: a?.note ?? '',
         checklist: a?.checklist ?? [],
       })
-      setNotice(`Review state set to ${REVIEW_LABELS[review]}.`)
     } catch (e) {
       setNotice(e instanceof ApiError ? e.message : 'Could not update the review state')
     }
-  }
+  }, [])
 
-  const actionsFor = (node: TreeNode): TreeAction[] => {
-    const copy = (label: string, value: string): TreeAction => ({ label, run: () => void navigator.clipboard?.writeText(value) })
-    const toggleAll = (expanded: boolean): TreeAction => ({
-      label: expanded ? 'Expand all below' : 'Collapse all below',
-      run: () => {
-        const ids: string[] = []
-        const walk = (n: TreeNode) => {
-          if (n.children.length) ids.push(n.id)
-          n.children.forEach(walk)
-        }
-        walk(node)
-        setView((v) => ({ expanded: { ...v.expanded, ...Object.fromEntries(ids.map((id) => [id, expanded])) } }))
-      },
-    })
-    if (node.repo) {
-      const repo = node.repo
-      return [
-        copy('Copy repository path', repo.primaryPath),
-        toggleAll(true),
-        toggleAll(false),
-        { label: 'Remove from dashboard…', danger: true, run: () => setConfirmRemove({ id: repo.id, name: repo.displayName }) },
-      ]
-    }
-    if (node.branch) return [copy('Copy ref name', node.branch.fullRef)]
-    if (node.worktree) return [copy('Copy worktree path', node.worktree.path)]
-    if (node.session) {
-      const id = node.session.id
-      return [copy('Copy session ID', node.session.providerSessionId), ...reviewActions((r) => void setReview(id, r))]
-    }
-    return node.children.length ? [toggleAll(true), toggleAll(false)] : []
-  }
-
-  const removeRepository = async (id: string) => {
+  const removeRepository = async (repo: Repository) => {
     try {
-      await api('DELETE', `/repositories/${id}`)
-      setNotice('Repository removed from the dashboard. No files were changed; your session notes are kept.')
-      if (view.selectedId?.includes(id)) setView({ selectedId: undefined })
+      await api('DELETE', `/repositories/${repo.id}`)
+      setNotice(`${repo.displayName} was removed from the dashboard. No files were changed; your session notes are kept.`)
     } catch (e) {
       setNotice(e instanceof ApiError ? e.message : 'Could not remove the repository')
     }
   }
 
-  const startResize = (pane: 'tree' | 'inspector') => (e: React.PointerEvent) => {
-    e.preventDefault()
-    const startX = e.clientX
-    const startW = pane === 'tree' ? view.treeWidth : view.inspectorWidth
-    const move = (ev: PointerEvent) => {
-      const dx = ev.clientX - startX
-      if (pane === 'tree') setView({ treeWidth: clamp(startW + dx, 220, 520) })
-      else setView({ inspectorWidth: clamp(startW - dx, 260, 520) })
+  const cycleTheme = async () => {
+    const next: ThemePreference = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system'
+    setTheme(next)
+    applyTheme(next)
+    try {
+      await api('PATCH', '/settings', { theme: next })
+    } catch {
+      setNotice('The theme could not be saved on the server; it applies to this browser only.')
     }
-    const up = () => {
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
-    }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-  }
-  const resizeKeys = (pane: 'tree' | 'inspector') => (e: React.KeyboardEvent) => {
-    const delta = e.key === 'ArrowLeft' ? -16 : e.key === 'ArrowRight' ? 16 : 0
-    if (!delta) return
-    e.preventDefault()
-    if (pane === 'tree') setView((v) => ({ treeWidth: clamp(v.treeWidth + delta, 220, 520) }))
-    else setView((v) => ({ inspectorWidth: clamp(v.inspectorWidth - delta, 260, 520) }))
   }
 
-  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : SunMoon
+  // Keyboard: arrows move between rows across repositories; Enter/Space selects.
+  const onBoardsKeyDown = (e: React.KeyboardEvent) => {
+    const target = e.target as HTMLElement
+    if (['SELECT', 'INPUT', 'TEXTAREA', 'BUTTON'].includes(target.tagName) && target.closest('[data-nav-row]') !== target) {
+      if (!(target.tagName === 'BUTTON' && (e.key === 'ArrowDown' || e.key === 'ArrowUp'))) return
+    }
+    const rows = [...(boardsRef.current?.querySelectorAll<HTMLElement>('[data-nav-row]') ?? [])]
+    if (!rows.length) return
+    const current = rows.indexOf(target.closest<HTMLElement>('[data-nav-row]')!)
+    const focus = (i: number) => {
+      const el = rows[clamp(i, 0, rows.length - 1)]!
+      el.focus()
+      el.scrollIntoView({ block: 'nearest' })
+    }
+    if (e.key === 'ArrowDown') focus(current + 1)
+    else if (e.key === 'ArrowUp') focus(current < 0 ? 0 : current - 1)
+    else if (e.key === 'Home') focus(0)
+    else if (e.key === 'End') focus(rows.length - 1)
+    else if ((e.key === 'Enter' || e.key === ' ') && current >= 0) rows[current]!.click()
+    else return
+    e.preventDefault()
+  }
+
+  const selected = useMemo(() => resolveSelection(snapshot, view.selectedId), [snapshot, view.selectedId])
+  const visibleRepos = summaries.filter((s) => !hidden.has(s.repo.id))
+  const orphans = filtered.filter((s) => !s.repoId)
   const empty = snapshot.repositories.length === 0
+  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : SunMoon
+
+  const resizer = (side: 'left' | 'right') => ({
+    role: 'separator' as const,
+    'aria-orientation': 'vertical' as const,
+    'aria-label': side === 'left' ? 'Resize repositories panel' : 'Resize details panel',
+    tabIndex: 0,
+    className: styles.splitter,
+    onPointerDown: (e: React.PointerEvent) => {
+      e.preventDefault()
+      const startX = e.clientX
+      const startW = side === 'left' ? view.leftWidth : view.rightWidth
+      const move = (ev: PointerEvent) =>
+        setView(side === 'left' ? { leftWidth: clamp(startW + ev.clientX - startX, 180, 420) } : { rightWidth: clamp(startW - (ev.clientX - startX), 280, 560) })
+      const up = () => {
+        window.removeEventListener('pointermove', move)
+        window.removeEventListener('pointerup', up)
+      }
+      window.addEventListener('pointermove', move)
+      window.addEventListener('pointerup', up)
+    },
+    onKeyDown: (e: React.KeyboardEvent) => {
+      const d = e.key === 'ArrowLeft' ? -16 : e.key === 'ArrowRight' ? 16 : 0
+      if (!d) return
+      e.preventDefault()
+      setView((v) => (side === 'left' ? { leftWidth: clamp(v.leftWidth + d, 180, 420) } : { rightWidth: clamp(v.rightWidth - d, 280, 560) }))
+    },
+  })
 
   return (
     <div className={styles.shell}>
       <header className={styles.ribbon}>
+        <button
+          type="button"
+          className="btn btn-quiet btn-icon"
+          onClick={() => setView({ leftOpen: !view.leftOpen })}
+          aria-label={view.leftOpen ? 'Hide repositories panel' : 'Show repositories panel'}
+          aria-pressed={view.leftOpen}
+        >
+          {view.leftOpen ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
+        </button>
         <span className={styles.brand}>repobs</span>
         <span className={styles.rule} aria-hidden="true" />
         <button type="button" className="btn" onClick={() => setDialog('add')}>
-          <Plus size={13} aria-hidden="true" /> Add repository
+          <Plus size={13} aria-hidden="true" /> Add repositories
         </button>
-        <span className={styles.rule} aria-hidden="true" />
-        <div className={styles.search}>
-          <Search size={13} aria-hidden="true" />
-          <input
-            type="search"
-            className={styles.searchInput}
-            placeholder="Filter repos, paths, branches, sessions, tags"
-            aria-label="Filter the tree"
-            value={view.query}
-            onChange={(e) => setView({ query: e.target.value })}
-          />
-        </div>
-        <div className={styles.segmented} role="radiogroup" aria-label="Tree filter">
-          {(['all', 'attention'] as const).map((f) => (
-            <button key={f} type="button" role="radio" aria-checked={view.filter === f} className={view.filter === f ? styles.on : undefined} onClick={() => setView({ filter: f })}>
-              {f === 'all' ? 'All' : 'Attention'}
-            </button>
-          ))}
-        </div>
-        <label className={styles.toggle}>
-          <input type="checkbox" checked={view.showHistorical} onChange={(e) => setView({ showHistorical: e.target.checked })} /> Historical
-        </label>
         <span className={styles.spacer} />
         <button type="button" className="btn btn-quiet" onClick={() => setDialog('diagnostics')} title="Adapters, watchers and Git health">
           <Activity size={13} aria-hidden="true" /> Diagnostics
@@ -203,49 +228,36 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
         <button
           type="button"
           className="btn btn-quiet btn-icon"
-          onClick={() => setView({ inspectorOpen: !view.inspectorOpen })}
-          aria-label={view.inspectorOpen ? 'Hide inspector' : 'Show inspector'}
-          aria-pressed={view.inspectorOpen}
+          onClick={() => setView({ rightOpen: !view.rightOpen })}
+          aria-label={view.rightOpen ? 'Hide details panel' : 'Show details panel'}
+          aria-pressed={view.rightOpen}
         >
-          {view.inspectorOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
+          {view.rightOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
         </button>
       </header>
 
       <div className={styles.body}>
-        <nav id="pane-tree" className={styles.treePane} style={{ width: view.treeWidth }} aria-label="Repository tree">
-          <div className="section-strip">
-            <span className="label">Repositories</span>
-            <button type="button" className="btn btn-quiet" onClick={() => setView({ selectedId: undefined })} aria-pressed={!view.selectedId}>
-              Overview
-            </button>
-          </div>
-          {empty ? (
-            <p className={`${styles.paneNote} small muted`}>No repositories yet.</p>
-          ) : rows.length === 0 ? (
-            <p className={`${styles.paneNote} small muted`}>{view.filter === 'attention' ? 'Nothing needs attention.' : 'No matches.'}</p>
-          ) : (
-            <RepositoryTree
-              rows={rows}
-              selectedId={view.selectedId}
-              onSelect={select}
-              onToggle={(id, expanded) => setView((v) => ({ expanded: { ...v.expanded, [id]: expanded } }))}
-              actionsFor={actionsFor}
-            />
-          )}
-        </nav>
-        <div
-          className={styles.splitter}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize repository tree"
-          aria-valuenow={view.treeWidth}
-          aria-valuemin={220}
-          aria-valuemax={520}
-          tabIndex={0}
-          onPointerDown={startResize('tree')}
-          onKeyDown={resizeKeys('tree')}
-        />
-        <main id="pane-center" className={styles.center}>
+        {view.leftOpen ? (
+          <>
+            <aside className={styles.side} style={{ width: view.leftWidth }} aria-label="Repositories panel">
+              <RepoListPanel
+                summaries={summaries}
+                hidden={hidden}
+                now={now}
+                onToggle={(id, visible) => setView((v) => ({ hiddenRepos: visible ? v.hiddenRepos.filter((x) => x !== id) : [...v.hiddenRepos, id] }))}
+                onJump={(id) => {
+                  setView((v) => ({ collapsedRepos: v.collapsedRepos.filter((x) => x !== id) }))
+                  document.getElementById(`repo-${id}`)?.scrollIntoView({ block: 'start' })
+                }}
+                onAdd={() => setDialog('add')}
+                onRemove={setConfirmRemove}
+              />
+            </aside>
+            <div {...resizer('left')} aria-valuenow={view.leftWidth} aria-valuemin={180} aria-valuemax={420} />
+          </>
+        ) : null}
+
+        <main className={styles.main} aria-label="Dashboard">
           {notice ? (
             <div className={styles.notice}>
               <InlineAlert tone="info" onDismiss={() => setNotice(undefined)}>
@@ -259,50 +271,93 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
             </div>
           ) : null}
           {empty ? (
-            <EmptyState
-              title="Observe your Git worktrees and coding agents, locally"
-              action={
-                <button type="button" className="btn btn-primary" onClick={() => setDialog('add')}>
-                  <Plus size={13} aria-hidden="true" /> Add repository
-                </button>
-              }
-            >
-              <p>Register a local Git repository to see its branches, worktrees, working-tree status and the Claude Code and Codex sessions that ran in it.</p>
-              <p>repobs only reads: it never changes your repositories or agent histories, and needs no API keys.</p>
-            </EmptyState>
+            <div className={styles.boards}>
+              <EmptyState
+                title="Observe your Git worktrees and coding agents, locally"
+                action={
+                  <button type="button" className="btn btn-primary" onClick={() => setDialog('add')}>
+                    <Plus size={13} aria-hidden="true" /> Add repositories
+                  </button>
+                }
+              >
+                <p>Register local Git repositories to see their branches and commits on a timeline, with the Claude Code and Codex agents that worked on each branch.</p>
+                <p>repobs only reads: it never changes your repositories or agent histories, and needs no API keys.</p>
+              </EmptyState>
+            </div>
           ) : (
-            <CenterView snapshot={snapshot} node={selected} onSelect={select} onAddRepository={() => setDialog('add')} />
+            <>
+              <FilterBar view={view} setView={setView} knownTags={tags} shown={filtered.length} total={snapshot.sessions.length} />
+              <div ref={boardsRef} className={styles.boards} onKeyDown={onBoardsKeyDown} tabIndex={0} aria-label="Branches and agents. Use the arrow keys to move between rows, Enter to open one.">
+                {visibleRepos.length === 0 ? <p className="small muted" style={{ padding: 16 }}>All repositories are hidden. Tick them in the repositories panel.</p> : null}
+                {visibleRepos.map(({ repo }) => (
+                  <RepoBoard
+                    key={repo.id}
+                    repo={repo}
+                    branches={branchesOf(snapshot, repo.id)}
+                    worktrees={worktreesOf(snapshot, repo.id)}
+                    sessions={sessionsOf(filtered, repo.id)}
+                    totalSessions={snapshot.sessions.filter((s) => s.repoId === repo.id).length}
+                    annotations={annotations}
+                    graph={snapshot.commitGraphs.find((g) => g.repoId === repo.id)}
+                    options={layoutOptions}
+                    domain={domain}
+                    details={view.details}
+                    now={now}
+                    collapsed={collapsed.has(repo.id)}
+                    selectedId={view.selectedId}
+                    tabbableId={view.selectedId}
+                    onToggleCollapsed={() =>
+                      setView((v) => ({ collapsedRepos: v.collapsedRepos.includes(repo.id) ? v.collapsedRepos.filter((x) => x !== repo.id) : [...v.collapsedRepos, repo.id] }))
+                    }
+                    onSelect={select}
+                    onReview={(id, r) => void setReview(id, r)}
+                    onExpandBranch={(rowId) => setView((v) => ({ expandedBranches: [...v.expandedBranches, rowId] }))}
+                  />
+                ))}
+                {orphans.length ? <OrphanSessions sessions={orphans} annotations={annotations} details={view.details} now={now} onSelect={select} onReview={setReview} /> : null}
+              </div>
+            </>
           )}
         </main>
-        {view.inspectorOpen ? (
+
+        {view.rightOpen ? (
           <>
-            <div
-              className={styles.splitter}
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize inspector"
-              aria-valuenow={view.inspectorWidth}
-              aria-valuemin={260}
-              aria-valuemax={520}
-              tabIndex={0}
-              onPointerDown={startResize('inspector')}
-              onKeyDown={resizeKeys('inspector')}
-            />
-            <aside id="pane-inspector" className={styles.inspector} style={{ width: view.inspectorWidth }} aria-label="Inspector">
+            <div {...resizer('right')} aria-valuenow={view.rightWidth} aria-valuemin={280} aria-valuemax={560} />
+            <aside className={styles.side} style={{ width: view.rightWidth }} aria-label="Details panel">
               <div className="section-strip">
-                <span className="label">{selected?.session ? 'Your notes' : 'Inspection'}</span>
+                <span className="label">{selected?.session ? 'Agent' : selected?.branch ? 'Branch' : 'Details'}</span>
+                {selected ? (
+                  <button type="button" className="btn btn-quiet" onClick={() => setView({ selectedId: undefined })}>
+                    Clear
+                  </button>
+                ) : null}
               </div>
-              <div className={styles.inspectorBody}>
-                <Inspector node={selected} snapshot={snapshot} />
+              <div className={styles.sideBody}>
+                {selected?.session ? (
+                  <SessionDetails snapshot={snapshot} session={selected.session} now={now} knownTags={tags} onSelect={select} />
+                ) : selected?.branch ? (
+                  <BranchDetails snapshot={snapshot} row={selected.branch} />
+                ) : (
+                  <div className="small muted">
+                    <p>Select an agent card to see its evidence and edit your notes, review state, tags and checklist.</p>
+                    <p>Select a branch row for its upstream, worktrees and status.</p>
+                    <p>Observed agent status and your review state are separate: an agent can be idle and still need your review.</p>
+                  </div>
+                )}
               </div>
             </aside>
           </>
         ) : null}
       </div>
 
-      <GlobalStatusBar snapshot={snapshot} connection={connection} onDiagnostics={() => setDialog('diagnostics')} />
+      <GlobalStatusBar snapshot={snapshot} annotations={annotations} connection={connection} onDiagnostics={() => setDialog('diagnostics')} />
 
-      {dialog === 'add' ? <AddRepositoryDialog onClose={() => setDialog(undefined)} onAdded={(r) => select(`repo:${r.id}`)} /> : null}
+      {dialog === 'add' ? (
+        <AddRepositoryDialog
+          onClose={() => setDialog(undefined)}
+          onAdded={(ids) => setView((v) => ({ hiddenRepos: v.hiddenRepos.filter((x) => !ids.includes(x)) }))}
+        />
+      ) : null}
       {dialog === 'settings' ? (
         <SettingsPanel
           onClose={() => setDialog(undefined)}
@@ -326,9 +381,9 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
                 type="button"
                 className="btn btn-primary"
                 onClick={() => {
-                  const id = confirmRemove.id
+                  const repo = confirmRemove
                   setConfirmRemove(undefined)
-                  void removeRepository(id)
+                  void removeRepository(repo)
                 }}
               >
                 Remove from dashboard
@@ -337,7 +392,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
           }
         >
           <p>
-            Stop observing <strong>{confirmRemove.name}</strong>? This only removes it from repobs. No files, branches or worktrees are deleted, and your
+            Stop observing <strong>{confirmRemove.displayName}</strong>? This only removes it from repobs. No files, branches or worktrees are deleted, and your
             session notes are kept.
           </p>
         </Dialog>
@@ -346,68 +401,116 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
   )
 }
 
-function CenterView({ snapshot, node, onSelect, onAddRepository }: { snapshot: Snapshot; node?: TreeNode; onSelect: (id: string) => void; onAddRepository: () => void }) {
-  if (node?.session) return <SessionInspector snapshot={snapshot} session={node.session} onSelect={onSelect} />
-  if (node?.worktree) return <WorktreeInspector snapshot={snapshot} worktree={node.worktree} onSelect={onSelect} />
-  if (node?.branch) return <BranchInspector snapshot={snapshot} branch={node.branch} onSelect={onSelect} />
-  if (node?.repo) return <RepositoryView snapshot={snapshot} repo={node.repo} onSelect={onSelect} />
-  return <Overview snapshot={snapshot} onSelect={onSelect} onAddRepository={onAddRepository} />
+const branchesOf = memoBy((s: Snapshot, repoId: string) => s.branches.filter((b) => b.repoId === repoId))
+const worktreesOf = memoBy((s: Snapshot, repoId: string) => s.worktrees.filter((w) => w.repoId === repoId))
+const sessionsOf = memoBy((sessions: AgentSession[], repoId: string) => sessions.filter((s) => s.repoId === repoId))
+
+/** Memoize per (source array/object, repoId) so boards receive stable props between renders. */
+function memoBy<S extends object, T>(fn: (source: S, repoId: string) => T[]) {
+  const cache = new WeakMap<S, Map<string, T[]>>()
+  return (source: S, repoId: string): T[] => {
+    let m = cache.get(source)
+    if (!m) {
+      m = new Map()
+      cache.set(source, m)
+    }
+    let v = m.get(repoId)
+    if (!v) {
+      v = fn(source, repoId)
+      m.set(repoId, v)
+    }
+    return v
+  }
 }
 
-function Inspector({ node, snapshot }: { node?: TreeNode; snapshot: Snapshot }) {
-  if (node?.session) {
-    return <AnnotationEditor key={node.session.id} session={node.session} summary={snapshot.annotations.find((a) => a.sessionId === node.session!.id)} />
+function resolveSelection(snapshot: Snapshot, id: string | undefined): { session?: AgentSession; branch?: BranchRow } | undefined {
+  if (!id) return undefined
+  if (id.startsWith('session:')) {
+    const session = snapshot.sessions.find((s) => s.id === id.slice('session:'.length))
+    return session ? { session } : undefined
   }
-  if (!node) {
-    return (
-      <div className="small muted">
-        <p>Select a session to add tags, a review state, a scratch note and a checklist.</p>
-        <p>Observed agent status and your review state are separate: a session can be idle and still need your review.</p>
-      </div>
-    )
+  const pending = (w: { status: { state: string; staged: number; unstaged: number; untracked: number; conflicted: number } }) =>
+    w.status.state === 'ok' ? w.status.staged + w.status.unstaged + w.status.untracked + w.status.conflicted : 0
+  if (id.startsWith('branch:')) {
+    const branch = snapshot.branches.find((b) => b.id === id.slice('branch:'.length))
+    if (!branch) return undefined
+    const worktrees = snapshot.worktrees.filter((w) => branch.worktreeIds.includes(w.id))
+    return {
+      branch: {
+        kind: 'branch',
+        id,
+        label: branch.shortName,
+        branch,
+        worktrees,
+        detached: false,
+        remoteOnly: branch.classification === 'remote_only',
+        headOid: branch.tipOid,
+        pendingChanges: worktrees.reduce((n, w) => n + pending(w), 0),
+        conflicted: worktrees.reduce((n, w) => n + w.status.conflicted, 0),
+      },
+    }
   }
-  const facts: Array<[string, string | undefined]> = node.repo
-    ? [
-        ['Repository id', node.repo.id],
-        ['Common Git dir', node.repo.commonGitDir],
-        ['Primary path', node.repo.primaryPath],
-      ]
-    : node.worktree
-      ? [
-          ['Worktree id', node.worktree.id],
-          ['Path', node.worktree.path],
-          ['HEAD', node.worktree.headOid],
-        ]
-      : node.branch
-        ? [
-            ['Ref', node.branch.fullRef],
-            ['Tip', node.branch.tipOid || 'unborn'],
-            ['Upstream', node.branch.upstream?.fullRef],
-          ]
-        : [['Group', node.label]]
+  if (id.startsWith('detached:')) {
+    const w = snapshot.worktrees.find((x) => x.id === id.slice('detached:'.length))
+    if (!w) return undefined
+    return {
+      branch: { kind: 'branch', id, label: `${w.displayName} (detached)`, worktrees: [w], detached: true, remoteOnly: false, headOid: w.headOid, pendingChanges: pending(w), conflicted: w.status.conflicted },
+    }
+  }
+  return undefined
+}
+
+function OrphanSessions({
+  sessions,
+  annotations,
+  details,
+  now,
+  onSelect,
+  onReview,
+}: {
+  sessions: AgentSession[]
+  annotations: Map<string, AnnotationSummary>
+  details: boolean
+  now: number
+  onSelect: (id: string) => void
+  onReview: (id: string, r: ReviewState) => Promise<void>
+}) {
   return (
-    <dl className="facts">
-      {facts.map(([k, v]) => (
-        <div key={k} style={{ display: 'contents' }}>
-          <dt>{k}</dt>
-          <dd className="mono">{v ?? '—'}</dd>
-        </div>
-      ))}
-    </dl>
+    <section className={styles.orphans} aria-label="Sessions without a repository">
+      <div className="section-strip">
+        <span className="label">Sessions without a repository</span>
+        <span className="small muted">Annotated sessions whose repository is no longer registered</span>
+      </div>
+      <div role="list">
+        {sessions.map((s) => (
+          <div key={s.id} role="listitem" data-nav-row="" data-row-id={`session:${s.id}`} tabIndex={-1} className={styles.orphanRow} onClick={() => onSelect(`session:${s.id}`)}>
+            <SessionCard session={s} annotation={annotations.get(s.id)} depth={0} details={details} now={now} onReview={(r) => void onReview(s.id, r)} />
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 
-function GlobalStatusBar({ snapshot, connection, onDiagnostics }: { snapshot: Snapshot; connection: Connection; onDiagnostics: () => void }) {
-  const annotations = new Map(snapshot.annotations.map((a) => [a.sessionId, a]))
-  const running = snapshot.sessions.filter((s) => isLiveKind(s.state.kind)).length
-  const attention =
-    snapshot.sessions.filter((s) => sessionNeedsAttention(s, annotations.get(s.id))).length + snapshot.worktrees.filter(worktreeNeedsAttention).length
+function GlobalStatusBar({
+  snapshot,
+  annotations,
+  connection,
+  onDiagnostics,
+}: {
+  snapshot: Snapshot
+  annotations: Map<string, AnnotationSummary>
+  connection: Connection
+  onDiagnostics: () => void
+}) {
+  const working = snapshot.sessions.filter((s) => workflowStatus(s, annotations.get(s.id)) === 'working').length
+  const attention = snapshot.sessions.filter((s) => ['needs_input', 'needs_review'].includes(workflowStatus(s, annotations.get(s.id)))).length
   const synced = snapshot.monitor.lastSyncAt ? new Date(snapshot.monitor.lastSyncAt).toLocaleTimeString() : '—'
   const connLabel = { connecting: 'Connecting…', live: 'Live', reconnecting: 'Reconnecting…', offline: 'Offline — data may be stale' }[connection]
   return (
     <footer className={styles.statusbar} role="contentinfo">
       <span>
-        {snapshot.repositories.length} repos • {snapshot.worktrees.length} worktrees • {running} active • {attention} need attention
+        {snapshot.repositories.length} repos • {snapshot.worktrees.length} worktrees • {working} working • {attention} need attention
       </span>
       <span className={styles.spacer} />
       {snapshot.monitor.state === 'degraded' ? (

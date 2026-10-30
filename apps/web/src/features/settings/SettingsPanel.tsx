@@ -36,6 +36,7 @@ export function SettingsPanel({ onClose, onSaved }: { onClose: () => void; onSav
         },
         monitoring: settings.monitoring,
         status: settings.status,
+        privacy: settings.privacy,
         github: settings.github,
       }
       const next = await api<Settings>('PATCH', '/settings', patch)
@@ -128,6 +129,18 @@ export function SettingsPanel({ onClose, onSaved }: { onClose: () => void; onSav
           <label htmlFor={ids.hist}>Show sessions as historical after (hours)</label>
           <input id={ids.hist} className="input" type="number" min={1} max={8760} value={settings.status.historicalAfterHours} onChange={(e) => set({ status: { ...settings.status, historicalAfterHours: Number(e.target.value) } })} />
         </div>
+      </fieldset>
+
+      <fieldset className={styles.group}>
+        <legend className="label">Privacy</legend>
+        <label className={styles.check}>
+          <input type="checkbox" checked={settings.privacy.showMessageExcerpts} onChange={(e) => set({ privacy: { showMessageExcerpts: e.target.checked } })} />
+          Show latest message excerpts on agent cards
+        </label>
+        <p className="small muted">
+          Excerpts are read from the provider session files, truncated to a few lines with obvious secrets (keys, tokens, passwords) redacted, and kept in memory
+          only — never stored, logged or exported. Turn this off to show only structural activity labels.
+        </p>
       </fieldset>
 
       <fieldset className={styles.group}>

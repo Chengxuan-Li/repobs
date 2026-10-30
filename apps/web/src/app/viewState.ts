@@ -1,43 +1,68 @@
 import { useCallback, useState } from 'react'
+import { type WorkflowStatus } from '@repobs/contracts'
+import { DEFAULT_FILTERS, type DashboardFilters } from '../features/dashboard/filters'
+import type { BranchMode } from '../features/dashboard/layout'
 
-// Per-browser view preferences (pane widths, expansion, selection, filters). These are
-// conveniences, not user data: annotations and settings live on the server.
+// Per-browser view preferences (panels, filters, toggles, selection). Conveniences, not user data:
+// annotations and settings live on the server.
+
+export type TimeRange = '1d' | '7d' | '30d' | '90d' | 'all'
+export type RepoSort = 'activity' | 'active' | 'name' | 'manual'
 
 export interface ViewState {
-  treeWidth: number
-  inspectorWidth: number
-  inspectorOpen: boolean
-  /** Node id -> expanded override (defaults depend on node kind). */
-  expanded: Record<string, boolean>
+  leftOpen: boolean
+  rightOpen: boolean
+  leftWidth: number
+  rightWidth: number
   selectedId?: string
-  filter: 'all' | 'attention'
-  query: string
-  showHistorical: boolean
+  filters: DashboardFilters
+  details: boolean
+  showSpawned: boolean
+  branchMode: BranchMode
+  showRemoteOnly: boolean
+  timeRange: TimeRange
+  repoSort: RepoSort
+  hiddenRepos: string[]
+  collapsedRepos: string[]
+  expandedBranches: string[]
 }
 
-const KEY = 'repobs.view.v1'
+const KEY = 'repobs.view.v2'
 
 export const DEFAULT_VIEW: ViewState = {
-  treeWidth: 300,
-  inspectorWidth: 340,
-  inspectorOpen: true,
-  expanded: {},
-  filter: 'all',
-  query: '',
-  showHistorical: true,
+  leftOpen: true,
+  rightOpen: true,
+  leftWidth: 240,
+  rightWidth: 360,
+  filters: DEFAULT_FILTERS,
+  details: false,
+  showSpawned: true,
+  branchMode: 'all',
+  showRemoteOnly: false,
+  timeRange: '7d',
+  repoSort: 'activity',
+  hiddenRepos: [],
+  collapsedRepos: [],
+  expandedBranches: [],
 }
+
+const STATUSES: WorkflowStatus[] = ['needs_input', 'working', 'needs_review', 'ready', 'complete', 'unknown']
 
 export function loadView(): ViewState {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return DEFAULT_VIEW
-    const parsed = JSON.parse(raw) as Partial<ViewState>
+    const p = JSON.parse(raw) as Partial<ViewState>
+    const f = { ...DEFAULT_FILTERS, ...(p.filters ?? {}) }
     return {
       ...DEFAULT_VIEW,
-      ...parsed,
-      treeWidth: clamp(Number(parsed.treeWidth) || DEFAULT_VIEW.treeWidth, 220, 520),
-      inspectorWidth: clamp(Number(parsed.inspectorWidth) || DEFAULT_VIEW.inspectorWidth, 260, 520),
-      expanded: typeof parsed.expanded === 'object' && parsed.expanded ? parsed.expanded : {},
+      ...p,
+      leftWidth: clamp(Number(p.leftWidth) || DEFAULT_VIEW.leftWidth, 180, 420),
+      rightWidth: clamp(Number(p.rightWidth) || DEFAULT_VIEW.rightWidth, 280, 560),
+      filters: { ...f, statuses: (f.statuses ?? []).filter((s) => STATUSES.includes(s)), tags: Array.isArray(f.tags) ? f.tags : [] },
+      hiddenRepos: Array.isArray(p.hiddenRepos) ? p.hiddenRepos : [],
+      collapsedRepos: Array.isArray(p.collapsedRepos) ? p.collapsedRepos : [],
+      expandedBranches: Array.isArray(p.expandedBranches) ? p.expandedBranches : [],
     }
   } catch {
     return DEFAULT_VIEW
@@ -62,4 +87,11 @@ export function useViewState(): [ViewState, (patch: Partial<ViewState> | ((v: Vi
     })
   }, [])
   return [view, update]
+}
+
+export const RANGE_MS: Record<Exclude<TimeRange, 'all'>, number> = {
+  '1d': 86_400_000,
+  '7d': 7 * 86_400_000,
+  '30d': 30 * 86_400_000,
+  '90d': 90 * 86_400_000,
 }

@@ -1,9 +1,10 @@
+/* The page never scrolls: the shell fills the viewport and only panels scroll inside it. */
 .shell {
+  position: fixed;
+  inset: 0;
   display: grid;
   grid-template-rows: var(--ribbon-height) minmax(0, 1fr) var(--statusbar-height);
   grid-template-columns: minmax(0, 1fr);
-  height: 100vh;
-  min-width: 720px;
   overflow: hidden;
 }
 
@@ -11,10 +12,11 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-2);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
   min-width: 0;
+  overflow: hidden;
 }
 .brand {
   font-weight: 700;
@@ -27,59 +29,6 @@
   margin: 8px 2px;
   background: var(--color-border);
 }
-.search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--color-border-interactive);
-  flex: 0 1 320px;
-  min-width: 140px;
-  color: var(--color-text-muted);
-}
-.searchInput {
-  border: 0;
-  outline: none;
-  background: transparent;
-  flex: 1;
-  min-width: 0;
-  font-size: var(--font-size-small);
-  color: var(--color-text);
-}
-.search:focus-within {
-  outline: 2px solid var(--color-focus);
-  outline-offset: -1px;
-}
-.segmented {
-  display: flex;
-}
-.segmented button {
-  height: 26px;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--color-border-interactive);
-  margin-left: -1px;
-  background: var(--color-surface);
-  font-size: var(--font-size-small);
-  cursor: pointer;
-}
-.segmented button:hover {
-  color: var(--color-accent);
-}
-.segmented .on,
-.segmented .on:hover {
-  background: var(--color-text);
-  border-color: var(--color-text);
-  color: var(--color-bg);
-}
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
 .spacer {
   flex: 1;
 }
@@ -88,14 +37,24 @@
   display: flex;
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
 }
-.treePane,
-.inspector {
+.side {
   display: flex;
   flex-direction: column;
   min-height: 0;
   flex: none;
   background: var(--color-surface);
+  overflow: hidden;
+}
+.sideBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-3);
+}
+.sideBody p {
+  margin: 0 0 var(--space-2);
 }
 .splitter {
   width: 5px;
@@ -103,7 +62,7 @@
   flex: none;
   cursor: col-resize;
   position: relative;
-  z-index: 2;
+  z-index: 4;
 }
 .splitter::after {
   content: '';
@@ -120,26 +79,37 @@
   left: 1px;
   background: var(--color-accent);
 }
-.center {
+.main {
   flex: 1;
   min-width: 0;
-  overflow: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--color-bg);
 }
-.inspectorBody {
+.boards {
   flex: 1;
+  min-height: 0;
   overflow: auto;
-  padding: var(--space-3);
-}
-.inspectorBody p {
-  margin: 0 0 var(--space-2);
-}
-.paneNote {
-  padding: var(--space-3);
-  margin: 0;
+  outline: none;
 }
 .notice {
-  padding: var(--space-2) var(--space-4) 0;
+  flex: none;
+  padding: var(--space-2) var(--space-3) 0;
+}
+.orphans {
+  border-bottom: 1px solid var(--color-border);
+}
+.orphanRow {
+  border-bottom: 1px solid var(--color-border);
+  max-width: 420px;
+  border-right: 1px solid var(--color-border);
+  outline: none;
+}
+.orphanRow:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
 }
 
 .statusbar {

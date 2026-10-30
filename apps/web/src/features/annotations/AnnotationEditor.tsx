@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { X } from 'lucide-react'
 import { type AgentSession, type AnnotationInput, type AnnotationSummary, LIMITS, REVIEW_LABELS, type ReviewState, type SessionAnnotation } from '@repobs/contracts'
 import { api, ApiError } from '../../app/api'
 import { InlineAlert } from '../../components/primitives'
 import { Checklist, type DraftItem } from './Checklist'
+import { TagInput } from './TagInput'
 import styles from './annotations.module.css'
 
 // Human-owned notes for one session. Saved automatically (debounced) to the local repobs
@@ -25,18 +25,17 @@ function toDraft(a: SessionAnnotation | null): Draft {
   return a ? { displayAlias: a.displayAlias ?? '', review: a.review, tags: a.tags, note: a.note, checklist: a.checklist } : EMPTY
 }
 
-export function AnnotationEditor({ session, summary }: { session: AgentSession; summary?: AnnotationSummary }) {
+export function AnnotationEditor({ session, summary, knownTags }: { session: AgentSession; summary?: AnnotationSummary; knownTags: string[] }) {
   const [draft, setDraft] = useState<Draft>(EMPTY)
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string>()
   const [save, setSave] = useState<SaveState>({ kind: 'idle' })
-  const [tagText, setTagText] = useState('')
   const [confirmClear, setConfirmClear] = useState(false)
   const pending = useRef<Draft | undefined>(undefined)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const lastSavedAt = useRef<string | undefined>(undefined)
   const sessionId = session.id
-  const ids = { alias: useId(), note: useId(), tags: useId() }
+  const ids = { alias: useId(), note: useId(), review: useId() }
 
   const flush = useCallback(
     async (id: string) => {
@@ -104,37 +103,22 @@ export function AnnotationEditor({ session, summary }: { session: AgentSession; 
     timer.current = setTimeout(() => void flush(sessionId), immediate ? 0 : 700)
   }
 
-  const addTag = () => {
-    const t = tagText.trim().slice(0, LIMITS.tagChars)
-    if (!t || draft.tags.includes(t) || draft.tags.length >= LIMITS.tags) return
-    update({ tags: [...draft.tags, t] }, true)
-    setTagText('')
-  }
-
   if (loadError) return <InlineAlert tone="danger">{loadError}</InlineAlert>
   if (!loaded) return <p className="muted small">Loading annotations…</p>
 
   return (
     <div className={styles.editor}>
-      <p className="small muted">Your notes are stored only in the local repobs database. They are never written to Git, sent to agents, or published.</p>
       <div className={styles.field}>
-        <span className="label" id={`${ids.alias}-l`}>
+        <label className="label" htmlFor={ids.review}>
           Review state
-        </span>
-        <div className={styles.segmented} role="radiogroup" aria-labelledby={`${ids.alias}-l`}>
+        </label>
+        <select id={ids.review} className="input" value={draft.review} onChange={(e) => update({ review: e.target.value as ReviewState }, true)}>
           {(Object.keys(REVIEW_LABELS) as ReviewState[]).map((r) => (
-            <button
-              key={r}
-              type="button"
-              role="radio"
-              aria-checked={draft.review === r}
-              className={`${styles.segment} ${draft.review === r ? styles.segmentOn : ''}`}
-              onClick={() => update({ review: r }, true)}
-            >
+            <option key={r} value={r}>
               {REVIEW_LABELS[r]}
-            </button>
+            </option>
           ))}
-        </div>
+        </select>
       </div>
       <div className={styles.field}>
         <label className="label" htmlFor={ids.alias}>
@@ -150,38 +134,12 @@ export function AnnotationEditor({ session, summary }: { session: AgentSession; 
         />
       </div>
       <div className={styles.field}>
-        <label className="label" htmlFor={ids.tags}>
-          Tags
-        </label>
-        <div className={styles.tags}>
-          {draft.tags.map((t) => (
-            <span key={t} className={styles.tag}>
-              {t}
-              <button type="button" className={styles.tagRemove} onClick={() => update({ tags: draft.tags.filter((x) => x !== t) }, true)} aria-label={`Remove tag ${t}`}>
-                <X size={11} />
-              </button>
-            </span>
-          ))}
-          <input
-            id={ids.tags}
-            className={`input ${styles.tagInput}`}
-            value={tagText}
-            placeholder="Add tag, Enter"
-            maxLength={LIMITS.tagChars}
-            onChange={(e) => setTagText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ',') {
-                e.preventDefault()
-                addTag()
-              }
-            }}
-            onBlur={addTag}
-          />
-        </div>
+        <span className="label">Tags</span>
+        <TagInput value={draft.tags} known={knownTags} onChange={(tags) => update({ tags }, true)} placeholder="Type, then Tab or Enter" />
       </div>
       <div className={styles.field}>
         <label className="label" htmlFor={ids.note}>
-          Scratch note
+          Notes
         </label>
         <textarea
           id={ids.note}
@@ -189,7 +147,7 @@ export function AnnotationEditor({ session, summary }: { session: AgentSession; 
           rows={7}
           value={draft.note}
           maxLength={LIMITS.noteChars}
-          placeholder="Plain text. What do you still need to check?"
+          placeholder="Plain text; Enter starts a new line."
           onChange={(e) => update({ note: e.target.value })}
         />
       </div>

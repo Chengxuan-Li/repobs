@@ -8,27 +8,28 @@ import { readE2EState } from './state.ts'
 // Run alone:  REPOBS_DOCS_SCREENSHOT=1 npx playwright test docs-screenshot
 test.skip(!process.env.REPOBS_DOCS_SCREENSHOT, 'documentation screenshot only on request')
 
-test('overview screenshot for the documentation', async ({ page }) => {
+test('dashboard screenshot for the documentation', async ({ page }) => {
   const state = readE2EState(Number(process.env.REPOBS_E2E_PORT ?? 47399))
-  await page.setViewportSize({ width: 1360, height: 760 })
+  await page.setViewportSize({ width: 1440, height: 860 })
   await page.emulateMedia({ colorScheme: 'light' })
   await page.goto(`/#pair=${mintPairingToken(state.dataDir) as string}`)
-  for (const repoPath of [state.git.repoA, state.git.repoB]) {
-    await page.getByRole('button', { name: 'Add repository' }).first().click()
-    const dialog = page.getByRole('dialog', { name: 'Add repository' })
-    await dialog.getByLabel('Local repository path').fill(repoPath)
-    await dialog.getByRole('button', { name: 'Add repository' }).click()
-    await expect(dialog).toBeHidden()
-  }
+  await page.getByRole('button', { name: 'Add repositories' }).first().click()
+  const dialog = page.getByRole('dialog', { name: 'Add repositories' })
+  await expect(dialog.getByRole('list', { name: 'Repositories to add' }).getByRole('checkbox')).toHaveCount(2)
+  await dialog.getByLabel('Select all').check()
+  await dialog.getByRole('button', { name: 'Add 2 repositories' }).click()
+  await expect(dialog).toBeHidden()
   // Collapse the bulk-session repository so the screenshot shows the interesting one.
-  await page.getByRole('treeitem', { name: 'repo-b repository' }).click()
-  await page.keyboard.press('ArrowLeft')
-  await page.getByRole('button', { name: 'Overview' }).click()
-  await page.getByRole('treeitem', { name: /Review ref grouping/ }).click({ button: 'right' })
-  await page.getByRole('menuitem', { name: 'Mark: Flagged' }).click()
-  await page.getByRole('button', { name: 'Dismiss' }).click()
-  await page.getByRole('button', { name: 'Overview' }).click()
-  await expect(page.getByText('Attention queue')).toBeVisible()
+  await page.getByRole('button', { name: 'Collapse repo-b' }).click()
+  const card = page.getByRole('listitem', { name: /^Review ref grouping/ })
+  await card.getByLabel(/Review state for/).selectOption('flagged')
+  await page.getByRole('listitem', { name: /^Tighten status parser/ }).getByText('Tighten status parser', { exact: true }).click()
+  await expect(page.getByRole('complementary', { name: 'Details panel' }).getByLabel('Review state')).toBeVisible()
   await page.mouse.move(0, 0)
-  await page.screenshot({ path: path.resolve('docs/assets/repobs-overview.png') })
+  // Temporary-folder paths contain the local user name: mask them in the published image.
+  await page.screenshot({
+    path: path.resolve('docs/assets/repobs-overview.png'),
+    maskColor: '#cfd8e5',
+    mask: [page.locator('header span.mono[title]'), page.getByText(/^(Worktree|Working directory)$/).locator('xpath=following-sibling::dd[1]')],
+  })
 })

@@ -49,9 +49,14 @@ export function buildDemo(root: string, now = Date.now()): Demo {
     claude.prompt('c3d2e4f6-3333-4aaa-8bbb-000000000003', worktrees.feature, ago(3)),
     claude.endTurn('c3d2e4f6-3333-4aaa-8bbb-000000000003', worktrees.feature, ago(2)),
   ])
-  writeClaudeSubagent(claudeHome, worktrees.feature, 'c3d2e4f6-3333-4aaa-8bbb-000000000003', 'demo1', [
-    claude.prompt('c3d2e4f6-3333-4aaa-8bbb-000000000003', worktrees.feature, ago(1)),
-  ])
+  writeClaudeSubagent(
+    claudeHome,
+    worktrees.feature,
+    'c3d2e4f6-3333-4aaa-8bbb-000000000003',
+    'demo1',
+    [claude.prompt('c3d2e4f6-3333-4aaa-8bbb-000000000003', worktrees.feature, ago(2)), claude.toolUse('c3d2e4f6-3333-4aaa-8bbb-000000000003', worktrees.feature, ago(1))],
+    { agentType: 'Explore', description: 'Map the feature module' },
+  )
   writeClaudeSession(claudeHome, worktrees.conflict, 'd4c3b2a1-4444-4aaa-8bbb-000000000004', [
     claude.title('d4c3b2a1-4444-4aaa-8bbb-000000000004', 'Resolve merge plan'),
     claude.prompt('d4c3b2a1-4444-4aaa-8bbb-000000000004', worktrees.conflict, ago(60 * 30)),

@@ -78,6 +78,7 @@ export function snapshot(over: Partial<Snapshot> = {}): Snapshot {
     annotations: [],
     pullRequests: [],
     pullRequestStatus: [],
+    commitGraphs: [],
     monitor: { state: 'ok', errors: [] },
     ...over,
   }
@@ -109,7 +110,7 @@ export function sampleSnapshot(): Snapshot {
       session('claude:gone', { repoId: r.id, association: 'unassigned', unassignedReason: 'worktree_removed', title: 'Removed worktree work' }),
     ],
     annotations: [
-      { sessionId: 'claude:s3', review: 'flagged', tags: ['perf'], hasNote: true, checklistOpen: 0, checklistDone: 1, updatedAt: 'x', displayAlias: 'Perf spike' },
+      { sessionId: 'claude:s3', review: 'flagged', tags: ['perf'], hasNote: true, note: 'Check the allocation spike', checklistOpen: 0, checklistDone: 1, updatedAt: 'x', displayAlias: 'Perf spike' },
     ],
   })
 }
