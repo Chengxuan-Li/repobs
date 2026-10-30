@@ -1,0 +1,39 @@
+site_name: repobs
+site_description: Local Git worktree and coding-agent observatory
+site_author: repobs contributors
+# Set these only after the actual GitHub owner/remote exists (handoff section 6.1):
+# site_url: https://ACTUAL-OWNER.github.io/repobs/
+# repo_url: https://github.com/ACTUAL-OWNER/repobs
+# edit_uri: edit/main/docs/
+docs_dir: docs
+site_dir: site
+use_directory_urls: true
+strict: true
+theme:
+  name: mkdocs
+  navigation_depth: 3
+  highlightjs: false
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - User guide: user-guide.md
+  - Status semantics: status-semantics.md
+  - Integrations: integrations.md
+  - Privacy & security: privacy-security.md
+  - Limitations: limitations.md
+  - Architecture: architecture.md
+  - HTTP API: api.md
+  - Development:
+      - Reference audit: development/reference-audit.md
+      - Testing: development/testing.md
+      - Handoff progress: development/handoff-status.md
+      - Product handoff (original): development/product-handoff.md
+      - Foundation decision: decisions/0001-product-foundation.md
+      - Engineering decisions: decisions/0002-engineering-choices.md
+extra_css:
+  - assets/repobs.css
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn

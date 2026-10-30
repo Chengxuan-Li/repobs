@@ -1,0 +1,42 @@
+/* Light restyle of the built-in MkDocs theme following the repobs/EnergyAtlas-family conventions:
+   square corners, thin rules, Geist-like system stacks (no web fonts are loaded by the docs). */
+:root {
+  --repobs-accent: #125dae;
+  --repobs-text: #18202c;
+  --repobs-muted: #5f6b7a;
+  --repobs-rule: #cfd8e5;
+  --repobs-raised: #f8fafc;
+}
+body {
+  font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color: var(--repobs-text);
+  font-size: 15px;
+}
+code, pre, kbd {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  border-radius: 0 !important;
+}
+pre {
+  border: 1px solid var(--repobs-rule);
+  background: var(--repobs-raised);
+}
+a, a:hover { color: var(--repobs-accent); }
+.navbar {
+  border-radius: 0;
+  border-bottom: 1px solid var(--repobs-rule);
+}
+.navbar-brand { font-weight: 700; }
+h1, h2, h3 { font-weight: 600; color: var(--repobs-text); }
+h2 { border-bottom: 1px solid var(--repobs-rule); padding-bottom: 4px; }
+table { border-collapse: collapse; }
+table th {
+  background: var(--repobs-raised);
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--repobs-muted);
+}
+table th, table td { border: 1px solid var(--repobs-rule) !important; padding: 4px 8px !important; }
+.card, .well, .btn, .dropdown-menu, .form-control { border-radius: 0 !important; }
+.bs-sidebar .nav > li > a { color: var(--repobs-muted); }
+img { border: 1px solid var(--repobs-rule); max-width: 100%; }
