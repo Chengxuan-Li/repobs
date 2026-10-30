@@ -12,7 +12,7 @@ import {
 } from '@repobs/contracts'
 import { Badge } from '../../components/primitives'
 import { AgentRow } from './AgentRow'
-import { AgentHover, BranchHover, CommitHover, PendingHover, type ShowHover } from './HoverCard'
+import { AgentHover, BranchHover, CommitHover, GroupHover, PendingHover, type ShowHover } from './HoverCard'
 import type { BoardRow, BranchRow, RepoLayout } from './layout'
 import { PAD, type Timeline } from './timeline'
 import styles from './board.module.css'
@@ -53,6 +53,7 @@ export interface RepoBoardProps {
   onReview: (sessionId: string, review: ReviewState) => void
   onExpandBranch: (branchRowId: string) => void
   onToggleAgent: (sessionId: string) => void
+  onExpandGroup: (groupId: string) => void
 }
 
 export const RepoBoard = memo(function RepoBoard(props: RepoBoardProps) {
@@ -237,26 +238,59 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
   }
   els.push(<line key="now" x1={timeline.nowX} x2={timeline.nowX} y1={0} y2={geo.height} className={styles.nowLine} />)
 
-  // Edges first (under the nodes). Parents off the axis enter from the left edge.
+  // Edges first (under the nodes): straight along a row; between rows, orthogonal with rounded
+  // corners — a fork drops from its base commit and runs to the branch, a merge runs along its
+  // branch and turns into the merge commit. Parents off the axis enter from the left edge.
+  const groupsById = new Map(layout.groups.map((g) => [g.id, g]))
+  const rowOf = (key: string) => layout.commits.get(key)?.rowId ?? groupsById.get(key)?.rowId
   for (const e of layout.edges) {
-    const to = layout.commits.get(e.to)!
-    const from = layout.commits.get(e.from)!
+    const fromRow = rowOf(e.from)
+    const toRow = rowOf(e.to)
     const x2 = timeline.commitX(e.to)
-    const y1 = center(from.rowId)
-    const y2 = center(to.rowId)
+    const y1 = fromRow ? center(fromRow) : undefined
+    const y2 = toRow ? center(toRow) : undefined
     if (x2 === undefined || y1 === undefined || y2 === undefined) continue
     const x1 = timeline.commitX(e.from) ?? PAD / 2
-    const cls = `${styles.edge} ${e.kind !== 'lane' ? styles.edgeCross : ''} ${e.localOnly ? styles.edgeLocal : ''} ${to.incoming ? styles.edgeIncoming : ''}`
-    if (y1 === y2) els.push(<line key={`e-${e.from}-${e.to}`} x1={x1} x2={x2} y1={y1} y2={y2} className={cls} />)
-    else {
-      const bend = Math.min(Math.max((x2 - x1) * 0.5, 10), 60)
-      els.push(<path key={`e-${e.from}-${e.to}`} d={`M${x1},${y1} C${x1 + bend},${y1} ${x2 - bend},${y2} ${x2},${y2}`} className={cls} fill="none" />)
-    }
+    const incoming = layout.commits.get(e.to)?.incoming
+    const cls = `${styles.edge} ${e.kind !== 'lane' ? styles.edgeCross : ''} ${e.localOnly ? styles.edgeLocal : ''} ${incoming ? styles.edgeIncoming : ''}`
+    els.push(<path key={`e-${e.from}-${e.to}`} d={elbow(x1, y1, x2, y2, e.kind === 'merge' ? 'hv' : 'vh')} className={cls} fill="none" />)
+  }
+
+  // Collapsed runs of quiet commits: one pill each; hover lists the commits, click expands.
+  for (const g of layout.groups) {
+    const x = timeline.commitX(g.id)
+    const y = center(g.rowId)
+    if (x === undefined || y === undefined) continue
+    const x0 = timeline.mode === 'time' ? Math.min(x, timeline.x(g.start)) : x
+    const left = Math.min(x0, x - 13)
+    const width = Math.max(26, x - x0 + 26)
+    const branch = branchRows.find((r) => r.id === g.rowId)
+    const unpushed = g.commits.some((c) => !c.pushed)
+    els.push(
+      <g
+        key={`g-${g.id}`}
+        className={styles.group}
+        onMouseEnter={(ev) => showHover(<GroupHover group={g} branch={branch?.label} onExpand={() => props.onExpandGroup(g.id)} />, ev, { interactive: true })}
+        onMouseLeave={hideHover}
+        onClick={(ev) => {
+          ev.stopPropagation()
+          hideHover()
+          props.onExpandGroup(g.id)
+        }}
+      >
+        <rect x={left - 2} y={y - 10} width={width + 4} height={20} className={styles.hit} />
+        <rect x={left} y={y - 7} width={width} height={14} rx={7} className={`${styles.groupPill} ${unpushed ? styles.groupLocal : ''}`} />
+        <text x={left + width / 2} y={y + 3.5} textAnchor="middle" className={styles.groupCount}>
+          {g.commits.length}
+        </text>
+      </g>,
+    )
   }
 
   // Commit nodes, with a larger invisible target for hovering.
   const heads = new Map(branchRows.filter((r) => r.headOid).map((r) => [r.headOid!, r]))
   for (const { commit, rowId, incoming } of layout.commits.values()) {
+    if (layout.groupOf.has(commit.oid)) continue
     const x = timeline.commitX(commit.oid)
     const y = center(rowId)
     if (x === undefined || y === undefined) continue
@@ -284,7 +318,7 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
       if (oy !== undefined) {
         els.push(
           <g key={`ptr-${row.id}`} {...hoverProps(() => <BranchHover row={row} />)}>
-            <path d={`M${hx},${oy} C${hx + 14},${oy} ${hx + 14},${y} ${hx + 24},${y}`} className={`${styles.edge} ${styles.edgePointer}`} fill="none" />
+            <path d={elbow(hx, oy, hx + 24, y, 'vh')} className={`${styles.edge} ${styles.edgePointer}`} fill="none" />
             <circle cx={hx + 28} cy={y} r={10} className={styles.hit} />
             <circle cx={hx + 28} cy={y} r={4} className={styles.pointer} />
           </g>,
@@ -345,4 +379,19 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     els.push(<path key={`s-${link.to}`} d={`M${cx - 3},${py + 3} V${cy} H${cx}`} className={styles.spawnLink} fill="none" />)
   }
   return <>{els}</>
+}
+
+/**
+ * Orthogonal connector with rounded corners. 'vh' goes vertical first (a fork leaving its base
+ * commit), 'hv' horizontal first (a merge running along its branch, then turning in).
+ */
+export function elbow(x1: number, y1: number, x2: number, y2: number, order: 'vh' | 'hv', radius = 6): string {
+  if (Math.abs(y2 - y1) < 0.5) return `M${x1},${y1} H${x2}`
+  if (Math.abs(x2 - x1) < 0.5) return `M${x1},${y1} V${y2}`
+  const dx = Math.sign(x2 - x1)
+  const dy = Math.sign(y2 - y1)
+  const r = Math.min(radius, Math.abs(x2 - x1), Math.abs(y2 - y1))
+  return order === 'vh'
+    ? `M${x1},${y1} V${y2 - dy * r} Q${x1},${y2} ${x1 + dx * r},${y2} H${x2}`
+    : `M${x1},${y1} H${x2 - dx * r} Q${x2},${y1} ${x2},${y1 + dy * r} V${y2}`
 }

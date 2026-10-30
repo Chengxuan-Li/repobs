@@ -372,3 +372,26 @@
   stroke-width: 1.5;
   pointer-events: none;
 }
+.group {
+  cursor: pointer;
+}
+.groupPill {
+  fill: var(--color-surface-raised);
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+.groupLocal {
+  stroke: var(--tone-warning-text);
+  stroke-dasharray: 3 2;
+}
+.groupCount {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  fill: var(--color-text);
+  pointer-events: none;
+}
+.group:hover .groupPill {
+  fill: var(--color-selected-bg);
+}

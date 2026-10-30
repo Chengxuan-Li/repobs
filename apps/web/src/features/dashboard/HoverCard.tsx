@@ -1,4 +1,5 @@
 import { type ReactNode, useLayoutEffect, useRef, useState } from 'react'
+import type { CommitGroup } from './layout'
 import {
   type AgentSession,
   type AnnotationSummary,
@@ -23,23 +24,35 @@ export interface HoverState {
   content: ReactNode
   x: number
   y: number
+  /** The pointer may move onto the card (lists you can hover or click). */
+  interactive?: boolean
 }
 
-export type ShowHover = (content: ReactNode, e: { clientX: number; clientY: number }) => void
+export type ShowHover = (content: ReactNode, e: { clientX: number; clientY: number }, options?: { interactive?: boolean }) => void
 
-export function HoverCard({ state }: { state?: HoverState }) {
+export function HoverCard({ state, onEnter, onLeave }: { state?: HoverState; onEnter: () => void; onLeave: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ left: 0, top: 0 })
   useLayoutEffect(() => {
     if (!state || !ref.current) return
     const { offsetWidth: w, offsetHeight: h } = ref.current
-    const left = state.x + 16 + w > window.innerWidth ? Math.max(8, state.x - 16 - w) : state.x + 16
-    const top = state.y + 16 + h > window.innerHeight ? Math.max(8, state.y - 12 - h) : state.y + 16
+    // Interactive cards open right next to the pointer so it can move onto them.
+    const gap = state.interactive ? 6 : 16
+    const left = state.x + gap + w > window.innerWidth ? Math.max(8, state.x - gap - w) : state.x + gap
+    const top = state.y + gap + h > window.innerHeight ? Math.max(8, state.y - gap - h) : state.y + gap
     setPos({ left, top })
   }, [state])
   if (!state) return null
   return (
-    <div ref={ref} className={styles.card} style={pos} role="tooltip">
+    <div
+      ref={ref}
+      className={`${styles.card} ${state.interactive ? styles.interactive : ''}`}
+      style={pos}
+      role={state.interactive ? 'dialog' : 'tooltip'}
+      aria-label={state.interactive ? 'Commit details' : undefined}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+    >
       {state.content}
     </div>
   )
@@ -212,6 +225,43 @@ export function PendingHover({ row }: { row: BranchRow }) {
       <div className="small">
         {totals.staged} staged · {totals.unstaged} unstaged · {totals.untracked} untracked{totals.conflicted ? ` · ${totals.conflicted} conflicted` : ''}
       </div>
+    </>
+  )
+}
+
+/** Collapsed run of quiet commits: a list you can hover for details, and a way to expand it. */
+export function GroupHover({ group, branch, onExpand }: { group: CommitGroup; branch?: string; onExpand: () => void }) {
+  const newestFirst = [...group.commits].reverse()
+  const [active, setActive] = useState<CommitNode>()
+  const fmt = (ms: number) => new Date(ms).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+  return (
+    <>
+      <div className={styles.title}>
+        {group.commits.length} quiet commits{branch ? <> on <span className="mono">{branch}</span></> : null}
+      </div>
+      <div className="small muted">
+        {fmt(group.start)} – {fmt(group.end)} · no branching, merging, branch heads or agent activity
+      </div>
+      <ul className={styles.commitList} aria-label="Collapsed commits">
+        {newestFirst.map((c) => (
+          <li key={c.oid} onMouseEnter={() => setActive(c)} className={active?.oid === c.oid ? styles.commitActive : undefined}>
+            <span className="mono">{c.oid.slice(0, 7)}</span> {c.subject || '(no subject)'}
+          </li>
+        ))}
+      </ul>
+      {active ? (
+        <div className={styles.commitDetail}>
+          <div className={styles.subject}>{active.subject || '(no subject)'}</div>
+          <div className="small muted">
+            <span className="mono">{active.oid.slice(0, 12)}</span> · {new Date(active.time * 1000).toLocaleString()} · {active.pushed ? 'pushed' : 'local only'}
+          </div>
+        </div>
+      ) : (
+        <div className="small muted">Hover a commit for its details.</div>
+      )}
+      <button type="button" className="btn" onClick={onExpand}>
+        Show these commits on the graph
+      </button>
     </>
   )
 }

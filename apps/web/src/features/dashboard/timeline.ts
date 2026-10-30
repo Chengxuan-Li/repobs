@@ -1,9 +1,7 @@
-import type { CommitGraph } from '@repobs/contracts'
-
 // The horizontal axis shared by every repository on the dashboard.
-//   sequence (default): commits are evenly spaced in time order, merged across all visible
-//     repositories, so the axis is the same for every project; times between commits (agent
-//     activity) are placed by interpolating between neighbouring commits.
+//   sequence (default): drawn items — commits, or groups of collapsed commits — are evenly spaced
+//     in time order, merged across all visible repositories, so the axis is the same for every
+//     project; times between items (agent activity) are interpolated between neighbours.
 //   time: a linear calendar scale over the chosen range.
 // Pure and unit-tested (timeline.test.ts).
 
@@ -19,8 +17,8 @@ export interface Timeline {
   width: number
   /** x for a timestamp in ms (clamped to the axis). */
   x: (ms: number) => number
-  /** x for a commit, if it is on the axis. */
-  commitX: (oid: string) => number | undefined
+  /** x for a drawn item (commit oid or group id), if it is on the axis. */
+  commitX: (key: string) => number | undefined
   /** Earliest time shown (ms); commits/agents older than this are off-axis. */
   start: number
   end: number
@@ -31,7 +29,8 @@ export interface Timeline {
 
 export interface TimelineInput {
   mode: AxisMode
-  graphs: CommitGraph[]
+  /** Drawn items: commits (key = oid) and collapsed groups (key = group id), time in ms. */
+  items: Array<{ key: string; time: number }>
   /** Start/end of agent activity to include on the axis (ms). */
   activity: Array<{ start: number; end: number }>
   /** Range start in ms (null = everything loaded). */
@@ -51,14 +50,14 @@ export function buildTimeline(input: TimelineInput): Timeline {
 }
 
 function timeAxis(input: TimelineInput): Timeline {
-  const times = [...input.graphs.flatMap((g) => g.commits.map((c) => c.time * 1000)), ...input.activity.map((a) => a.start)]
+  const times = [...input.items.map((i) => i.time), ...input.activity.map((a) => a.start)]
   const earliest = times.length ? Math.min(...times) : input.now - 7 * DAY
   const start = input.rangeStart ?? Math.min(earliest, input.now - DAY)
   const end = input.now + Math.max(60 * 60_000, (input.now - start) * 0.02)
   const width = Math.max(input.availableWidth, 200)
   const scale = (ms: number) => PAD + ((ms - start) / Math.max(1, end - start)) * (width - 2 * PAD)
   const x = (ms: number) => Math.min(width - PAD, Math.max(PAD, scale(ms)))
-  const commitTimes = new Map(input.graphs.flatMap((g) => g.commits.map((c) => [c.oid, c.time * 1000] as const)))
+  const commitTimes = new Map(input.items.map((i) => [i.key, i.time] as const))
   const commitX = (oid: string) => {
     const t = commitTimes.get(oid)
     return t === undefined || t < start ? undefined : x(t)
@@ -67,17 +66,16 @@ function timeAxis(input: TimelineInput): Timeline {
 }
 
 function sequenceAxis(input: TimelineInput): Timeline {
-  const commits = input.graphs
-    .flatMap((g) => g.commits)
-    .filter((c) => input.rangeStart === null || c.time * 1000 >= input.rangeStart)
-    .sort((a, b) => a.time - b.time || a.oid.localeCompare(b.oid))
+  const commits = input.items
+    .filter((c) => input.rangeStart === null || c.time >= input.rangeStart)
+    .sort((a, b) => a.time - b.time || a.key.localeCompare(b.key))
   // Columns: one per commit, plus a final column for "now" (pending changes, live agents).
   const n = commits.length + 1
   const spacing = Math.max(input.minSpacing, (input.availableWidth - 2 * PAD) / Math.max(1, n))
   const width = Math.max(input.availableWidth, 2 * PAD + spacing * n)
   const colX = (i: number) => PAD + spacing * (i + 0.5)
-  const oidX = new Map(commits.map((c, i) => [c.oid, colX(i)]))
-  const times = commits.map((c) => c.time * 1000)
+  const oidX = new Map(commits.map((c, i) => [c.key, colX(i)]))
+  const times = commits.map((c) => c.time)
   const nowX = colX(commits.length)
   const start = times[0] ?? input.rangeStart ?? input.now - DAY
 
@@ -103,7 +101,7 @@ function sequenceAxis(input: TimelineInput): Timeline {
   let lastX = -Infinity
   let lastDay = ''
   commits.forEach((c, i) => {
-    const d = new Date(c.time * 1000)
+    const d = new Date(c.time)
     const day = d.toDateString()
     if (day === lastDay) return
     lastDay = day

@@ -7,7 +7,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildGitFixture, type GitFixture } from '../fixtures/git-fixtures.ts'
+import { buildGitFixture, fixtureGit, type GitFixture } from '../fixtures/git-fixtures.ts'
 import {
   claude,
   codex,
@@ -34,6 +34,16 @@ export function buildDemo(root: string, now = Date.now()): Demo {
   const codexHome = path.join(root, 'codex-home')
   const dataDir = path.join(root, 'repobs-data')
   const { repoA, repoB, worktrees } = git
+
+  // A branch with a run of uneventful history, so "Collapse quiet commits" has something to fold.
+  const scratch = path.join(root, 'src', 'repo-a-worktrees', 'scratch-history')
+  fixtureGit(repoA, ['worktree', 'add', scratch, 'claude/scratch-a8de'])
+  for (let i = 1; i <= 10; i++) {
+    fs.writeFileSync(path.join(scratch, 'notes.txt'), `scratch step ${i}\n`)
+    fixtureGit(scratch, ['add', 'notes.txt'])
+    fixtureGit(scratch, ['commit', '-m', `Scratch step ${i}`])
+  }
+  fixtureGit(repoA, ['worktree', 'remove', '--force', scratch])
 
   writeClaudeSession(claudeHome, repoA, 'a1f0c2d4-1111-4aaa-8bbb-000000000001', [
     claude.title('a1f0c2d4-1111-4aaa-8bbb-000000000001', 'Tighten status parser'),

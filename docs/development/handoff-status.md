@@ -2,6 +2,17 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 4 — 2026-10-30: third review
+
+| Request | Implementation |
+| --- | --- |
+| Branch connectors looked like free-form curves | Orthogonal paths with rounded corners (`elbow()` in `RepoBoard.tsx`): forks drop from the base commit then run to the branch; merges run along the branch then turn into the merge commit; branch pointers likewise |
+| Optionally collapse commits where nothing happens | *Collapse quiet commits* (off by default): runs of 2+ commits on one branch without a head, fork, merge, first own commit or agent activity within 5 minutes become a counted pill taking one axis column (`groupQuietCommits` in `layout.ts`); hover lists them in an interactive card where each commit can be inspected; click expands the run; re-ticking re-collapses |
+
+The demo (`scripts/demo.ts`) now gives `claude/scratch-a8de` ten commits so there is a run to collapse.
+
+Verification (2026-10-30, this machine): typecheck, lint and build exit 0; `npm test` 13 files / 116 tests passed; `npm run test:integration` 6 files / 73 tests passed; `npm run test:e2e` 20 passed (Edge); `npm run docs:build` exit 0. Backend unchanged in this round.
+
 ## Checkpoint 3 — 2026-10-30: second review (ADR 0003 amendment)
 
 | Request | Implementation |

@@ -31,10 +31,14 @@ unicode-branch at main   ┊○                                     no commits o
 Click **Legend** in the filter bar for the meaning of every mark.
 
 - **One row per branch.** Local branches come first (the primary checkout's branch at the top, then other checked-out branches, then the rest by newest commit), then detached worktrees, *Unassigned sessions*, and — if *Remote-only branches* is ticked — remote refs without a local branch. The *Branches* menu shows all, only checked-out ones, or only branches with agents.
-- **Relationships are spelled out.** The label says *from main* when a branch's first own commit was made on top of `main`, *→ main* when it was merged into `main`, and *at main* when it has no commits of its own and points at a commit on `main`. On the lanes, forks and merges are curves between rows and "at" branches get a dashed pointer to the commit they sit on.
+- **Relationships are spelled out.** The label says *from main* when a branch's first own commit was made on top of `main`, *→ main* when it was merged into `main`, and *at main* when it has no commits of its own and points at a commit on `main`. On the lanes, connectors are straight lines with rounded corners: a fork drops vertically from its base commit and turns into the branch row, a merge runs along its branch and turns into the merge commit, and "at" branches get a dashed pointer to the commit they sit on.
 - **Commits are nodes, parent links are edges.** A commit sits on the row of the first branch that reaches it along first parents; commits reached only through merges of deleted branches are drawn on the merging row.
 - **Node styles:** filled = on a remote-tracking ref (pushed); hollow amber with dashed edges = only local, not pushed; grey dashed = on the upstream but not pulled yet; hollow blue = a branch pointer; the dashed **diamond** after a head = uncommitted or untracked changes in that branch's worktree (red when conflicted). A small square above a head marks an open pull request (when the GitHub integration is on).
 - **Hover** any commit for its subject, id, date, branch and push state; any branch label or pointer for its upstream, relations and worktree; any diamond for the change counts; any agent row or bar for the agent's details.
+
+### Collapsing quiet commits
+
+Tick **Collapse quiet commits** to fold runs of commits that change nothing in the picture — no branch head, no fork or merge, not the first commit of a branch, and no agent active on that branch within five minutes — into one pill showing how many commits it hides. Hover a pill to list its commits (newest first); move onto the list and hover a commit for its subject, id, date and push state. Click the pill, or **Show these commits on the graph**, to expand that run. Unticking the box shows everything; ticking it again re-collapses all runs.
 
 ### The shared axis
 

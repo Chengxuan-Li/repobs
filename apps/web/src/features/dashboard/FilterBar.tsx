@@ -97,6 +97,9 @@ export function FilterBar({
             <option value="with_agents">With agents</option>
           </select>
         </label>
+        <label className={styles.chip}>
+          <input type="checkbox" checked={view.collapseQuiet} onChange={(e) => setView({ collapseQuiet: e.target.checked, expandedGroups: [] })} /> Collapse quiet commits
+        </label>
         <label className={styles.inline}>
           <span className="label">Axis</span>
           <select className="input" value={view.axisMode} onChange={(e) => setView({ axisMode: e.target.value as AxisMode })}>

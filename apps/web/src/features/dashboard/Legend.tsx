@@ -22,11 +22,14 @@ export function Legend({ axisMode }: { axisMode: 'sequence' | 'time' }) {
         <rect x="5" y="3" width="9" height="9" transform="rotate(45 9.5 7.5)" className={styles.pending} />
       </Item>
       <Item label="Branched from / merged into another branch">
-        <path d="M1,13 C8,13 8,3 18,3" className={styles.fork} fill="none" />
+        <path d="M2,2 V9 Q2,13 6,13 H18" className={styles.fork} fill="none" />
       </Item>
       <Item label="Branch with no commits of its own, pointing at a commit on another branch">
-        <path d="M1,3 C7,3 7,12 13,12" className={styles.fork} fill="none" strokeDasharray="2 2" />
+        <path d="M2,2 V8 Q2,12 6,12 H12" className={styles.fork} fill="none" strokeDasharray="2 2" />
         <circle cx="16" cy="12" r="3" className={styles.local} style={{ stroke: 'var(--color-accent)' }} />
+      </Item>
+      <Item label="Collapsed quiet commits (count; hover to list, click to expand)">
+        <rect x="1" y="3" width="18" height="10" rx="5" className={styles.group} />
       </Item>
       <Item label="Agent activity, first to last message (colour = status)">
         <rect x="1" y="5" width="7" height="6" className={styles.barWorking} />

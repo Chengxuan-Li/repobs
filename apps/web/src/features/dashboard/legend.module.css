@@ -65,3 +65,8 @@
   stroke: var(--color-accent);
   stroke-dasharray: 2 3;
 }
+.group {
+  fill: var(--color-surface);
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+}

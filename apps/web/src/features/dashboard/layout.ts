@@ -65,12 +65,27 @@ export interface GraphEdge {
   localOnly: boolean
 }
 
+/** A run of consecutive "quiet" commits on one branch row, drawn as one node. */
+export interface CommitGroup {
+  id: string
+  rowId: string
+  /** Oldest first. */
+  commits: CommitNode[]
+  /** Commit times in ms. */
+  start: number
+  end: number
+}
+
 export interface RepoLayout {
   rows: BoardRow[]
   commits: Map<string, PlacedCommit>
+  /** Edges between drawn nodes (commit oids or group ids); edges inside a group are dropped. */
   edges: GraphEdge[]
   /** Parent session row -> child session rows (spawned agents). */
   spawnLinks: Array<{ from: string; to: string }>
+  groups: CommitGroup[]
+  /** Commit oid -> id of the group that hides it. */
+  groupOf: Map<string, string>
 }
 
 export interface LayoutOptions {
@@ -81,6 +96,10 @@ export interface LayoutOptions {
   sessionLimit: number
   /** Branch row ids whose session list is fully expanded. */
   expandedBranches: Set<string>
+  /** Collapse runs of commits that change nothing in the topology (no heads, forks, merges or agents). */
+  collapseQuiet: boolean
+  /** Group ids the user expanded while collapsing is on. */
+  expandedGroups: Set<string>
 }
 
 export const DEFAULT_LAYOUT: LayoutOptions = {
@@ -89,7 +108,12 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   showRemoteOnly: false,
   sessionLimit: 12,
   expandedBranches: new Set(),
+  collapseQuiet: false,
+  expandedGroups: new Set(),
 }
+
+/** Agents active within this margin of a commit make the commit "eventful". */
+const ACTIVITY_MARGIN_MS = 5 * 60_000
 
 const pending = (w: Worktree) => (w.status.state === 'ok' ? w.status.staged + w.status.unstaged + w.status.untracked + w.status.conflicted : 0)
 
@@ -265,7 +289,96 @@ export function layoutRepository(
     for (const s of visible) addSession(s, 0)
     if (visible.length < sessions.length) rows.push({ kind: 'more', id: `more:${row.id}`, branchRowId: row.id, hidden: sessions.length - visible.length })
   }
-  return { rows, commits, edges, spawnLinks }
+  const { groups, groupOf } = options.collapseQuiet
+    ? groupQuietCommits(commits, edges, branchRows, input.branches, options.expandedGroups)
+    : { groups: [], groupOf: new Map<string, string>() }
+  return { rows, commits, edges: groupOf.size ? remapEdges(edges, groupOf) : edges, spawnLinks, groups, groupOf }
+}
+
+/**
+ * Commits worth showing individually: branch tips (local and remote), the first own commit of a
+ * branch, fork bases, merges and merge sources, and commits made while an agent on that branch was
+ * active. Runs of two or more other commits along one row's first-parent chain become a group.
+ */
+function groupQuietCommits(
+  commits: Map<string, PlacedCommit>,
+  edges: GraphEdge[],
+  branchRows: Array<{ row: BranchRow; sessions: AgentSession[] }>,
+  branches: BranchRef[],
+  expanded: Set<string>,
+) {
+  const keep = new Set<string>(branches.map((b) => b.tipOid).filter(Boolean))
+  for (const { row } of branchRows) if (row.headOid) keep.add(row.headOid)
+  for (const e of edges) {
+    if (e.kind === 'lane') continue
+    keep.add(e.from)
+    keep.add(e.to)
+  }
+  for (const { commit, rowId } of commits.values()) {
+    if (commit.parents.length > 1) keep.add(commit.oid)
+    const parent = commit.parents[0] ? commits.get(commit.parents[0]) : undefined
+    if (!parent || parent.rowId !== rowId) keep.add(commit.oid)
+  }
+  const activity = new Map<string, Array<[number, number]>>()
+  for (const { row, sessions } of branchRows) {
+    activity.set(
+      row.id,
+      sessions.map((s) => {
+        const start = Date.parse(s.firstSeenAt ?? s.lastActivityAt ?? '') || 0
+        const end = Date.parse(s.lastActivityAt ?? '') || start
+        return [start - ACTIVITY_MARGIN_MS, end + ACTIVITY_MARGIN_MS] as [number, number]
+      }),
+    )
+  }
+
+  const byRow = new Map<string, CommitNode[]>()
+  for (const { commit, rowId } of commits.values()) {
+    const t = commit.time * 1000
+    if ((activity.get(rowId) ?? []).some(([a, b]) => t >= a && t <= b)) keep.add(commit.oid)
+    byRow.set(rowId, [...(byRow.get(rowId) ?? []), commit])
+  }
+
+  const groups: CommitGroup[] = []
+  const groupOf = new Map<string, string>()
+  for (const [rowId, list] of byRow) {
+    list.sort((a, b) => a.time - b.time || a.oid.localeCompare(b.oid))
+    let run: CommitNode[] = []
+    const close = () => {
+      if (run.length >= 2) {
+        const id = `grp:${run[0]!.oid}`
+        if (!expanded.has(id)) {
+          groups.push({ id, rowId, commits: run, start: run[0]!.time * 1000, end: run.at(-1)!.time * 1000 })
+          for (const c of run) groupOf.set(c.oid, id)
+        }
+      }
+      run = []
+    }
+    for (const c of list) {
+      const quiet = !keep.has(c.oid)
+      if (quiet && (run.length === 0 || c.parents[0] === run.at(-1)!.oid)) run.push(c)
+      else {
+        close()
+        if (quiet) run.push(c)
+      }
+    }
+    close()
+  }
+  return { groups, groupOf }
+}
+
+/** Point edges at group nodes; drop edges inside a group and duplicates. */
+function remapEdges(edges: GraphEdge[], groupOf: Map<string, string>): GraphEdge[] {
+  const seen = new Set<string>()
+  const out: GraphEdge[] = []
+  for (const e of edges) {
+    const from = groupOf.get(e.from) ?? e.from
+    const to = groupOf.get(e.to) ?? e.to
+    const key = `${from}>${to}`
+    if (from === to || seen.has(key)) continue
+    seen.add(key)
+    out.push({ ...e, from, to })
+  }
+  return out
 }
 
 /** Latest activity in a repository: newest commit or session activity. */

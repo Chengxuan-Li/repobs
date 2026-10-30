@@ -83,8 +83,10 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
       showRemoteOnly: view.showRemoteOnly,
       sessionLimit: 12,
       expandedBranches: new Set(view.expandedBranches),
+      collapseQuiet: view.collapseQuiet,
+      expandedGroups: new Set(view.expandedGroups),
     }),
-    [view.branchMode, view.showSpawned, view.showRemoteOnly, view.expandedBranches],
+    [view.branchMode, view.showSpawned, view.showRemoteOnly, view.expandedBranches, view.collapseQuiet, view.expandedGroups],
   )
 
   // Layouts are computed once here so the dashboard and the details panel agree (branch relations).

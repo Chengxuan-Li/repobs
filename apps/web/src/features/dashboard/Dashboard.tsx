@@ -59,7 +59,13 @@ export function Dashboard({
     () =>
       buildTimeline({
         mode: view.axisMode,
-        graphs: snapshot.commitGraphs.filter((g) => visibleIds.has(g.repoId)),
+        // Drawn items only: a collapsed run of quiet commits takes one column.
+        items: [...layouts.entries()]
+          .filter(([repoId]) => visibleIds.has(repoId))
+          .flatMap(([, l]) => [
+            ...[...l.commits.values()].filter((p) => !l.groupOf.has(p.commit.oid)).map((p) => ({ key: p.commit.oid, time: p.commit.time * 1000 })),
+            ...l.groups.map((g) => ({ key: g.id, time: g.end })),
+          ]),
         activity: filtered
           .filter((s) => s.repoId && visibleIds.has(s.repoId))
           .map((s) => ({ start: Date.parse(s.firstSeenAt ?? s.lastActivityAt ?? '') || now, end: Date.parse(s.lastActivityAt ?? '') || now })),
@@ -68,7 +74,7 @@ export function Dashboard({
         availableWidth: Math.max(240, viewport - LABEL_W),
         minSpacing: 22,
       }),
-    [view.axisMode, view.timeRange, snapshot.commitGraphs, visibleIds, filtered, now, viewport],
+    [view.axisMode, view.timeRange, layouts, visibleIds, filtered, now, viewport],
   )
 
   // Start scrolled to the newest end of history; later the user's scroll position is kept.
@@ -90,8 +96,26 @@ export function Dashboard({
   const expandedAgents = useMemo(() => new Set(view.expandedAgents), [view.expandedAgents])
   const collapsed = useMemo(() => new Set(view.collapsedRepos), [view.collapsedRepos])
 
-  const showHover: ShowHover = useCallback((content, e) => setHover({ content, x: e.clientX, y: e.clientY }), [])
-  const hideHover = useCallback(() => setHover(undefined), [])
+  // Interactive cards (commit lists) stay open briefly so the pointer can move onto them.
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const interactiveOpen = useRef(false)
+  const showHover: ShowHover = useCallback((content, e, options) => {
+    clearTimeout(hideTimer.current)
+    interactiveOpen.current = !!options?.interactive
+    setHover({ content, x: e.clientX, y: e.clientY, interactive: options?.interactive })
+  }, [])
+  const hideHover = useCallback(() => {
+    clearTimeout(hideTimer.current)
+    hideTimer.current = setTimeout(() => setHover(undefined), interactiveOpen.current ? 250 : 0)
+  }, [])
+  const keepHover = useCallback(() => clearTimeout(hideTimer.current), [])
+  const expandGroup = useCallback(
+    (id: string) => {
+      setHover(undefined)
+      setView((v) => ({ expandedGroups: v.expandedGroups.includes(id) ? v.expandedGroups : [...v.expandedGroups, id] }))
+    },
+    [setView],
+  )
   const toggleAgent = useCallback(
     (id: string) => setView((v) => ({ expandedAgents: v.expandedAgents.includes(id) ? v.expandedAgents.filter((x) => x !== id) : [...v.expandedAgents, id] })),
     [setView],
@@ -136,7 +160,7 @@ export function Dashboard({
         ref={scrollRef}
         className={styles.scroller}
         onKeyDown={onKeyDown}
-        onScroll={hideHover}
+        onScroll={() => setHover(undefined)}
         tabIndex={0}
         aria-label="Branches and agents. Use the arrow keys to move between rows, right and left arrows to expand or collapse an agent, Enter to open it."
         style={{ ['--axis-height' as string]: `${AXIS_HEIGHT}px` }}
@@ -191,6 +215,7 @@ export function Dashboard({
                 onReview={onReview}
                 onExpandBranch={expandBranch}
                 onToggleAgent={toggleAgent}
+                onExpandGroup={expandGroup}
               />
             )
           })}
@@ -235,7 +260,7 @@ export function Dashboard({
           ) : null}
         </div>
       </div>
-      <HoverCard state={hover} />
+      <HoverCard state={hover} onEnter={keepHover} onLeave={hideHover} />
     </>
   )
 }

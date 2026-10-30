@@ -26,3 +26,8 @@
 - **One line per agent.** Rows show only the name (or alias) and workflow status; details are in a hover card, an expandable block (per agent, or all at once) and the details panel.
 - **Visible branch relationships.** Labels and lanes show where a branch forked from, where it was merged into, and which branch's commit a branch without its own commits points at.
 - **A legend** explains every graph mark and colour.
+
+## Amendment (owner feedback, 2026-10-30, third review)
+
+- **Orthogonal connectors.** Lines between branches use horizontal and vertical segments with rounded corners instead of free-form curves.
+- **Collapsible quiet commits (optional, off by default).** Runs of two or more commits along one branch with no head, fork, merge, first-own-commit or nearby agent activity fold into one counted node that takes a single axis column; hovering lists the commits (each inspectable), clicking expands the run.

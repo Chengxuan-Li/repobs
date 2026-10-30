@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Changed
 
+- Branch connectors are orthogonal (horizontal/vertical segments with rounded corners).
+
 - Commits are spaced in commit order by default on one axis shared by all repositories, scrolling horizontally through all loaded history; calendar time is a toggle (ADR 0003 amendment).
 - Agents are one line (name or alias + status); details appear on hover, by expanding a row (chevron or →/←) or all rows, and in the details panel.
 - Spawned-agent tree connectors stay inside the label column and line up with their rows.
@@ -15,6 +17,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
+- *Collapse quiet commits*: runs of uneventful commits fold into a counted pill; hover to list and inspect them, click to expand.
 - Branch relationships: *from X* (forked from), *→ X* (merged into) and *at X* (no own commits; dashed pointer to the commit it sits on).
 - A legend for every graph mark and colour; richer hover cards for commits, branches, uncommitted changes and agents.
 - Commit graph per repository on a timeline: one row per branch, fork/merge edges, pushed vs local-only vs not-pulled commits, uncommitted-changes markers (read-only `git log`, at most 400 commits).

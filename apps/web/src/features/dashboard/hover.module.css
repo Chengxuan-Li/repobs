@@ -64,3 +64,35 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.interactive {
+  pointer-events: auto;
+  max-width: 440px;
+}
+.commitList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow: auto;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+.commitList li {
+  padding: 2px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+.commitList li:hover,
+.commitActive {
+  background: var(--color-selected-bg);
+}
+.commitDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.subject {
+  overflow-wrap: anywhere;
+}

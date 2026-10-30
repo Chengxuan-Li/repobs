@@ -21,6 +21,10 @@ export interface ViewState {
   details: boolean
   expandedAgents: string[]
   axisMode: AxisMode
+  /** Collapse runs of commits that change nothing in the topology. */
+  collapseQuiet: boolean
+  /** Collapsed groups the user opened (reset when collapsing is switched on again). */
+  expandedGroups: string[]
   legendOpen: boolean
   showSpawned: boolean
   branchMode: BranchMode
@@ -43,6 +47,8 @@ export const DEFAULT_VIEW: ViewState = {
   details: false,
   expandedAgents: [],
   axisMode: 'sequence',
+  collapseQuiet: false,
+  expandedGroups: [],
   legendOpen: false,
   showSpawned: true,
   branchMode: 'all',
@@ -73,6 +79,8 @@ export function loadView(): ViewState {
       expandedBranches: Array.isArray(p.expandedBranches) ? p.expandedBranches : [],
       expandedAgents: Array.isArray(p.expandedAgents) ? p.expandedAgents : [],
       axisMode: p.axisMode === 'time' ? 'time' : 'sequence',
+      collapseQuiet: p.collapseQuiet === true,
+      expandedGroups: Array.isArray(p.expandedGroups) ? p.expandedGroups : [],
       // Views saved before the commit-order axis existed defaulted to a 7-day window.
       timeRange: p.axisMode ? (p.timeRange ?? 'all') : 'all',
     }

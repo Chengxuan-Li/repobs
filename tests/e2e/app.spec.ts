@@ -115,6 +115,41 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await page.getByRole('button', { name: 'Hide legend' }).click()
   })
 
+  test('branch connectors are orthogonal with rounded corners', async ({ page }) => {
+    await pair(page)
+    const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()
+    const paths = await svg.locator('path[class*="edgeCross"]').evaluateAll((els) => els.map((e) => e.getAttribute('d') ?? ''))
+    expect(paths.length).toBeGreaterThan(0)
+    // Only straight segments (H/V) and a quadratic corner; no free-form curves.
+    for (const d of paths) expect(d).toMatch(/^M[\d.-]+,[\d.-]+ (?:[HV][\d.-]+|V[\d.-]+ Q[\d., -]+ H[\d.-]+|H[\d.-]+ Q[\d., -]+ V[\d.-]+)$/)
+  })
+
+  test('quiet commits collapse into a group you can hover, inspect and expand', async ({ page }) => {
+    await pair(page)
+    const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()
+    const commitsBefore = await svg.locator('circle[class*="commit"]').count()
+    await page.getByLabel('Collapse quiet commits').check()
+    const group = svg.locator('g[class*="group"]').first()
+    await expect(group).toContainText('8')
+    expect(await svg.locator('circle[class*="commit"]').count()).toBe(commitsBefore - 8)
+    await group.scrollIntoViewIfNeeded()
+    await group.hover()
+    const card = page.getByRole('dialog', { name: 'Commit details' })
+    await expect(card).toContainText('8 quiet commits on claude/scratch-a8de')
+    await card.getByText('Scratch step 6').hover()
+    await expect(card).toContainText('local only')
+    await card.getByRole('button', { name: 'Show these commits on the graph' }).click()
+    await expect(svg.locator('g[class*="group"]')).toHaveCount(0)
+    expect(await svg.locator('circle[class*="commit"]').count()).toBe(commitsBefore)
+    // Switching collapsing on again re-collapses everything.
+    await page.getByLabel('Collapse quiet commits').uncheck()
+    await page.getByLabel('Collapse quiet commits').check()
+    await expect(svg.locator('g[class*="group"]')).toHaveCount(1)
+    await svg.locator('g[class*="group"]').first().click()
+    await expect(svg.locator('g[class*="group"]')).toHaveCount(0)
+    await page.getByLabel('Collapse quiet commits').uncheck()
+  })
+
   test('agents are one line; details expand on demand or on hover; spawned agents can be hidden', async ({ page }) => {
     await pair(page)
     const parent = row(page, /^Claude session c3d2e4f6, Claude Code agent/)

@@ -93,6 +93,49 @@ describe('layoutRepository', () => {
     expect(l.commits.get('X')!.rowId).toBe('branch:r|refs/heads/topic')
   })
 
+  describe('collapsing quiet commits', () => {
+    // main: Q1..Q4 - F0 (fork base) - Q5..Q7 - A (agent active) - Q8 - H (head); feature forks at F0.
+    function chain() {
+      const r = repo('r')
+      const oids = ['Q1', 'Q2', 'Q3', 'Q4', 'F0', 'Q5', 'Q6', 'Q7', 'A', 'Q8', 'H']
+      const commits = oids.map((oid, i) => c(oid, i ? [oids[i - 1]!] : [], 100 + i * 1000))
+      commits.push(c('X1', ['F0'], 4500), c('X2', ['X1'], 5500))
+      const graph: CommitGraph = { repoId: 'r', truncated: false, scannedAt: 'x', commits }
+      const main = worktree('r', 'wt_main', { isPrimary: true, branchFullRef: 'refs/heads/main' })
+      const branches = [
+        branch('r', 'refs/heads/main', { classification: 'checked_out', worktreeIds: ['wt_main'], tipOid: 'H' }),
+        branch('r', 'refs/heads/feature', { tipOid: 'X2' }),
+      ]
+      const agent = session('claude:a', { worktreeId: 'wt_main', repoId: 'r', firstSeenAt: new Date(8_100_000).toISOString(), lastActivityAt: new Date(8_100_000).toISOString() })
+      return { r, graph, worktrees: [main], branches, sessions: [agent], annotations: new Map() }
+    }
+
+    it('groups runs of uneventful commits and keeps heads, fork bases, first commits and agent-time commits', () => {
+      const s = chain()
+      const l = layoutRepository(s.r, s, { ...DEFAULT_LAYOUT, collapseQuiet: true })
+      expect(l.groups.map((g) => g.commits.map((x) => x.oid))).toEqual([
+        ['Q2', 'Q3', 'Q4'], // Q1 is a root (no parent on the row) and stays visible
+        ['Q5', 'Q6', 'Q7'],
+      ])
+      expect(l.groupOf.get('Q6')).toBe('grp:Q5')
+      expect(l.groupOf.has('A')).toBe(false) // an agent was active at that time
+      expect(l.groupOf.has('Q8')).toBe(false) // a single quiet commit is not grouped
+      // Edges now connect drawn nodes: Q1 -> group -> F0 -> group -> A; no edges inside groups.
+      expect(l.edges).toContainEqual(expect.objectContaining({ from: 'Q1', to: 'grp:Q2' }))
+      expect(l.edges).toContainEqual(expect.objectContaining({ from: 'grp:Q2', to: 'F0' }))
+      expect(l.edges).toContainEqual(expect.objectContaining({ from: 'grp:Q5', to: 'A' }))
+      expect(l.edges.some((e) => e.from === 'Q2' || e.to === 'Q3')).toBe(false)
+      expect(l.edges).toContainEqual(expect.objectContaining({ from: 'F0', to: 'X1', kind: 'fork' }))
+    })
+
+    it('leaves everything visible when off, and honours individually expanded groups', () => {
+      const s = chain()
+      expect(layoutRepository(s.r, s, DEFAULT_LAYOUT).groups).toEqual([])
+      const l = layoutRepository(s.r, s, { ...DEFAULT_LAYOUT, collapseQuiet: true, expandedGroups: new Set(['grp:Q2']) })
+      expect(l.groups.map((g) => g.id)).toEqual(['grp:Q5'])
+    })
+  })
+
   it('orders agents newest-first by start time regardless of arrival order', () => {
     const s = setup()
     const old = session('codex:old', { worktreeId: 'wt_main', repoId: 'r', firstSeenAt: '2026-10-01T00:00:00Z' })
