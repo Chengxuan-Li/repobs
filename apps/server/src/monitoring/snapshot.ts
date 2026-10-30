@@ -69,6 +69,7 @@ export function emptyCollections(): Collections {
     annotations: [],
     pullRequests: [],
     pullRequestStatus: [],
+    commitGraphs: [],
   }
 }
 

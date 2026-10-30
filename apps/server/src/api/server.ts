@@ -9,6 +9,7 @@ import {
   CSRF_HEADER,
   type Diagnostics,
   PairRequest,
+  RegisterRepositoriesRequest,
   RegisterRepositoryRequest,
   ReorderRepositoriesRequest,
   SESSION_COOKIE,
@@ -186,6 +187,12 @@ export function createRequestHandler(app: AppContext) {
           throw err
         }
       },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/repositories\/batch$/,
+      auth: true,
+      handler: async ({ body }) => monitor.registerRepositories(validate(RegisterRepositoriesRequest, body).paths),
     },
     {
       method: 'GET',

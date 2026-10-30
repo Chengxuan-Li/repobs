@@ -171,6 +171,13 @@ export const UnassignedReason = z.enum([
 ])
 export type UnassignedReason = z.infer<typeof UnassignedReason>
 
+export const LastMessage = z.object({
+  kind: z.enum(['assistant', 'tool']),
+  text: z.string().max(400),
+  at: IsoDate.optional(),
+})
+export type LastMessage = z.infer<typeof LastMessage>
+
 export const AgentSession = z.object({
   id: z.string(),
   provider: Provider,
@@ -193,8 +200,14 @@ export const AgentSession = z.object({
   providerVersion: z.string().optional(),
   /** Branch the provider recorded during the session; historical, not today's checkout. */
   recordedBranch: z.string().optional(),
-  /** Safe structural label such as "Turn completed"; never transcript text. */
+  /** Safe structural label such as "Turn completed". */
   activityLabel: z.string().optional(),
+  /** Session that spawned this one (Claude Code subagent, Codex sub-thread). */
+  parentSessionId: z.string().optional(),
+  /** Provider's agent type or nickname for spawned agents. */
+  agentType: z.string().optional(),
+  /** Truncated, redacted excerpt of the latest agent message or tool activity (ADR 0003). In memory only. */
+  lastMessage: LastMessage.optional(),
 })
 export type AgentSession = z.infer<typeof AgentSession>
 
@@ -240,6 +253,7 @@ export const AnnotationSummary = z.object({
   review: ReviewState,
   tags: z.array(z.string()),
   hasNote: z.boolean(),
+  note: z.string(),
   checklistOpen: z.number().int(),
   checklistDone: z.number().int(),
   updatedAt: IsoDate,
@@ -270,6 +284,27 @@ export const PullRequestStatus = z.object({
 })
 export type PullRequestStatus = z.infer<typeof PullRequestStatus>
 
+export const CommitNode = z.object({
+  oid: z.string(),
+  parents: z.array(z.string()),
+  /** Committer time, unix seconds. */
+  time: z.number().int(),
+  subject: z.string(),
+  /** Reachable from a remote-tracking ref (within the loaded window). */
+  pushed: z.boolean(),
+})
+export type CommitNode = z.infer<typeof CommitNode>
+
+export const CommitGraph = z.object({
+  repoId: z.string(),
+  commits: z.array(CommitNode),
+  /** More commits exist than were loaded. */
+  truncated: z.boolean(),
+  scannedAt: IsoDate,
+  error: ErrorInfo.optional(),
+})
+export type CommitGraph = z.infer<typeof CommitGraph>
+
 export const MonitorHealth = z.object({
   state: z.enum(['starting', 'ok', 'degraded']),
   lastSyncAt: IsoDate.optional(),
@@ -287,6 +322,7 @@ export const Snapshot = z.object({
   annotations: z.array(AnnotationSummary),
   pullRequests: z.array(PullRequest),
   pullRequestStatus: z.array(PullRequestStatus),
+  commitGraphs: z.array(CommitGraph),
   monitor: MonitorHealth,
 })
 export type Snapshot = z.infer<typeof Snapshot>
@@ -299,6 +335,7 @@ export const ENTITY_COLLECTIONS = [
   'annotations',
   'pullRequests',
   'pullRequestStatus',
+  'commitGraphs',
 ] as const
 export type EntityCollection = (typeof ENTITY_COLLECTIONS)[number]
 
@@ -315,6 +352,7 @@ export const SnapshotDiff = z.object({
     annotations: z.array(AnnotationSummary),
     pullRequests: z.array(PullRequest),
     pullRequestStatus: z.array(PullRequestStatus),
+    commitGraphs: z.array(CommitGraph),
   }),
   removes: z.object({
     repositories: z.array(z.string()),
@@ -324,6 +362,7 @@ export const SnapshotDiff = z.object({
     annotations: z.array(z.string()),
     pullRequests: z.array(z.string()),
     pullRequestStatus: z.array(z.string()),
+    commitGraphs: z.array(z.string()),
   }),
 })
 export type SnapshotDiff = z.infer<typeof SnapshotDiff>
@@ -332,6 +371,6 @@ export type SnapshotDiff = z.infer<typeof SnapshotDiff>
 export function entityKey(collection: EntityCollection, entity: object): string {
   const e = entity as Record<string, unknown>
   if (collection === 'annotations') return String(e.sessionId)
-  if (collection === 'pullRequestStatus') return String(e.repoId)
+  if (collection === 'pullRequestStatus' || collection === 'commitGraphs') return String(e.repoId)
   return String(e.id)
 }

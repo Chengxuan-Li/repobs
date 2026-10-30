@@ -7,6 +7,12 @@ import { runProcess, SpawnError, type RunResult } from '../platform/process.ts'
 export const REF_FORMAT =
   '%(refname)%00%(objectname)%00%(upstream)%00%(upstream:track,nobracket)%00%(worktreepath)%00%(symref)%00'
 
+/** Commit graph format (ADR 0003): fields separated by 0x1f, records by NUL (-z). */
+export const LOG_FORMAT = '%H%x1f%P%x1f%ct%x1f%s'
+export const LOG_MAX_COUNT = 400
+
+const OID = /^[0-9a-f]{40}([0-9a-f]{24})?$/
+
 type ArgRule = (args: readonly string[]) => boolean
 
 const exactly =
@@ -44,6 +50,11 @@ export const GIT_ALLOWLIST: Record<string, ArgRule> = {
   status: (args) => args.includes('--porcelain=v2') && args.every((a) => STATUS_FLAGS.has(a)),
   'for-each-ref': exactly(`--format=${REF_FORMAT}`, 'refs/heads', 'refs/remotes'),
   remote: exactly('-v'),
+  // Read-only commit listing for the dashboard graph; extra arguments may only be commit ids.
+  log: (args) => {
+    const fixed = ['--no-color', '-z', `--format=${LOG_FORMAT}`, `--max-count=${LOG_MAX_COUNT}`, '--branches', '--remotes']
+    return args.length >= fixed.length && args.length <= fixed.length + 50 && fixed.every((a, i) => args[i] === a) && args.slice(fixed.length).every((a) => OID.test(a))
+  },
 }
 
 export class GitError extends Error {

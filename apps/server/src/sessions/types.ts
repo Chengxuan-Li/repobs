@@ -1,4 +1,4 @@
-import type { ObservedAgentState, Provider } from '@repobs/contracts'
+import type { LastMessage, ObservedAgentState, Provider } from '@repobs/contracts'
 import type { Lifecycle } from './status.ts'
 
 export interface AdapterConfig {
@@ -6,6 +6,8 @@ export interface AdapterConfig {
   /** Settings override; null/undefined uses the provider environment variable, then the default. */
   home: string | null | undefined
   staleAfterMs: number
+  /** Extract latest-message excerpts (Settings → Privacy). */
+  excerpts?: boolean
 }
 
 /** Provider-neutral result of discovery; contains structural metadata only. */
@@ -19,6 +21,10 @@ export interface DiscoveredSession {
   lastActivityAt?: string
   providerVersion?: string
   recordedBranch?: string
+  /** Id (repobs form) of the session that spawned this one. */
+  parentSessionId?: string
+  agentType?: string
+  lastMessage?: LastMessage
   lifecycle: Lifecycle
   state: ObservedAgentState
   /** Provider reports a live process for this session. */

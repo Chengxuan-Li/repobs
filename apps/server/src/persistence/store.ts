@@ -261,6 +261,7 @@ export function summarizeAnnotation(a: SessionAnnotation): AnnotationSummary {
     review: a.review,
     tags: a.tags,
     hasNote: a.note.trim().length > 0,
+    note: a.note,
     checklistOpen: a.checklist.filter((i) => !i.done).length,
     checklistDone: a.checklist.filter((i) => i.done).length,
     updatedAt: a.updatedAt,

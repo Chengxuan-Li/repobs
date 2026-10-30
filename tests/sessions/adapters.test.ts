@@ -93,7 +93,10 @@ describe('Claude adapter', () => {
       claude.interrupted('moved', cwdB, ago(9)),
     ])
     writeClaudeSession(claudeHome, cwdA, 'parent', [claude.endTurn('parent', cwdA, ago(2))])
-    writeClaudeSubagent(claudeHome, cwdA, 'parent', 'a1', [claude.prompt('parent', cwdA, ago(1))])
+    writeClaudeSubagent(claudeHome, cwdA, 'parent', 'a1', [claude.prompt('parent', cwdA, ago(1)), claude.toolUse('parent', cwdA, ago(1))], {
+      agentType: 'Explore',
+      description: 'Survey the parser module',
+    })
     const adapter = new ClaudeAdapter()
     adapter.configure(config(claudeHome))
     const sessions = await adapter.discover(now)
@@ -103,8 +106,25 @@ describe('Claude adapter', () => {
     const parent = sessions.find((s) => s.providerSessionId === 'parent')!
     expect(parent.subagents).toEqual({ total: 1, active: 1 })
     expect(parent.state.kind).toBe('running_subagents')
-    // Subagent transcripts are not listed as top-level sessions.
-    expect(sessions).toHaveLength(2)
+    // Subagents are child sessions linked to their parent (ADR 0003).
+    expect(sessions).toHaveLength(3)
+    const child = sessions.find((s) => s.parentSessionId === 'claude:parent')!
+    expect(child).toMatchObject({
+      id: 'claude:parent__agent-a1',
+      title: 'Survey the parser module',
+      agentType: 'Explore',
+      cwd: cwdA,
+      lastMessage: { kind: 'tool', text: 'Bash' },
+    })
+  })
+
+  it('captures the latest assistant text, and nothing when excerpts are off', async () => {
+    writeClaudeSession(claudeHome, cwdA, 'talk', [claude.prompt('talk', cwdA, ago(3)), claude.endTurn('talk', cwdA, ago(2))])
+    const adapter = new ClaudeAdapter()
+    adapter.configure(config(claudeHome))
+    expect((await adapter.discover(now))[0]!.lastMessage).toMatchObject({ kind: 'assistant', text: 'synthetic answer' })
+    adapter.configure({ ...config(claudeHome), excerpts: false })
+    expect((await adapter.discover(now))[0]!.lastMessage).toBeUndefined()
   })
 
   it('handles a missing installation and garbage files without throwing', async () => {
@@ -155,7 +175,8 @@ describe('Codex adapter', () => {
     const adapter = new CodexAdapter()
     adapter.configure(config(codexHome))
     const sessions = await adapter.discover(now)
-    expect(sessions.map((s) => s.providerSessionId).sort()).toEqual([t1, t2])
+    expect(sessions.map((s) => s.providerSessionId).sort()).toEqual([t1, t2, child])
+    expect(sessions.find((s) => s.providerSessionId === child)!.parentSessionId).toBe(`codex:${t2}`)
     const s1 = sessions.find((s) => s.providerSessionId === t1)!
     expect(s1).toMatchObject({ title: 'Refactor tree', sourceFiles: 2, state: { kind: 'running', confidence: 'inferred' } })
     expect(s1.firstSeenAt).toBe(new Date(ago(120)).toISOString())

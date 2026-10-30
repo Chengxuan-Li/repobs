@@ -6,6 +6,7 @@ import { createGitRunner } from '../../apps/server/src/git/exec.ts'
 import {
   repositoryIdFor,
   resolveRepository,
+  scanCommitGraph,
   scanRepository,
   scanWorktreeStatus,
 } from '../../apps/server/src/git/reader.ts'
@@ -95,6 +96,21 @@ describe('Git reader against real disposable repositories', () => {
     expect(await status(fx.worktrees.removed)).toMatchObject({ state: 'unavailable', error: { code: 'worktree_missing' } })
   })
 
+  it('builds a bounded commit graph and marks local-only commits as unpushed', async () => {
+    const r = await resolveRepository(git, fx.repoA)
+    const repo = { id: repositoryIdFor(r.commonGitDir), ...r }
+    const scan = await scanRepository(git, repo)
+    const graph = await scanCommitGraph(git, repo, scan.branches, scan.worktrees)
+    const bySubject = (s: string) => graph.commits.find((c) => c.subject === s)
+    expect(bySubject('initial')).toMatchObject({ pushed: true, parents: [] })
+    expect(bySubject('remote only work')?.pushed).toBe(true)
+    expect(bySubject('feature work')?.pushed).toBe(false)
+    expect(bySubject('feature work')?.parents).toEqual([bySubject('initial')!.oid])
+    expect(bySubject('conflict side')?.pushed).toBe(false)
+    expect(graph.truncated).toBe(false)
+    expect(graph.commits.every((c) => c.time > 1_600_000_000)).toBe(true)
+  })
+
   it('never writes to the repository: every file in .git and the origin is unchanged after scanning', async () => {
     const before = snapshotTree(path.join(fx.repoA, '.git'))
     const originBefore = snapshotTree(fx.origin)
@@ -104,11 +120,12 @@ describe('Git reader against real disposable repositories', () => {
     for (let i = 0; i < 3; i++) {
       const scan = await scanRepository(git, repo)
       await Promise.all(scan.worktrees.map((w) => scanWorktreeStatus(git, w)))
+      await scanCommitGraph(git, repo, scan.branches, scan.worktrees)
     }
     expect(snapshotTree(path.join(fx.repoA, '.git'))).toEqual(before)
     expect(snapshotTree(fx.origin)).toEqual(originBefore)
     const subcommands = new Set(spawned.map((argv) => argv[argv.indexOf('-C') + 2]))
-    expect([...subcommands].sort()).toEqual(['for-each-ref', 'rev-parse', 'status', 'worktree'])
+    expect([...subcommands].sort()).toEqual(['for-each-ref', 'log', 'rev-parse', 'status', 'worktree'])
     expect(spawned.every((argv) => argv[0] === '--no-optional-locks')).toBe(true)
   })
 })

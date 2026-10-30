@@ -130,6 +130,9 @@ export function buildSessions(input: BuildSessionsInput): BuildSessionsOutput {
       providerVersion: d.providerVersion,
       recordedBranch: d.recordedBranch,
       activityLabel: activityLabel(d.lifecycle.phase),
+      parentSessionId: d.parentSessionId,
+      agentType: d.agentType,
+      lastMessage: d.lastMessage,
     }
     sessions.push(session)
     if (assoc.repoId) {

@@ -113,3 +113,39 @@ export function shortId(id: string): string {
 export function fallbackSessionTitle(provider: 'claude' | 'codex', providerSessionId: string): string {
   return `${provider === 'claude' ? 'Claude' : 'Codex'} session ${shortId(providerSessionId)}`
 }
+
+/**
+ * Workflow status used by dashboard filters and cards: combines what the agent is observed doing
+ * with what the human decided. Agent activity that needs a person wins; then running work; then
+ * the human review state; otherwise the session is ready for a look (or unknown).
+ */
+export type WorkflowStatus = 'needs_input' | 'working' | 'needs_review' | 'ready' | 'complete' | 'unknown'
+
+export const WORKFLOW_LABELS: Record<WorkflowStatus, string> = {
+  needs_input: 'Needs input',
+  working: 'Working',
+  needs_review: 'Needs review',
+  ready: 'Ready',
+  complete: 'Complete',
+  unknown: 'Unknown',
+}
+
+export const WORKFLOW_TONES: Record<WorkflowStatus, Tone> = {
+  needs_input: 'warning',
+  working: 'info',
+  needs_review: 'warning',
+  ready: 'success',
+  complete: 'neutral',
+  unknown: 'neutral',
+}
+
+export function workflowStatus(session: AgentSession, annotation?: AnnotationSummary): WorkflowStatus {
+  const s = session.state
+  if (s.kind === 'waiting_approval' || s.kind === 'waiting_user' || s.kind === 'error') return 'needs_input'
+  if (s.possiblyAwaitingApproval && !session.historical) return 'needs_input'
+  if (s.kind === 'running' || s.kind === 'running_subagents') return 'working'
+  if (annotation?.review === 'needs_review' || annotation?.review === 'flagged') return 'needs_review'
+  if (annotation?.review === 'reviewed' || annotation?.review === 'complete') return 'complete'
+  if (s.kind === 'idle_or_turn_finished' || s.kind === 'ended') return 'ready'
+  return 'unknown'
+}

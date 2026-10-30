@@ -27,6 +27,10 @@ export const Settings = z.object({
     /** Sessions without activity for this long are shown as historical. */
     historicalAfterHours: z.number().int().min(1).max(24 * 365),
   }),
+  privacy: z.object({
+    /** Show truncated, redacted excerpts of the latest agent message (ADR 0003). Never stored. */
+    showMessageExcerpts: z.boolean(),
+  }),
   github: z.object({
     /** Opt-in: read open pull requests with the GitHub CLI. Off by default. */
     enabled: z.boolean(),
@@ -48,6 +52,7 @@ export const DEFAULT_SETTINGS: Settings = {
     watchWorkingTrees: true,
   },
   status: { staleAfterMinutes: 30, historicalAfterHours: 24 },
+  privacy: { showMessageExcerpts: true },
   github: { enabled: false, pollMinutes: 10 },
 }
 
@@ -62,6 +67,7 @@ export const SettingsPatch = z.object({
     .optional(),
   monitoring: Settings.shape.monitoring.partial().optional(),
   status: Settings.shape.status.partial().optional(),
+  privacy: Settings.shape.privacy.partial().optional(),
   github: Settings.shape.github.partial().optional(),
 })
 export type SettingsPatch = z.infer<typeof SettingsPatch>
@@ -75,6 +81,7 @@ export function mergeSettings(base: Settings, patch: SettingsPatch): Settings {
     },
     monitoring: { ...base.monitoring, ...patch.monitoring },
     status: { ...base.status, ...patch.status },
+    privacy: { ...base.privacy, ...patch.privacy },
     github: { ...base.github, ...patch.github },
   })
 }

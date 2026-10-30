@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { assertAllowedGitArgs, createGitRunner, GitError, REF_FORMAT } from '../../apps/server/src/git/exec.ts'
+import { assertAllowedGitArgs, createGitRunner, GitError, LOG_FORMAT, LOG_MAX_COUNT, REF_FORMAT } from '../../apps/server/src/git/exec.ts'
+
+const LOG = ['log', '--no-color', '-z', `--format=${LOG_FORMAT}`, `--max-count=${LOG_MAX_COUNT}`, '--branches', '--remotes']
 
 describe('Git allowlist', () => {
   it.each([
@@ -9,6 +11,8 @@ describe('Git allowlist', () => {
     [['status', '--porcelain=v2', '--branch', '-z', '--untracked-files=normal']],
     [['for-each-ref', `--format=${REF_FORMAT}`, 'refs/heads', 'refs/remotes']],
     [['remote', '-v']],
+    [LOG],
+    [[...LOG, 'a'.repeat(40)]],
   ])('allows read-only inspection %j', (args) => {
     expect(() => assertAllowedGitArgs(args)).not.toThrow()
   })
@@ -31,6 +35,12 @@ describe('Git allowlist', () => {
     [['remote', 'add', 'x', 'y']],
     [['for-each-ref', '--format=%(refname)', 'refs/heads']],
     [['-c', 'core.pager=evil', 'status']],
+    [['log']],
+    [['log', '-p']],
+    [[...LOG, '--output=x']],
+    [[...LOG, '--exec=calc']],
+    [[...LOG, 'main; rm -rf /']],
+    [['log', '--no-color', '-z', '--format=%B', '--max-count=400', '--branches', '--remotes']],
     [['constructor']],
     [['__proto__']],
     [[]],

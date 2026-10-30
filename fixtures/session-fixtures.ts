@@ -68,9 +68,17 @@ export function writeClaudeSession(home: string, cwd: string, sessionId: string,
   return file
 }
 
-export function writeClaudeSubagent(home: string, cwd: string, sessionId: string, agentId: string, records: unknown[]) {
+export function writeClaudeSubagent(
+  home: string,
+  cwd: string,
+  sessionId: string,
+  agentId: string,
+  records: unknown[],
+  meta?: { agentType: string; description: string },
+) {
   const file = path.join(home, 'projects', encodeClaudeProject(cwd), sessionId, 'subagents', `agent-${agentId}.jsonl`)
   appendJsonl(file, records)
+  if (meta) fs.writeFileSync(file.replace(/\.jsonl$/, '.meta.json'), JSON.stringify({ ...meta, toolUseId: 'toolu_synthetic', spawnDepth: 1 }))
   return file
 }
 

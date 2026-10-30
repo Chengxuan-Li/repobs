@@ -4,6 +4,7 @@ import {
   type AgentSession,
   type AnnotationSummary,
   type BranchRef,
+  type CommitGraph,
   type ErrorInfo,
   type MonitorHealth,
   type PullRequest,
@@ -21,6 +22,7 @@ import { fetchPullRequests, type GhOptions } from '../git/pulls.ts'
 import {
   repositoryIdFor,
   resolveRepository,
+  scanCommitGraph,
   scanRepository,
   scanWorktreeStatus,
   toErrorInfo,
@@ -57,6 +59,9 @@ interface RepoState {
   scanning: boolean
   /** linked worktree admin dir name (common/worktrees/<name>) -> worktree id */
   adminNames: Map<string, string>
+  commitGraph?: CommitGraph
+  /** Ref tips + detached heads the graph was built from. */
+  graphKey: string
 }
 
 interface WorktreeSchedule {
@@ -209,6 +214,7 @@ export class Monitor extends EventEmitter {
       nextStructureAt: 0,
       scanning: false,
       adminNames: new Map(),
+      graphKey: '',
     }
   }
 
@@ -248,6 +254,21 @@ export class Monitor extends EventEmitter {
     this.publish()
     this.log('info', `Registered repository ${id}`)
     return this.repositoryView(state)
+  }
+
+  /** Register several repositories; each result reports success or a per-path error. */
+  async registerRepositories(paths: string[]) {
+    const results: Array<{ path: string; ok: boolean; repositoryId?: string; error?: ErrorInfo }> = []
+    for (const p of paths) {
+      try {
+        const repo = await this.registerRepository(p)
+        results.push({ path: p, ok: true, repositoryId: repo.id })
+      } catch (err) {
+        const e = err instanceof RegistrationError ? { code: err.code, message: err.message } : toErrorInfo(err)
+        results.push({ path: p, ok: false, error: e })
+      }
+    }
+    return { results }
   }
 
   unregisterRepository(id: string): boolean {
@@ -301,6 +322,7 @@ export class Monitor extends EventEmitter {
       }
       for (const id of previous.keys()) if (!scan.worktrees.some((w) => w.id === id)) this.schedules.delete(id)
       if (!previous.size || scan.worktrees.length !== previous.size) this.sessionsDirty = true
+      await this.scanGraph(repo)
     } catch (err) {
       repo.scanState = 'error'
       repo.error = toErrorInfo(err)
@@ -308,6 +330,22 @@ export class Monitor extends EventEmitter {
     } finally {
       repo.scanning = false
       repo.nextStructureAt = Date.now() + this.settings.monitoring.idleWorktreePollMs
+    }
+  }
+
+  /** Rebuild the commit graph only when branch tips or detached heads changed. */
+  private async scanGraph(repo: RepoState): Promise<void> {
+    const key = [
+      ...repo.branches.map((b) => b.fullRef + '=' + b.tipOid),
+      ...repo.worktrees.filter((w) => w.detached).map((w) => w.headOid ?? ''),
+    ].join(',')
+    if (key === repo.graphKey && repo.commitGraph && !repo.commitGraph.error) return
+    try {
+      const g = await this.limit(() => scanCommitGraph(this.git, repo.stored, repo.branches, repo.worktrees))
+      repo.commitGraph = { repoId: repo.stored.id, commits: g.commits, truncated: g.truncated, scannedAt: new Date().toISOString() }
+      repo.graphKey = key
+    } catch (err) {
+      repo.commitGraph = { repoId: repo.stored.id, commits: repo.commitGraph?.commits ?? [], truncated: false, scannedAt: new Date().toISOString(), error: toErrorInfo(err) }
     }
   }
 
@@ -355,7 +393,12 @@ export class Monitor extends EventEmitter {
   private configureAdapters() {
     for (const adapter of this.adapters) {
       const cfg = this.settings.adapters[adapter.provider]
-      adapter.configure({ enabled: cfg.enabled, home: cfg.home, staleAfterMs: this.settings.status.staleAfterMinutes * 60_000 })
+      adapter.configure({
+        enabled: cfg.enabled,
+        home: cfg.home,
+        staleAfterMs: this.settings.status.staleAfterMinutes * 60_000,
+        excerpts: this.settings.privacy.showMessageExcerpts,
+      })
     }
   }
 
@@ -563,6 +606,7 @@ export class Monitor extends EventEmitter {
       pullRequestStatus: this.settings.github.enabled
         ? repos.map((r) => this.prs.get(r.stored.id)?.status ?? { repoId: r.stored.id, state: 'pending' as const })
         : [],
+      commitGraphs: repos.flatMap((r) => (r.commitGraph ? [r.commitGraph] : [])),
     })
     if (diff) this.emit('diff', diff satisfies SnapshotDiff)
     const now = Date.now()
@@ -617,7 +661,7 @@ export class Monitor extends EventEmitter {
   }
 
   /** Repositories suggested from session working directories (no disk indexing). */
-  async suggestions(limit = 12): Promise<RepositorySuggestion[]> {
+  async suggestions(limit = 40): Promise<RepositorySuggestion[]> {
     const registered = [...this.repos.values()]
     const byCwd = new Map<string, RepositorySuggestion>()
     for (const s of [...this.discovered.values()].flat()) {
@@ -625,29 +669,37 @@ export class Monitor extends EventEmitter {
       if (registered.some((r) => r.worktrees.some((w) => isWithin(s.cwd!, w.path)) || isWithin(s.cwd!, r.stored.primaryPath))) continue
       const key = pathKey(s.cwd)
       const prior = byCwd.get(key)
+      const active = s.live || s.state.kind === 'running' || s.state.kind === 'running_subagents' || s.state.kind === 'waiting_approval' || s.state.kind === 'waiting_user'
       if (prior) {
+        if (active) prior.activeSessionCount++
         prior.sessionCount++
         if ((s.lastActivityAt ?? '') > (prior.lastActivityAt ?? '')) prior.lastActivityAt = s.lastActivityAt
       } else {
-        byCwd.set(key, { path: s.cwd, source: s.provider, sessionCount: 1, lastActivityAt: s.lastActivityAt })
+        byCwd.set(key, { path: s.cwd, source: s.provider, sessionCount: 1, activeSessionCount: active ? 1 : 0, lastActivityAt: s.lastActivityAt })
       }
     }
     const candidates = [...byCwd.values()].sort((a, b) => (b.lastActivityAt ?? '').localeCompare(a.lastActivityAt ?? '')).slice(0, limit * 2)
-    const seenRepos = new Set<string>()
-    const results: RepositorySuggestion[] = []
+    // Several working directories (worktrees, subfolders) can belong to one repository: merge them.
+    const byRepo = new Map<string, RepositorySuggestion>()
     for (const c of candidates) {
-      if (results.length >= limit) break
+      if (byRepo.size >= limit) break
       try {
         const resolved = await resolveRepository(this.git, c.path)
         const id = repositoryIdFor(resolved.commonGitDir)
-        if (this.repos.has(id) || seenRepos.has(id)) continue
-        seenRepos.add(id)
-        results.push({ ...c, path: resolved.primaryPath })
+        if (this.repos.has(id)) continue
+        const existing = byRepo.get(id)
+        if (existing) {
+          existing.sessionCount += c.sessionCount
+          existing.activeSessionCount += c.activeSessionCount
+          if ((c.lastActivityAt ?? '') > (existing.lastActivityAt ?? '')) existing.lastActivityAt = c.lastActivityAt
+          continue
+        }
+        byRepo.set(id, { ...c, path: resolved.primaryPath })
       } catch {
         // Not a repository any more (or not accessible): skip silently.
       }
     }
-    return results
+    return [...byRepo.values()]
   }
 }
 

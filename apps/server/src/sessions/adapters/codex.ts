@@ -2,6 +2,8 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { redactHome } from '../../platform/paths.ts'
+import type { LastMessage } from '@repobs/contracts'
+import { makeExcerpt, toolExcerpt } from '../excerpt.ts'
 import { JsonlCursor } from '../jsonl.ts'
 import { isActivePhase, type Lifecycle, resolveState } from '../status.ts'
 import {
@@ -37,6 +39,13 @@ export class CodexAccumulator {
   gitBranch?: string
   lifecycle: Lifecycle = { phase: 'none' }
   unrecognized = 0
+  nickname?: string
+  lastMessage?: LastMessage
+  readonly excerpts: boolean
+
+  constructor(excerpts = true) {
+    this.excerpts = excerpts
+  }
 
   feedHead = (rec: unknown) => {
     if (isRecord(rec) && rec.type === 'session_meta') this.feed(rec)
@@ -64,8 +73,10 @@ export class CodexAccumulator {
       this.parentThreadId = asString(payload.parent_thread_id, 128) ?? asString(spawn?.parent_thread_id, 128) ?? this.parentThreadId
       const gitInfo = isRecord(payload.git) ? payload.git : undefined
       this.gitBranch = asString(gitInfo?.branch, 250) ?? this.gitBranch
+      this.nickname = asString(payload.agent_nickname, 80) ?? asString(payload.agent_role, 80) ?? this.nickname
       return
     }
+    if (this.excerpts && payload) this.captureExcerpt(rec.type, payload, ts)
     if (rec.type === 'turn_context' && payload) {
       this.cwd = asString(payload.cwd) ?? this.cwd
       return
@@ -83,6 +94,24 @@ export class CodexAccumulator {
       (this.lifecycle.phase === 'approval_requested' || this.lifecycle.phase === 'user_input_requested')
     ) {
       this.lifecycle = { phase: 'turn_in_progress', at: ts ?? this.lifecycle.at }
+    }
+  }
+
+  /** Latest assistant reply or tool call (ADR 0003). User and developer messages are never taken. */
+  private captureExcerpt(type: string, payload: Record<string, unknown>, at: string | undefined) {
+    if (type === 'event_msg' && payload.type === 'task_complete' && typeof payload.last_agent_message === 'string') {
+      this.lastMessage = makeExcerpt('assistant', payload.last_agent_message, at) ?? this.lastMessage
+      return
+    }
+    if (type !== 'response_item') return
+    if (payload.type === 'message' && payload.role === 'assistant' && Array.isArray(payload.content)) {
+      const text = payload.content
+        .filter((c): c is Record<string, unknown> => isRecord(c) && c.type === 'output_text' && typeof c.text === 'string')
+        .map((c) => c.text as string)
+        .join(' ')
+      this.lastMessage = makeExcerpt('assistant', text, at) ?? this.lastMessage
+    } else if (payload.type === 'function_call' || payload.type === 'custom_tool_call') {
+      this.lastMessage = toolExcerpt(payload.name, undefined, at) ?? this.lastMessage
     }
   }
 }
@@ -126,8 +155,9 @@ export class CodexAdapter implements SessionAdapter {
 
   configure(config: AdapterConfig): void {
     const before = resolveCodexHome(this.config).root
+    const excerptsBefore = this.config.excerpts !== false
     this.config = config
-    if (resolveCodexHome(config).root !== before) {
+    if (resolveCodexHome(config).root !== before || excerptsBefore !== (config.excerpts !== false)) {
       this.files.clear()
       this.known.clear()
       this.titles.clear()
@@ -196,7 +226,7 @@ export class CodexAdapter implements SessionAdapter {
       if (!tracked) {
         tracked = {
           cursor: new JsonlCursor(file),
-          acc: new CodexAccumulator(),
+          acc: new CodexAccumulator(this.config.excerpts !== false),
           statKey: '',
           archived: file.startsWith(archivedRoot),
         }
@@ -219,26 +249,26 @@ export class CodexAdapter implements SessionAdapter {
       threads.set(id, list)
     }
 
+    // Sub-threads are sessions of their own, linked to the parent (ADR 0003), and counted on it.
     const children = new Map<string, { total: number; active: number }>()
-    const topLevel: Array<[string, TrackedFile[]]> = []
+    const parentOf = new Map<string, string>()
     for (const [id, files] of threads) {
       const parent = files.find((f) => f.acc.parentThreadId)?.acc.parentThreadId
-      if (parent) {
-        const latest = newest(files)
-        const c = children.get(parent) ?? { total: 0, active: 0 }
-        c.total++
-        const fresh = latest.acc.lastTs && now - Date.parse(latest.acc.lastTs) < this.config.staleAfterMs
-        if (fresh && isActivePhase(latest.acc.lifecycle.phase)) c.active++
-        children.set(parent, c)
-      } else {
-        topLevel.push([id, files])
-      }
+      if (!parent) continue
+      parentOf.set(id, parent)
+      const latest = newest(files)
+      const c = children.get(parent) ?? { total: 0, active: 0 }
+      c.total++
+      const fresh = latest.acc.lastTs && now - Date.parse(latest.acc.lastTs) < this.config.staleAfterMs
+      if (fresh && isActivePhase(latest.acc.lifecycle.phase)) c.active++
+      children.set(parent, c)
     }
 
     const sessions: DiscoveredSession[] = []
-    for (const [id, files] of topLevel) {
+    for (const [id, files] of threads) {
       const latest = newest(files)
       const acc = latest.acc
+      const parent = parentOf.get(id)
       const subagents = children.get(id) ?? { total: 0, active: 0 }
       const state = resolveState({
         source: 'codex.rollout',
@@ -253,8 +283,11 @@ export class CodexAdapter implements SessionAdapter {
         id: `codex:${id}`,
         provider: 'codex',
         providerSessionId: id,
-        title: this.titles.get(id)?.name,
+        title: this.titles.get(id)?.name ?? (parent && acc.nickname ? `${acc.nickname} (sub-agent)` : undefined),
         cwd: acc.cwd,
+        parentSessionId: parent ? `codex:${parent}` : undefined,
+        agentType: parent ? acc.nickname : undefined,
+        lastMessage: this.config.excerpts === false ? undefined : acc.lastMessage,
         firstSeenAt: files.reduce<string | undefined>((m, f) => earlierIso(m, f.acc.firstTs), undefined),
         lastActivityAt: files.reduce<string | undefined>((m, f) => laterIso(m, f.acc.lastTs), undefined),
         providerVersion: acc.version,
@@ -284,7 +317,7 @@ export class CodexAdapter implements SessionAdapter {
     try {
       const stats = await tracked.cursor.read(tracked.acc.feed, tracked.acc.feedHead)
       if (stats?.reset) {
-        tracked.acc = new CodexAccumulator()
+        tracked.acc = new CodexAccumulator(this.config.excerpts !== false)
         tracked.cursor = new JsonlCursor(tracked.cursor.file)
         tracked.statKey = ''
         await this.refreshFile(tracked)

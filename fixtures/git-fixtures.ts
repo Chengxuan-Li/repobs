@@ -25,8 +25,20 @@ const BASE_CONFIG = [
   '-c', 'core.longpaths=true',
 ]
 
+// Commits get dates spread over the last few days (5 h apart, in creation order) so timelines in
+// tests and demos look like real history instead of one burst.
+let fixtureClock = 0
+function nextFixtureDate(): string {
+  const start = Math.floor(Date.now() / 1000) - 5 * 86_400
+  fixtureClock = Math.max(fixtureClock + 5 * 3_600, start)
+  return `@${Math.min(fixtureClock, Math.floor(Date.now() / 1000) - 600)} +0000`
+}
+
 export function fixtureGit(cwd: string, args: string[], allowFailure = false): string {
-  const r = spawnSync('git', [...BASE_CONFIG, ...args], { cwd, env: FIXTURE_ENV, encoding: 'utf8', shell: false })
+  const writes = ['commit', 'merge', 'rebase', 'cherry-pick'].includes(args[0] ?? '')
+  const date = writes ? nextFixtureDate() : undefined
+  const env = date ? { ...FIXTURE_ENV, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date } : FIXTURE_ENV
+  const r = spawnSync('git', [...BASE_CONFIG, ...args], { cwd, env, encoding: 'utf8', shell: false })
   if (r.status !== 0 && !allowFailure) {
     throw new Error(`fixture git ${args.join(' ')} failed in ${cwd}: ${r.stderr}`)
   }

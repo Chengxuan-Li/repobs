@@ -2,6 +2,8 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { redactHome } from '../../platform/paths.ts'
+import type { LastMessage } from '@repobs/contracts'
+import { makeExcerpt, toolExcerpt } from '../excerpt.ts'
 import { JsonlCursor, readSmallJson } from '../jsonl.ts'
 import { isActivePhase, type Lifecycle, type RegistryEvidence, resolveState } from '../status.ts'
 import {
@@ -39,6 +41,12 @@ export class ClaudeAccumulator {
   gitBranch?: string
   lifecycle: Lifecycle = { phase: 'none' }
   unrecognized = 0
+  lastMessage?: LastMessage
+  readonly excerpts: boolean
+
+  constructor(excerpts = true) {
+    this.excerpts = excerpts
+  }
 
   feedHead = (rec: unknown) => {
     if (!isRecord(rec)) return
@@ -85,7 +93,21 @@ export class ClaudeAccumulator {
     if (rec.isSidechain === true) return
     const phase = claudePhase(rec)
     if (phase) this.lifecycle = { phase, at: ts ?? this.lifecycle.at }
+    if (this.excerpts && rec.type === 'assistant') this.lastMessage = assistantExcerpt(rec, ts) ?? this.lastMessage
   }
+}
+
+/** Latest text, or the tool being called (with the tool's own description), of an assistant record. */
+function assistantExcerpt(rec: Record<string, unknown>, at: string | undefined): LastMessage | undefined {
+  const content = isRecord(rec.message) ? rec.message.content : undefined
+  if (!Array.isArray(content)) return undefined
+  for (let i = content.length - 1; i >= 0; i--) {
+    const item = content[i]
+    if (!isRecord(item)) continue
+    if (item.type === 'tool_use') return toolExcerpt(item.name, item.input, at)
+    if (item.type === 'text' && typeof item.text === 'string') return makeExcerpt('assistant', item.text, at)
+  }
+  return undefined
 }
 
 function claudePhase(rec: Record<string, unknown>): Lifecycle['phase'] | undefined {
@@ -128,6 +150,7 @@ interface SubagentFile {
   acc: ClaudeAccumulator
   statKey: string
   mtimeMs: number
+  meta?: { agentType?: string; description?: string }
 }
 
 export interface ClaudeRegistryEntry {
@@ -173,8 +196,9 @@ export class ClaudeAdapter implements SessionAdapter {
 
   configure(config: AdapterConfig): void {
     const before = resolveClaudeHome(this.config).root
+    const excerptsBefore = this.config.excerpts !== false
     this.config = config
-    if (resolveClaudeHome(config).root !== before) {
+    if (resolveClaudeHome(config).root !== before || excerptsBefore !== (config.excerpts !== false)) {
       this.files.clear()
       this.subagentFiles.clear()
     }
@@ -246,7 +270,7 @@ export class ClaudeAdapter implements SessionAdapter {
     for (const file of seen) {
       let tracked = this.files.get(file)
       if (!tracked) {
-        tracked = { cursor: new JsonlCursor(file), acc: new ClaudeAccumulator(), statKey: '' }
+        tracked = { cursor: new JsonlCursor(file), acc: new ClaudeAccumulator(this.config.excerpts !== false), statKey: '' }
         this.files.set(file, tracked)
       }
       await this.refreshFile(tracked)
@@ -254,10 +278,13 @@ export class ClaudeAdapter implements SessionAdapter {
 
     const registry = await this.readRegistry()
     const sessions = new Map<string, DiscoveredSession>()
+    const children: DiscoveredSession[] = []
     for (const tracked of this.files.values()) {
       const acc = tracked.acc
       const sid = acc.sessionId ?? path.basename(tracked.cursor.file, '.jsonl')
-      const subagents = await this.subagentActivity(subagentDirs.get(sid), now)
+      const sub = await this.readSubagents(subagentDirs.get(sid), { sid, cwd: acc.cwd, branch: acc.gitBranch }, now)
+      for (const child of sub.sessions) children.push(child)
+      const subagents = { total: sub.total, active: sub.active }
       const reg = registry.get(sid)
       const regEvidence: RegistryEvidence | undefined = reg
         ? { status: reg.status, alive: reg.alive, statusAt: reg.statusAt }
@@ -284,6 +311,7 @@ export class ClaudeAdapter implements SessionAdapter {
         lastActivityAt: laterIso(acc.lastTs, reg?.alive ? reg.statusAt : undefined),
         providerVersion: acc.version,
         recordedBranch: acc.gitBranch,
+        lastMessage: this.config.excerpts === false ? undefined : acc.lastMessage,
         lifecycle: acc.lifecycle,
         state,
         live: reg?.alive === true,
@@ -298,6 +326,7 @@ export class ClaudeAdapter implements SessionAdapter {
     }
     this.lastScanAt = new Date().toISOString()
     this.lastScanMs = Date.now() - started
+    for (const child of children) if (!sessions.has(child.id)) sessions.set(child.id, child)
     return [...sessions.values()]
   }
 
@@ -315,7 +344,7 @@ export class ClaudeAdapter implements SessionAdapter {
       const stats = await tracked.cursor.read(tracked.acc.feed, tracked.acc.feedHead)
       if (stats?.reset) {
         // File replaced or truncated: rebuild the accumulator from scratch on the next read.
-        tracked.acc = new ClaudeAccumulator()
+        tracked.acc = new ClaudeAccumulator(this.config.excerpts !== false)
         tracked.cursor = new JsonlCursor(tracked.cursor.file)
         tracked.statKey = ''
         await this.refreshFile(tracked)
@@ -328,15 +357,19 @@ export class ClaudeAdapter implements SessionAdapter {
     }
   }
 
-  private async subagentActivity(dir: string | undefined, now: number) {
-    if (!dir) return { total: 0, active: 0 }
+  /**
+   * Subagents of one session become child sessions (ADR 0003). Each file is read once with a small
+   * head/tail and then only when it changes; titles come from the subagent's own meta file.
+   */
+  private async readSubagents(dir: string | undefined, parent: { sid: string; cwd?: string; branch?: string }, now: number) {
+    const result = { total: 0, active: 0, sessions: [] as DiscoveredSession[] }
+    if (!dir) return result
     let names: string[]
     try {
-      names = (await fs.readdir(dir)).filter((n) => n.endsWith('.jsonl'))
+      names = (await fs.readdir(dir)).filter((n) => /^agent-[A-Za-z0-9_-]{1,64}\.jsonl$/.test(n))
     } catch {
-      return { total: 0, active: 0 }
+      return result
     }
-    let active = 0
     for (const name of names) {
       const file = path.join(dir, name)
       let st: import('node:fs').Stats
@@ -345,14 +378,14 @@ export class ClaudeAdapter implements SessionAdapter {
       } catch {
         continue
       }
-      // Only recently written subagent logs are read (tail only) to decide whether they are still working.
-      if (now - st.mtimeMs > SUBAGENT_ACTIVE_MS) {
-        this.subagentFiles.delete(file)
-        continue
-      }
       let sub = this.subagentFiles.get(file)
       if (!sub) {
-        sub = { cursor: new JsonlCursor(file, { tailBytes: 64 * 1024 }), acc: new ClaudeAccumulator(), statKey: '', mtimeMs: 0 }
+        sub = {
+          cursor: new JsonlCursor(file, { headBytes: 16 * 1024, tailBytes: 64 * 1024 }),
+          acc: new ClaudeAccumulator(this.config.excerpts !== false),
+          statKey: '',
+          mtimeMs: 0,
+        }
         this.subagentFiles.set(file, sub)
       }
       const key = `${st.size}:${st.mtimeMs}`
@@ -360,14 +393,56 @@ export class ClaudeAdapter implements SessionAdapter {
         sub.statKey = key
         sub.mtimeMs = st.mtimeMs
         const acc = sub.acc
-        await sub.cursor.read((rec) => {
-          // Subagent records are sidechain records; evaluate them as their own lifecycle.
-          if (isRecord(rec)) acc.feed({ ...rec, isSidechain: false })
-        }).catch(() => undefined)
+        // Subagent records are sidechain records; evaluate them as their own lifecycle.
+        await sub.cursor
+          .read(
+            (rec) => isRecord(rec) && acc.feed({ ...rec, isSidechain: false }),
+            (rec) => acc.feedHead(rec),
+          )
+          .catch(() => undefined)
+        try {
+          const meta = await readSmallJson(file.replace(/\.jsonl$/, '.meta.json'), 16 * 1024)
+          if (isRecord(meta)) sub.meta = { agentType: asString(meta.agentType, 60), description: asString(meta.description, 200) }
+        } catch {
+          // no meta file (older versions)
+        }
       }
-      if (isActivePhase(sub.acc.lifecycle.phase)) active++
+      const acc = sub.acc
+      const agentId = name.slice('agent-'.length, -'.jsonl'.length)
+      const state = resolveState({
+        source: 'claude.subagent',
+        lifecycle: acc.lifecycle,
+        subagentsActive: 0,
+        sourceAvailable: true,
+        unrecognizedRecords: acc.unrecognized,
+        now,
+        staleAfterMs: this.config.staleAfterMs,
+      })
+      const fresh = now - st.mtimeMs < SUBAGENT_ACTIVE_MS
+      if (fresh && isActivePhase(acc.lifecycle.phase)) result.active++
+      result.total++
+      const id = `${parent.sid}__agent-${agentId}`
+      result.sessions.push({
+        id: `claude:${id}`,
+        provider: 'claude',
+        providerSessionId: id,
+        title: sub.meta?.description ?? (sub.meta?.agentType ? `${sub.meta.agentType} subagent` : undefined),
+        cwd: acc.cwd ?? parent.cwd,
+        firstSeenAt: acc.firstTs ?? new Date(st.birthtimeMs).toISOString(),
+        lastActivityAt: acc.lastTs ?? new Date(st.mtimeMs).toISOString(),
+        providerVersion: acc.version,
+        recordedBranch: acc.gitBranch ?? parent.branch,
+        parentSessionId: `claude:${parent.sid}`,
+        agentType: sub.meta?.agentType,
+        lastMessage: this.config.excerpts === false ? undefined : acc.lastMessage,
+        lifecycle: acc.lifecycle,
+        state,
+        live: false,
+        subagents: { total: 0, active: 0 },
+        sourceFiles: 1,
+      })
     }
-    return { total: names.length, active }
+    return result
   }
 
   private async readRegistry(): Promise<Map<string, ClaudeRegistryEntry>> {

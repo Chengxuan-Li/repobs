@@ -14,7 +14,8 @@ All endpoints live under `/api/v1` on the loopback address and are private unles
 | GET | `/events` | session | — | [SnapshotDiff](#snapshotdiff) | Server-sent events: `hello` {version}, `diff` (SnapshotDiff), `monitor` (MonitorHealth). Refetch /snapshot on a version gap. |
 | GET | `/repositories` | session | — | [Repository[]](#repository) | Registered repositories. |
 | POST | `/repositories` | session+csrf | [RegisterRepositoryRequest](#registerrepositoryrequest) | [Repository](#repository) | Register a validated local Git repository (any path inside it). Read-only for the repository. |
-| GET | `/repositories/suggestions` | session | — | [RepositorySuggestion[]](#repositorysuggestion) | Unregistered repositories seen in session working directories (no disk indexing). |
+| POST | `/repositories/batch` | session+csrf | [RegisterRepositoriesRequest](#registerrepositoriesrequest) | [RegisterRepositoriesResponse](#registerrepositoriesresponse) | Register up to 50 repositories at once; each path reports success or its own error. |
+| GET | `/repositories/suggestions` | session | — | [RepositorySuggestion[]](#repositorysuggestion) | Unregistered repositories seen in session working directories, with session counts and last activity (no disk indexing). |
 | POST | `/repositories/pick-directory` | session+csrf | — | [PickDirectoryResponse](#pickdirectoryresponse) | Show the native folder chooser on this Windows machine (501 elsewhere). |
 | POST | `/repositories/reorder` | session+csrf | [ReorderRepositoriesRequest](#reorderrepositoriesrequest) | — | Persist repository order. |
 | PATCH | `/repositories/{id}` | session+csrf | [UpdateRepositoryRequest](#updaterepositoryrequest) | — | Rename the dashboard entry. |
@@ -197,6 +198,37 @@ JSON Schema generated from the shared zod contracts.
     },
     "activityLabel": {
       "type": "string"
+    },
+    "parentSessionId": {
+      "type": "string"
+    },
+    "agentType": {
+      "type": "string"
+    },
+    "lastMessage": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "assistant",
+            "tool"
+          ]
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "at": {
+          "type": "string",
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
@@ -839,6 +871,86 @@ JSON Schema generated from the shared zod contracts.
 }
 ```
 
+### RegisterRepositoriesRequest
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "paths": {
+      "minItems": 1,
+      "maxItems": 50,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1024
+      }
+    }
+  },
+  "required": [
+    "paths"
+  ],
+  "additionalProperties": false
+}
+```
+
+### RegisterRepositoriesResponse
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "repositoryId": {
+            "type": "string"
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "message": {
+                "type": "string",
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "path",
+          "ok"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "results"
+  ],
+  "additionalProperties": false
+}
+```
+
 ### RegisterRepositoryRequest
 
 ```json
@@ -989,6 +1101,11 @@ JSON Schema generated from the shared zod contracts.
       "minimum": -9007199254740991,
       "maximum": 9007199254740991
     },
+    "activeSessionCount": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
     "lastActivityAt": {
       "type": "string",
       "maxLength": 64
@@ -997,7 +1114,8 @@ JSON Schema generated from the shared zod contracts.
   "required": [
     "path",
     "source",
-    "sessionCount"
+    "sessionCount",
+    "activeSessionCount"
   ],
   "additionalProperties": false
 }
@@ -1228,6 +1346,18 @@ JSON Schema generated from the shared zod contracts.
       ],
       "additionalProperties": false
     },
+    "privacy": {
+      "type": "object",
+      "properties": {
+        "showMessageExcerpts": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "showMessageExcerpts"
+      ],
+      "additionalProperties": false
+    },
     "github": {
       "type": "object",
       "properties": {
@@ -1252,6 +1382,7 @@ JSON Schema generated from the shared zod contracts.
     "adapters",
     "monitoring",
     "status",
+    "privacy",
     "github"
   ],
   "additionalProperties": false
@@ -1355,6 +1486,15 @@ JSON Schema generated from the shared zod contracts.
           "type": "integer",
           "minimum": 1,
           "maximum": 8760
+        }
+      },
+      "additionalProperties": false
+    },
+    "privacy": {
+      "type": "object",
+      "properties": {
+        "showMessageExcerpts": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -1874,6 +2014,37 @@ JSON Schema generated from the shared zod contracts.
           },
           "activityLabel": {
             "type": "string"
+          },
+          "parentSessionId": {
+            "type": "string"
+          },
+          "agentType": {
+            "type": "string"
+          },
+          "lastMessage": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "assistant",
+                  "tool"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 400
+              },
+              "at": {
+                "type": "string",
+                "maxLength": 64
+              }
+            },
+            "required": [
+              "kind",
+              "text"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -1921,6 +2092,9 @@ JSON Schema generated from the shared zod contracts.
           "hasNote": {
             "type": "boolean"
           },
+          "note": {
+            "type": "string"
+          },
           "checklistOpen": {
             "type": "integer",
             "minimum": -9007199254740991,
@@ -1941,6 +2115,7 @@ JSON Schema generated from the shared zod contracts.
           "review",
           "tags",
           "hasNote",
+          "note",
           "checklistOpen",
           "checklistDone",
           "updatedAt"
@@ -2057,6 +2232,85 @@ JSON Schema generated from the shared zod contracts.
         "additionalProperties": false
       }
     },
+    "commitGraphs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "repoId": {
+            "type": "string"
+          },
+          "commits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "oid": {
+                  "type": "string"
+                },
+                "parents": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "time": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "subject": {
+                  "type": "string"
+                },
+                "pushed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "oid",
+                "parents",
+                "time",
+                "subject",
+                "pushed"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "scannedAt": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "message": {
+                "type": "string",
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "repoId",
+          "commits",
+          "truncated",
+          "scannedAt"
+        ],
+        "additionalProperties": false
+      }
+    },
     "monitor": {
       "type": "object",
       "properties": {
@@ -2111,6 +2365,7 @@ JSON Schema generated from the shared zod contracts.
     "annotations",
     "pullRequests",
     "pullRequestStatus",
+    "commitGraphs",
     "monitor"
   ],
   "additionalProperties": false
@@ -2621,6 +2876,37 @@ JSON Schema generated from the shared zod contracts.
               },
               "activityLabel": {
                 "type": "string"
+              },
+              "parentSessionId": {
+                "type": "string"
+              },
+              "agentType": {
+                "type": "string"
+              },
+              "lastMessage": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "assistant",
+                      "tool"
+                    ]
+                  },
+                  "text": {
+                    "type": "string",
+                    "maxLength": 400
+                  },
+                  "at": {
+                    "type": "string",
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "kind",
+                  "text"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [
@@ -2668,6 +2954,9 @@ JSON Schema generated from the shared zod contracts.
               "hasNote": {
                 "type": "boolean"
               },
+              "note": {
+                "type": "string"
+              },
               "checklistOpen": {
                 "type": "integer",
                 "minimum": -9007199254740991,
@@ -2688,6 +2977,7 @@ JSON Schema generated from the shared zod contracts.
               "review",
               "tags",
               "hasNote",
+              "note",
               "checklistOpen",
               "checklistDone",
               "updatedAt"
@@ -2803,6 +3093,85 @@ JSON Schema generated from the shared zod contracts.
             ],
             "additionalProperties": false
           }
+        },
+        "commitGraphs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "repoId": {
+                "type": "string"
+              },
+              "commits": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "oid": {
+                      "type": "string"
+                    },
+                    "parents": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "time": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "pushed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "oid",
+                    "parents",
+                    "time",
+                    "subject",
+                    "pushed"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "truncated": {
+                "type": "boolean"
+              },
+              "scannedAt": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "error": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "message": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "code",
+                  "message"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "repoId",
+              "commits",
+              "truncated",
+              "scannedAt"
+            ],
+            "additionalProperties": false
+          }
         }
       },
       "required": [
@@ -2812,7 +3181,8 @@ JSON Schema generated from the shared zod contracts.
         "sessions",
         "annotations",
         "pullRequests",
-        "pullRequestStatus"
+        "pullRequestStatus",
+        "commitGraphs"
       ],
       "additionalProperties": false
     },
@@ -2860,6 +3230,12 @@ JSON Schema generated from the shared zod contracts.
           "items": {
             "type": "string"
           }
+        },
+        "commitGraphs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
@@ -2869,7 +3245,8 @@ JSON Schema generated from the shared zod contracts.
         "sessions",
         "annotations",
         "pullRequests",
-        "pullRequestStatus"
+        "pullRequestStatus",
+        "commitGraphs"
       ],
       "additionalProperties": false
     }

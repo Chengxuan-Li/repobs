@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import type { BranchRef, ErrorInfo, GitOperation, Worktree, WorktreeStatus } from '@repobs/contracts'
+import type { BranchRef, CommitNode, ErrorInfo, GitOperation, Worktree, WorktreeStatus } from '@repobs/contracts'
 import { basenameOf, canonicalPath, isAbsoluteLocalPath, pathKey, toDisplayPath } from '../platform/paths.ts'
-import { GitError, type GitRunner, REF_FORMAT } from './exec.ts'
+import { GitError, type GitRunner, LOG_FORMAT, LOG_MAX_COUNT, REF_FORMAT } from './exec.ts'
 import { parseRefs, parseStatusV2, parseTrack, parseWorktreeList, type RawWorktree } from './parse.ts'
 
 const hash = (s: string) => createHash('sha256').update(s).digest('hex')
@@ -229,4 +229,54 @@ export async function scanWorktreeStatus(git: GitRunner, worktree: Worktree): Pr
   } catch (err) {
     return emptyStatus('error', toErrorInfo(err))
   }
+}
+
+export interface CommitScan {
+  commits: CommitNode[]
+  truncated: boolean
+}
+
+/** Parse `git log -z --format=LOG_FORMAT`: records split by NUL, fields by 0x1f (subject last). */
+export function parseLog(output: Buffer | string): Array<Omit<CommitNode, 'pushed'>> {
+  const text = typeof output === 'string' ? output : output.toString('utf8')
+  const commits: Array<Omit<CommitNode, 'pushed'>> = []
+  for (const record of text.split('\0')) {
+    const r = record.replace(/^\n/, '')
+    if (!r) continue
+    const [oid, parents, time, ...subject] = r.split('\x1f')
+    if (!oid || !/^[0-9a-f]{40,64}$/.test(oid)) continue
+    commits.push({
+      oid,
+      parents: parents ? parents.split(' ').filter(Boolean) : [],
+      time: Number(time) || 0,
+      subject: subject.join('\x1f').slice(0, 200),
+    })
+  }
+  return commits
+}
+
+/**
+ * Commits reachable from local branches, remote-tracking refs and detached worktree heads (bounded).
+ * `pushed` marks commits reachable from any remote-tracking ref within the loaded window.
+ */
+export async function scanCommitGraph(git: GitRunner, repo: RepoIdentity, branches: BranchRef[], worktrees: Worktree[]): Promise<CommitScan> {
+  const cwd = repo.isBare || !fs.existsSync(repo.primaryPath) ? repo.commonGitDir : repo.primaryPath
+  const detached = [...new Set(worktrees.filter((w) => w.detached && w.headOid).map((w) => w.headOid!))].slice(0, 50)
+  const raw = parseLog(
+    await git(cwd, ['log', '--no-color', '-z', `--format=${LOG_FORMAT}`, `--max-count=${LOG_MAX_COUNT}`, '--branches', '--remotes', ...detached], {
+      timeoutMs: 20_000,
+    }),
+  )
+  const byOid = new Map(raw.map((c) => [c.oid, c]))
+  const pushed = new Set<string>()
+  const stack = branches.filter((b) => b.kind === 'remote_tracking').map((b) => b.tipOid)
+  while (stack.length) {
+    const oid = stack.pop()!
+    if (pushed.has(oid)) continue
+    const c = byOid.get(oid)
+    if (!c) continue
+    pushed.add(oid)
+    stack.push(...c.parents)
+  }
+  return { commits: raw.map((c) => ({ ...c, pushed: pushed.has(c.oid) })), truncated: raw.length >= LOG_MAX_COUNT }
 }

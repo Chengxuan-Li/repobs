@@ -26,6 +26,23 @@ export const RegisterRepositoryRequest = z.object({
 })
 export type RegisterRepositoryRequest = z.infer<typeof RegisterRepositoryRequest>
 
+export const RegisterRepositoriesRequest = z.object({
+  paths: z.array(z.string().trim().min(1).max(LIMITS.pathChars)).min(1).max(50),
+})
+export type RegisterRepositoriesRequest = z.infer<typeof RegisterRepositoriesRequest>
+
+export const RegisterRepositoriesResponse = z.object({
+  results: z.array(
+    z.object({
+      path: z.string(),
+      ok: z.boolean(),
+      repositoryId: z.string().optional(),
+      error: ErrorInfo.optional(),
+    }),
+  ),
+})
+export type RegisterRepositoriesResponse = z.infer<typeof RegisterRepositoriesResponse>
+
 export const UpdateRepositoryRequest = z.object({
   displayName: z.string().trim().min(1).max(120),
 })
@@ -38,6 +55,7 @@ export const RepositorySuggestion = z.object({
   path: z.string(),
   source: z.enum(['claude', 'codex']),
   sessionCount: z.number().int(),
+  activeSessionCount: z.number().int(),
   lastActivityAt: IsoDate.optional(),
 })
 export type RepositorySuggestion = z.infer<typeof RepositorySuggestion>
