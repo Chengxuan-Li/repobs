@@ -1,0 +1,302 @@
+/* repobs appearance tokens. Starting palette from the EnergyAtlas family light/dark tokens
+   (docs/development/reference-audit.md); no EnergyAtlas code or assets are copied. */
+
+:root {
+  color-scheme: light;
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f8fafc;
+  --color-text: #18202c;
+  --color-text-muted: #5f6b7a;
+  --color-border: #cfd8e5;
+  --color-border-interactive: #768599;
+  --color-accent: #125dae;
+  --color-on-accent: #ffffff;
+  --color-focus: #125dae;
+  --color-selected-bg: #e7eff7;
+  --color-hover-bg: #f1f5f9;
+
+  --tone-success-text: #188038;
+  --tone-success-bg: #edf5ef;
+  --tone-info-text: #125dae;
+  --tone-info-bg: #ecf2f9;
+  --tone-warning-text: #946300;
+  --tone-warning-bg: #f7f3eb;
+  --tone-danger-text: #c5221f;
+  --tone-danger-bg: #faeded;
+  --tone-neutral-text: #3f4b5b;
+  --tone-neutral-bg: #f8fafc;
+  --shadow-popover: 0 6px 16px rgb(0 0 0 / 14%);
+
+  --font-sans: 'Geist Variable', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --font-size-label: 0.6875rem; /* 11px */
+  --font-size-small: 0.75rem; /* 12px */
+  --font-size-base: 0.8125rem; /* 13px */
+  --font-size-title: 0.9375rem; /* 15px */
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --row-height: 26px;
+  --ribbon-height: 40px;
+  --statusbar-height: 26px;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg: #000000;
+  --color-surface: #000000;
+  --color-surface-raised: #1a1a1a;
+  --color-text: #e5e5e5;
+  --color-text-muted: #999999;
+  --color-border: #404040;
+  --color-border-interactive: #6b6b6b;
+  --color-accent: #4da3ff;
+  --color-on-accent: #000000;
+  --color-focus: #4da3ff;
+  --color-selected-bg: #0c1a29;
+  --color-hover-bg: #111418;
+  --tone-success-text: #28a745;
+  --tone-success-bg: #061b0b;
+  --tone-info-text: #4da3ff;
+  --tone-info-bg: #0c1a29;
+  --tone-warning-text: #ffc107;
+  --tone-warning-bg: #291f01;
+  --tone-danger-text: #f44336;
+  --tone-danger-bg: #270b09;
+  --tone-neutral-text: #b3b3b3;
+  --tone-neutral-bg: #262b32;
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 55%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --color-bg: #000000;
+    --color-surface: #000000;
+    --color-surface-raised: #1a1a1a;
+    --color-text: #e5e5e5;
+    --color-text-muted: #999999;
+    --color-border: #404040;
+    --color-border-interactive: #6b6b6b;
+    --color-accent: #4da3ff;
+    --color-on-accent: #000000;
+    --color-focus: #4da3ff;
+    --color-selected-bg: #0c1a29;
+    --color-hover-bg: #111418;
+    --tone-success-text: #28a745;
+    --tone-success-bg: #061b0b;
+    --tone-info-text: #4da3ff;
+    --tone-info-bg: #0c1a29;
+    --tone-warning-text: #ffc107;
+    --tone-warning-bg: #291f01;
+    --tone-danger-text: #f44336;
+    --tone-danger-bg: #270b09;
+    --tone-neutral-text: #b3b3b3;
+    --tone-neutral-bg: #262b32;
+    --shadow-popover: 0 8px 24px rgb(0 0 0 / 55%);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Shared control styles (square, ruled, EnergyAtlas family conventions). */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 26px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-interactive);
+  border-radius: 0;
+  background: var(--color-surface);
+  font-size: var(--font-size-small);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.btn:disabled {
+  border-style: dashed;
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--color-text);
+  border-color: var(--color-text);
+  color: var(--color-bg);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+.btn-quiet {
+  border-color: transparent;
+  background: transparent;
+}
+.btn-quiet:hover:not(:disabled) {
+  border-color: var(--color-border-interactive);
+}
+.btn-danger:hover:not(:disabled) {
+  border-color: var(--tone-danger-text);
+  color: var(--tone-danger-text);
+}
+.btn-icon {
+  width: 26px;
+  justify-content: center;
+  padding: 0;
+}
+
+.input {
+  height: 26px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-interactive);
+  border-radius: 0;
+  background: var(--color-surface);
+  font-size: var(--font-size-small);
+  min-width: 0;
+}
+textarea.input {
+  height: auto;
+  padding: var(--space-2);
+  resize: vertical;
+  line-height: 1.5;
+}
+.input:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -1px;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.section-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  background: var(--color-surface-raised);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.small {
+  font-size: var(--font-size-small);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-small);
+}
+.data-table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: var(--color-surface-raised);
+  border-bottom: 1px solid var(--color-border);
+  padding: 4px var(--space-2);
+  white-space: nowrap;
+}
+.data-table td {
+  border-bottom: 1px solid var(--color-border);
+  padding: 4px var(--space-2);
+  vertical-align: top;
+}
+.data-table tbody tr.clickable {
+  cursor: pointer;
+}
+.data-table tbody tr.clickable:hover {
+  background: var(--color-hover-bg);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px var(--space-3);
+  margin: 0;
+  font-size: var(--font-size-small);
+}
+.facts dt {
+  color: var(--color-text-muted);
+}
+.facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
