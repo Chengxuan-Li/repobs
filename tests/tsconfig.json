@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "..",
+    "lib": ["ES2023", "DOM"],
+    "customConditions": ["development"]
+  },
+  "include": [".", "../playwright.config.ts", "../vitest.config.ts"]
+}

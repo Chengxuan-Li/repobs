@@ -1,0 +1,47 @@
+{
+  "name": "repobs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Git worktree and coding-agent observatory",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24.11.0 <25"
+  },
+  "workspaces": [
+    "packages/contracts",
+    "apps/server",
+    "apps/web"
+  ],
+  "scripts": {
+    "start": "node scripts/start.mjs",
+    "open": "node scripts/open.mjs",
+    "dev": "node scripts/dev.mjs",
+    "demo": "node scripts/demo.ts",
+    "build": "tsc -b packages/contracts apps/server && npm run build -w @repobs/web",
+    "typecheck": "tsc -b packages/contracts apps/server && tsc -p apps/web --noEmit && tsc -p tests --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run --project unit --project web",
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "playwright test",
+    "test:all": "npm run test && npm run test:integration && npm run test:e2e",
+    "docs:build": "node --conditions=development scripts/gen-api-docs.ts --check && python -m mkdocs build --strict",
+    "clean": "node scripts/clean.mjs",
+    "docs:api": "node --conditions=development scripts/gen-api-docs.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
+    "@types/node": "24.13.4",
+    "eslint": "10.10.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.12.0",
+    "jsdom": "29.1.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.0",
+    "vitest": "5.0.5"
+  }
+}

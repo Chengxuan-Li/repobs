@@ -1,0 +1,12 @@
+{
+  "name": "@repobs/server",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "dependencies": {
+    "@repobs/contracts": "0.1.0",
+    "zod": "4.6.7"
+  }
+}

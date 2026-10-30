@@ -1,0 +1,40 @@
+# Dependencies and build output
+node_modules/
+dist/
+site/
+*.tsbuildinfo
+coverage/
+
+# Test output (screenshots/traces may only contain synthetic data, but never commit them)
+test-results/
+playwright-report/
+blob-report/
+
+# Local app state, logs, databases and secrets — repobs keeps these in %LOCALAPPDATA%\repobs,
+# but guard against overrides that point inside the checkout.
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.log
+logs/
+.repobs-data/
+secret.key
+.env
+.env.local
+.env.*.local
+
+# Never commit real provider session data; synthetic fixtures live in fixtures/ and are generated.
+**/real-sessions/
+*.real.jsonl
+
+# Python docs tooling
+.venv/
+__pycache__/
+
+# Editors/OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
