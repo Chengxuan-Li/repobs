@@ -43,3 +43,18 @@ Every state carries a **source** (e.g. `claude.session-registry`, `claude.transc
 - repobs does not start a Codex app-server and does not claim to observe independently running Codex processes.
 - Claude Code hooks (`PermissionRequest`, `Stop`, …) could give more precise events, but repobs never installs hooks automatically. See [Integrations](integrations.md).
 - A process id from the Claude registry could in rare cases be reused by an unrelated process; liveness is therefore treated as evidence, not proof.
+
+## Workflow status on cards and filters
+
+Dashboard cards and the *Status* filter combine the observed state with your review state into one workflow status (defined once in `packages/contracts`):
+
+| Workflow status | When |
+| --- | --- |
+| Needs input | Awaiting approval / input, an error, or a pending tool call that may be waiting for permission (not for historical sessions) |
+| Working | Running or running subagents |
+| Needs review | You marked it *Needs review* or *Flagged* |
+| Complete | You marked it *Reviewed* or *Complete* |
+| Ready | Idle / turn finished or ended, and not yet reviewed |
+| Unknown | Anything else (including stale evidence) |
+
+Agent activity that needs a person wins over your review state, so a session you marked complete shows *Working* again if it starts a new turn.

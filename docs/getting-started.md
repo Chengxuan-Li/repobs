@@ -31,11 +31,11 @@ If repobs is already running, `npm start` (or `npm run open`) simply opens a new
 
 ## Register repositories
 
-1. Click **Add repository**.
-2. Paste a path (for example `C:\src\my-project`) or click **Browse…** for the native Windows folder chooser. Any folder inside a repository works, including a linked worktree; repobs registers the whole repository (its common Git directory) once.
-3. Suggestions under the field come from the working directories of your existing Claude Code / Codex sessions. repobs never scans your disk.
+1. Click **Add repositories**.
+2. Tick the candidates — repositories found in the working directories of your existing Claude Code / Codex sessions, with their session counts and last activity (repobs never scans your disk) — or type a path (for example `C:\src\my-project`) and press **Add to list**, or click **Browse…** for the native Windows folder chooser. Any folder inside a repository works, including a linked worktree; repobs registers the whole repository (its common Git directory) once.
+3. Click **Add N repositories**. Each path reports success or its own error.
 
-The tree immediately shows branches, worktrees and the sessions associated with them. Register a second repository the same way.
+The dashboard immediately shows each repository's branches and commits on a timeline, with the agents that worked on each branch as cards.
 
 ## Verify that sessions are detected
 

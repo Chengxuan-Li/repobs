@@ -5,13 +5,13 @@
 repobs is a local-first, read-only dashboard for developers who juggle many Git worktrees, temporary agent branches and Claude Code / Codex sessions across projects. It answers, at a glance:
 
 - which repositories are registered, and which local, remote-tracking and remote-only refs exist;
-- which branches are checked out in which physical worktrees, and each worktree's state (staged, unstaged, untracked, conflicts, merge/rebase/cherry-pick in progress, ahead/behind, errors);
-- which Claude Code and Codex sessions belong to each worktree — including sessions started outside repobs and several sessions per worktree — and whether each appears running, waiting, idle, ended or **unknown**, with the evidence behind that claim;
+- how branches relate on a **commit graph over time** — forks, merges, what is only local and not pushed, which heads have uncommitted work — and which worktree each branch is checked out in (staged, unstaged, untracked, conflicts, merge/rebase/cherry-pick in progress, ahead/behind, errors);
+- which Claude Code and Codex agents worked on each branch — as cards with their status, the evidence behind it, a short excerpt of their latest message, and the agents they spawned — including sessions started outside repobs and several per worktree;
 - what **you** still need to review, with your own tags, review states, notes and checklists.
 
 The view updates by itself when Git or agent data changes on disk.
 
-![repobs overview with synthetic demo data](assets/repobs-overview.png)
+![repobs dashboard with synthetic demo data](assets/repobs-overview.png)
 
 *Screenshot of the real application running on the synthetic demo data from `npm run demo` (no real repositories or sessions).*
 

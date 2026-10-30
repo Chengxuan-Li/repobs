@@ -9,12 +9,12 @@ Observed with Claude Code 2.1.x on Windows (October 2026).
 | What | Where (default) | Used for |
 | --- | --- | --- |
 | Session transcripts | `<home>\projects\<encoded-cwd>\<session-id>.jsonl` | session id, working directory (`cwd`, `relocated`), timestamps, version, recorded branch, title (`custom-title`), turn lifecycle |
-| Subagent transcripts | `<home>\projects\<encoded-cwd>\<session-id>\subagents\agent-*.jsonl` | recent subagent activity (tail only, recently modified files only) |
+| Subagent transcripts | `<home>\projects\<encoded-cwd>\<session-id>\subagents\agent-*.jsonl` and `agent-*.meta.json` | spawned agents as child sessions: type and description (title), times, state, latest excerpt (small head/tail reads) |
 | Live-session registry | `<home>\sessions\<pid>.json` | provider-reported `busy` / `idle`, session name, liveness of the recorded process |
 
-`<home>` is the **Settings → Session sources** override, else `CLAUDE_CONFIG_DIR`, else `%USERPROFILE%\.claude`. The encoded project directory name is never decoded into a path; the working directory comes from the records. Files next to the registry such as `*.key` are never opened. Subagent transcripts are not listed as separate sessions.
+`<home>` is the **Settings → Session sources** override, else `CLAUDE_CONFIG_DIR`, else `%USERPROFILE%\.claude`. The encoded project directory name is never decoded into a path; the working directory comes from the records. Files next to the registry such as `*.key` are never opened. Subagents appear as child sessions (`claude:<session-id>__agent-<agent-id>`) linked to their parent.
 
-Lifecycle mapping (structural fields only): an assistant record with `stop_reason: tool_use` → tool pending; `end_turn` (or a `stop_hook_summary` system record) → turn completed; a user prompt or tool result → turn in progress; Claude Code's fixed interrupt marker → turn interrupted. Message text is never stored; the interrupt marker is compared in memory and discarded.
+Lifecycle mapping (structural fields only): an assistant record with `stop_reason: tool_use` → tool pending; `end_turn` (or a `stop_hook_summary` system record) → turn completed; a user prompt or tool result → turn in progress; Claude Code's fixed interrupt marker → turn interrupted. The **latest message excerpt** is the last assistant text item, or the last `tool_use` as `<tool>: <input.description>`. User prompts are never taken. The interrupt marker is compared in memory and discarded.
 
 **Hooks (not installed).** Claude Code hooks such as `PermissionRequest`, `Stop`, `SubagentStart`, `SessionStart` and `SessionEnd` could report precise state. A future, explicitly opt-in bridge could add a report-only hook with a clear uninstall; it would never approve or deny anything. v1 does not install or require hooks.
 
@@ -28,11 +28,15 @@ Observed with Codex 0.165 (desktop/VS Code originator) on Windows (October 2026)
 | Archived rollouts | `<home>\archived_sessions\**\rollout-*.jsonl` | the same, for archived threads |
 | Thread index | `<home>\session_index.jsonl` | thread names (titles) |
 
-`<home>` is the Settings override, else `CODEX_HOME`, else `%USERPROFILE%\.codex`. One thread can span several rollout files (resumed sessions); repobs groups them by thread id and takes the state from the newest file. Threads with a parent thread id are counted as subagents of the parent.
+`<home>` is the Settings override, else `CODEX_HOME`, else `%USERPROFILE%\.codex`. One thread can span several rollout files (resumed sessions); repobs groups them by thread id and takes the state from the newest file. Threads with a parent thread id are child sessions of the parent (titled from the thread index, else the agent nickname). The latest excerpt comes from `task_complete.last_agent_message`, assistant `output_text` items, or the last function/tool call name.
 
 Lifecycle mapping: `event_msg` `task_started` → turn in progress; `task_complete` → completed; `turn_aborted` → interrupted; `*_approval_request` → approval requested; `request_user_input` → input requested; `error` → error. The approval and input request names follow the Codex protocol but were **not observed** in local logs during development; they are covered by synthetic fixtures only.
 
 **App server.** A Codex app-server reports `thread/status/changed` and approval flags only for threads that *that server* owns. repobs does not start one, and passive rollout reading cannot observe every approval wait of an independently running Codex process; such sessions show *Running* or *Unknown*, never a guessed *Awaiting approval*.
+
+## Latest-message excerpts
+
+On by default (owner decision, [ADR 0003](decisions/0003-dashboard-commit-graph-and-excerpts.md)); Settings → Privacy turns them off, after which adapters stop extracting them. Excerpts are capped at 280 characters, have whitespace collapsed and obvious secrets (private keys, `sk-`/`ghp_`/`github_pat_`/`xox*-` tokens, AWS keys, JWTs, `Bearer` values, `password=…`-style assignments) redacted, and exist only in memory and in the live snapshot sent to your paired browser — never in the database, logs, diagnostics or exports.
 
 ## Reading strategy
 

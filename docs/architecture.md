@@ -22,13 +22,15 @@ Defined once in `packages/contracts` (see [HTTP API](api.md) for the generated s
 - **BranchRef** — a local ref or remote-tracking ref with its classification (`checked_out`, `local_tracking`, `local_only`, `remote_tracking`, `remote_only`), configured upstream (with `gone`), ahead/behind and the worktrees where it is checked out. *Remote-only* is derived, not a Git ref type.
 - **Worktree** — a physical directory with HEAD, branch or detached state, locked/prunable/missing flags and working-tree status counts plus any operation in progress.
 - **AgentSession** — provider + provider session id, title (provider or fallback), observed cwd, association (matched worktree or *unassigned* with a reason), timestamps, **ObservedAgentState** (kind, confidence, source, evidence time, reason), historical flag, subagent counts.
+- **CommitGraph** — per repository, the most recent 400 commits (oid, parents, commit time, subject) reachable from local branches, remote-tracking refs and detached heads, each marked *pushed* when reachable from a remote-tracking ref.
 - **SessionAnnotation** — human-owned alias, review state, tags, note and checklist, keyed by session id and stored only in the app database.
+- Sessions also carry `parentSessionId` (spawned agents) and an optional in-memory `lastMessage` excerpt ([ADR 0003](decisions/0003-dashboard-commit-graph-and-excerpts.md)).
 
 Stable ids: `repo_<hash(common dir)>`, `wt_<hash(path)>`, `<repoId>|<full ref>`, `claude:<session-id>`, `codex:<thread-id>`. Paths are canonicalized Windows-aware (realpath for junctions, upper-case drive letters, native separators, case-insensitive keys) and compared on path boundaries.
 
 ## Git reader
 
-All Git calls go through `git/exec.ts`: argv only, no shell, bounded time and output, `--no-optional-locks`, `-c core.fsmonitor=false`, and an allowlist of read-only commands that is unit-tested. The reader uses NUL-delimited porcelain formats (`worktree list --porcelain -z`, `status --porcelain=v2 --branch -z`, `for-each-ref` with `%00` separators), so names with spaces, Unicode or newlines parse correctly. Operation markers (`MERGE_HEAD`, `rebase-merge/`, `rebase-apply/`, `CHERRY_PICK_HEAD`, `REVERT_HEAD`, `BISECT_LOG`) are read from each worktree's administrative directory. An integration test hashes every file under `.git` before and after repeated scans to prove nothing is written.
+All Git calls go through `git/exec.ts`: argv only, no shell, bounded time and output, `--no-optional-locks`, `-c core.fsmonitor=false`, and an allowlist of read-only commands that is unit-tested. The commit graph uses `git log -z` with a fixed format and `--max-count=400` over `--branches --remotes` plus detached-head commit ids, and is rebuilt only when ref tips change. The reader uses NUL-delimited porcelain formats (`worktree list --porcelain -z`, `status --porcelain=v2 --branch -z`, `for-each-ref` with `%00` separators), so names with spaces, Unicode or newlines parse correctly. Operation markers (`MERGE_HEAD`, `rebase-merge/`, `rebase-apply/`, `CHERRY_PICK_HEAD`, `REVERT_HEAD`, `BISECT_LOG`) are read from each worktree's administrative directory. An integration test hashes every file under `.git` before and after repeated scans to prove nothing is written.
 
 ## Session adapters
 
@@ -62,7 +64,9 @@ SQLite through Node 24's built-in `node:sqlite` (see [decision 0002](decisions/0
 
 ## UI
 
-React 19 + Vite, CSS Modules and design tokens (light/dark/system), Geist and Geist Mono bundled from `@fontsource-variable` packages, Lucide icons. The tree is a custom WAI-ARIA tree (roving focus, keyboard navigation, context menu, windowed rendering above 300 rows). Pane components have stable ids (`pane-tree`, `pane-center`, `pane-inspector`) so docking could be added later.
+React 19 + Vite, CSS Modules and design tokens (light/dark/system), Geist and Geist Mono bundled from `@fontsource-variable` packages, Lucide icons. The workbench has one primary panel — the dashboard — and two optional side panels (repositories, details). The page never scrolls; panels do.
+
+Each repository section is laid out by a pure function (`features/dashboard/layout.ts`, unit-tested): branch rows in a stable order, commits assigned to the first branch reaching them along first parents (commits reached only through merges go to the merging row), lane/fork/merge edges, pending-change markers for dirty worktrees, and agent rows (newest first by start time, spawned agents under their parent, at most 12 per branch before *show more*). `RepoBoard.tsx` renders the rows as DOM (branch labels and agent cards, which can grow in details mode) and draws the timeline as one SVG overlay positioned from the measured row geometry (ResizeObserver), with a time scale chosen by the timeline range. Filters (`filters.ts`) and the workflow status (`packages/contracts`) are pure and tested. Rows are a keyboard-navigable list (arrows, Home/End, Enter).
 
 ## Extension contract
 

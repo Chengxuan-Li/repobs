@@ -22,8 +22,8 @@ Do not open a public issue for security problems. Until a public repository with
 
 ## Allowed operations
 
-- Git: only `--version`, `rev-parse` (path/identity flags), `worktree list --porcelain -z`, `status --porcelain=v2`, `for-each-ref` (fixed format), `remote -v`; spawned with argv and `shell: false`, `--no-optional-locks`, `core.fsmonitor=false`, no pager or prompts, bounded time and output. Anything else is rejected before a process starts.
-- Provider files: read-only, structural fields only; `*.key` files in the Claude registry folder are never opened.
+- Git: only `--version`, `rev-parse` (path/identity flags), `worktree list --porcelain -z`, `status --porcelain=v2`, `for-each-ref` (fixed format), `log` (fixed format, at most 400 commits, branch/remote refs and commit ids only), `remote -v`; spawned with argv and `shell: false`, `--no-optional-locks`, `core.fsmonitor=false`, no pager or prompts, bounded time and output. Anything else is rejected before a process starts.
+- Provider files: read-only, structural fields plus an optional truncated, redacted latest-message excerpt kept in memory only; `*.key` files in the Claude registry folder are never opened.
 - GitHub CLI: `gh pr list` only, only after opt-in.
 - Windows folder picker: a fixed PowerShell script without user input.
 - Writes: only inside the app data folder (`%LOCALAPPDATA%\repobs` or `REPOBS_DATA_DIR`).

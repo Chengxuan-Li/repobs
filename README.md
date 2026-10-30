@@ -1,8 +1,8 @@
 # repobs — observe your Git worktrees and coding agents, locally.
 
-repobs is a local, read-only dashboard for developers with many Git worktrees, temporary agent branches and Claude Code / Codex sessions. One tree shows **repository → branch → worktree → sessions**, each worktree's Git state, each session's observed status *with its evidence*, and your own review notes and checklists. It updates by itself when Git or agent files change.
+repobs is a local, read-only dashboard for developers with many Git worktrees, temporary agent branches and Claude Code / Codex sessions. A dashboard shows each repository's **branches as a commit graph on a timeline** — forks, merges, unpushed commits, uncommitted work — with the **agents that worked on each branch as cards** (status with its evidence, latest message excerpt, spawned sub-agents) and your own review notes, tags and checklists. It updates by itself when Git or agent files change.
 
-![repobs overview with synthetic demo data](docs/assets/repobs-overview.png)
+![repobs dashboard with synthetic demo data](docs/assets/repobs-overview.png)
 
 *The real application running on synthetic demo data (`npm run demo`).*
 
@@ -20,21 +20,23 @@ npm run build
 npm start                       # starts the loopback service, then opens your browser
 ```
 
-Or: `powershell -ExecutionPolicy Bypass -File scripts\start.ps1` (installs and builds on first run). Click **Add repository**, paste a path such as `C:\src\my-project` (or **Browse…**), and register a second one the same way. Stop with **Ctrl+C**. `npm run open` opens a fresh pairing link for a running instance.
+Or: `powershell -ExecutionPolicy Bypass -File scripts\start.ps1` (installs and builds on first run). Click **Add repositories** and tick the repositories repobs found in your agent sessions, or add a path such as `C:\src\my-project` (or **Browse…**); several can be added at once. Stop with **Ctrl+C**. `npm run open` opens a fresh pairing link for a running instance.
 
 Development: `npm run dev` (backend from sources with watch + Vite dev UI on `http://127.0.0.1:5173`). Documentation: `python -m pip install -r requirements-docs.txt` then `python -m mkdocs serve`.
 
 ## What you get
 
 - Registered repositories (identified by their common Git directory), local branches with configured upstreams and ahead/behind, remote-only refs, detached HEADs, all worktrees with staged/unstaged/untracked/conflicted counts, merge/rebase/cherry-pick/revert/bisect markers, locked/prunable/missing states.
-- Claude Code and Codex sessions discovered from their local files — including sessions started outside repobs and many per worktree — with observed state (`running`, `awaiting approval`, `idle / turn finished`, `ended`, `unknown`, …), confidence (direct / inferred / unknown), source and evidence time. Missing data is shown as unknown, never idle.
-- Your own review layer: review state, tags, alias, autosaved notes and checklists (completed checklists collapse without being deleted), export/import as JSON. Stored only in `%LOCALAPPDATA%\repobs`.
+- A commit graph per repository: one row per branch, commits placed by time, fork/merge edges, pushed vs local-only commits, a marker for uncommitted changes.
+- Claude Code and Codex sessions discovered from their local files — including sessions started outside repobs, many per worktree, and the sub-agents they spawned — with observed state, confidence (direct / inferred / unknown), source and evidence time, and an optional redacted excerpt of the latest message. Missing data is shown as unknown, never idle.
+- Filters by harness, time of the last message, workflow status and tags; repositories sorted by activity.
+- Your own review layer: review-state dropdown, autocompleting tags, alias, multi-line autosaved notes and checklists (completed checklists collapse without being deleted), export/import as JSON. Stored only in `%LOCALAPPDATA%\repobs`.
 - Live updates over server-sent events, from file watchers plus self-healing polling.
 - Optional, off-by-default, read-only GitHub pull request overlay via the GitHub CLI.
 
 ## Privacy and security
 
-Loopback only (`127.0.0.1`), launcher pairing with an HttpOnly SameSite=Strict session, Host/Origin/CSRF checks on every route, strict CSP, read-only allowlisted Git commands without a shell, no telemetry and no network use unless you enable the PR lookup. Only structural metadata is read from session files. Details: [docs/privacy-security.md](docs/privacy-security.md) and [SECURITY.md](SECURITY.md).
+Loopback only (`127.0.0.1`), launcher pairing with an HttpOnly SameSite=Strict session, Host/Origin/CSRF checks on every route, strict CSP, read-only allowlisted Git commands without a shell, no telemetry and no network use unless you enable the PR lookup. Only structural metadata is read from session files, plus an optional, truncated, redacted excerpt of each agent's latest message that is never stored. Details: [docs/privacy-security.md](docs/privacy-security.md) and [SECURITY.md](SECURITY.md).
 
 ## Documentation
 

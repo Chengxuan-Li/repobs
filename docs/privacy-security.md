@@ -14,7 +14,7 @@ A localhost tool still sees sensitive developer metadata: repository paths, bran
 
 `REPOBS_DATA_DIR` overrides the folder. The folder inherits your profile's default Windows permissions (private to your account); on other systems files are created with mode 0600.
 
-repobs **does not store** conversation text, prompts, tool output, code, diffs or secrets. From provider files it extracts only structural fields; titles come from provider metadata (session name, custom title, thread name) or a fallback built from the session id. Logs contain no request bodies, tokens or provider content, and paths under your profile are written as `~`.
+repobs **does not store** conversation text, prompts, tool output, code, diffs or secrets. From provider files it extracts structural fields and, unless you turn it off (Settings → Privacy), a short **latest-message excerpt** per agent: truncated to 280 characters, with obvious secrets redacted, held in memory and sent only to your paired browser — never written to the database, logs, diagnostics or annotation exports. User prompts are never extracted. Titles come from provider metadata (session name, custom title, thread name, subagent description) or a fallback built from the session id. Commit subjects from your repositories are shown in graph tooltips. Logs contain no request bodies, tokens or provider content, and paths under your profile are written as `~`.
 
 ## Network
 
@@ -32,7 +32,7 @@ repobs **does not store** conversation text, prompts, tool output, code, diffs o
 - **CSRF.** State-changing requests must carry an `Origin` from the repobs origin, `Content-Type: application/json` and a CSRF token derived from the session (kept in page memory, never in storage).
 - **Headers.** Strict Content-Security-Policy (`script-src 'self'`, no inline scripts), `X-Frame-Options: DENY`, `nosniff`, `no-referrer`, `no-store` on API responses.
 - **Input validation.** Every body is validated (zod), size-limited and length-limited. Repository paths must be absolute local directories inside a Git repository; there is no generic file or directory browsing endpoint.
-- **Process safety.** Git and `gh` are spawned with argument arrays and `shell: false`, bounded time and output. Git commands pass through an allowlist of read-only inspections (`rev-parse`, `worktree list`, `status`, `for-each-ref`, `remote -v`, `--version`) with `--no-optional-locks`, `GIT_OPTIONAL_LOCKS=0`, no pager, no terminal prompts, and `core.fsmonitor=false` so a repository's configuration cannot make `git status` launch an fsmonitor hook.
+- **Process safety.** Git and `gh` are spawned with argument arrays and `shell: false`, bounded time and output. Git commands pass through an allowlist of read-only inspections (`rev-parse`, `worktree list`, `status`, `for-each-ref`, `log` with a fixed format and bounded count, `remote -v`, `--version`) with `--no-optional-locks`, `GIT_OPTIONAL_LOCKS=0`, no pager, no terminal prompts, and `core.fsmonitor=false` so a repository's configuration cannot make `git status` launch an fsmonitor hook.
 - **Rendering.** Notes and provider text are rendered as text (React escaping); no HTML or Markdown is interpreted.
 
 ## Threat model (summary)
@@ -43,7 +43,7 @@ repobs **does not store** conversation text, prompts, tool output, code, diffs o
 | DNS rebinding | Host header must be a loopback name with the repobs port |
 | Another local user / process on the same machine | Loopback binding limits exposure to this machine; the cookie and secret are needed for data. A process running as *you* can read your profile anyway and is out of scope |
 | Malicious repository content (file names, config) | NUL-safe parsers, argv-only spawning, read-only allowlist, `core.fsmonitor=false`, text-only rendering |
-| Leaking transcripts | Only structural fields are read into memory; nothing is persisted or exported from transcripts |
+| Leaking transcripts | Only structural fields plus an optional, truncated, redacted latest-message excerpt are read into memory; nothing from transcripts is persisted or exported |
 | Corrupt database | Integrity check at startup; the file is moved aside, a new one is created, and Diagnostics discloses it |
 
 **Known limitations:** `git status` can run configured clean/smudge filters (for example Git LFS) exactly as Git itself would for racily-modified files; only register repositories you trust. Cookies are not port-specific in browsers, so other local web servers on `127.0.0.1` receive the repobs cookie (they cannot forge it). A recorded Claude process id could be reused by an unrelated process. See also `SECURITY.md` in the repository root and [Limitations](limitations.md).

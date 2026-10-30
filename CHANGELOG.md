@@ -4,6 +4,24 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+### Changed
+
+- Workbench redesigned around one primary dashboard with optional repositories and details side panels (ADR 0003); the page no longer scrolls, only panels do.
+- Review state is a dropdown; tags autocomplete from existing tags; notes keep line breaks.
+
+### Added
+
+- Commit graph per repository on a timeline: one row per branch, fork/merge edges, pushed vs local-only vs not-pulled commits, uncommitted-changes markers (read-only `git log`, at most 400 commits).
+- Agent cards under their branch with workflow status, observed state, activity bars and an optional, truncated, redacted latest-message excerpt (in memory only; Settings → Privacy).
+- Spawned agents (Claude Code subagents, Codex sub-threads) as linked child sessions, with a toggle to hide them.
+- Filters by harness, last-message time, workflow status, tags and text; repository sorting; details toggle showing alias, tags, full notes and checklist progress on cards.
+- Bulk registration from a sortable checklist of repositories found in session folders (`POST /api/v1/repositories/batch`).
+
+### Fixed
+
+- A new pairing link opened in an already-open tab now re-pairs instead of being ignored.
+- Newly started agents no longer land behind the per-branch "show more" cutoff.
+
 ## [0.1.0] — 2026-10-30
 
 First implementation of the product handoff.

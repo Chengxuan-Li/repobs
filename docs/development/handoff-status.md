@@ -2,6 +2,45 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 2 — 2026-10-30: dashboard redesign (owner feedback, ADR 0003)
+
+### Owner feedback addressed
+
+| Request | Implementation |
+| --- | --- |
+| The page itself scrolled | The shell is fixed to the viewport; only the dashboard and side panels scroll (e2e asserts `scrollY = 0` and no document overflow) |
+| One primary working panel plus side panels | Dashboard in the center; optional, resizable repositories (left) and details/notes (right) panels |
+| Add repositories from a multi-selection list, sortable | Checklist of repositories found in session folders (merged per repository, with session/active counts and last activity), sortable; `POST /api/v1/repositories/batch` with per-path results |
+| Filters: harness, last-message age, status, tags; sort repositories | Filter bar (harness, 24 h–40 days, workflow status chips, tag filter with autocomplete, text search); repositories sorted by activity, active agents, name or manual order |
+| Visualize branches and commits like a Git tree, with uncommitted and unpushed work distinguished | Per repository: one row per branch, commits placed by time, fork/merge edges, filled = pushed, hollow amber dashed = local only, grey dashed = not pulled, dashed diamond = uncommitted changes (red when conflicted), head labels; new read-only `git log` (≤ 400 commits) |
+| Agents as card rows under their branch, with a mechanical latest-message synopsis | Cards with workflow status, observed state, timeline bar, and the latest assistant text or running tool (*Tool: description*), truncated and redacted, in memory only, switchable in Settings → Privacy |
+| Show agent spawning; toggle to hide spawned agents | Claude subagents and Codex sub-threads are child sessions linked to their parent (indented card + connector); *Hide spawned agents* |
+| Review state as a dropdown; keep alias; tags with autocomplete and tag filter; notes with line breaks; details toggle | Dropdown in the details panel and on every card; tag autocomplete (prefix, then substring, most used first; Tab/Enter); notes rendered with `pre-wrap`; *Show notes & tags* shows alias, tags, full notes and checklist progress on cards |
+
+Removed: the old tree sidebar and center detail views (`features/repository-tree`, `features/git-inspector`).
+
+### Verification run (2026-10-30, this machine)
+
+| Command | Result |
+| --- | --- |
+| `npm ci` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run lint` | exit 0 |
+| `npm test` | 12 files, 107 tests passed |
+| `npm run build` | exit 0 |
+| `npm run test:integration` | 6 files, 73 tests passed |
+| `npm run test:e2e` | 16 passed (Edge); docs screenshot regenerated with the opt-in spec (temp paths masked) |
+| `npm run docs:build` | exit 0 |
+
+Real data (read-only, counts only): Claude adapter now reports 858 sessions including 674 spawned subagents, 849 with an excerpt, in about 1.3 s cold and 50 ms incrementally (about 120 MB RSS); Codex 13 threads including 8 sub-threads. Commit graph on a local 29-branch repository: 214 commits (64 unpushed) in 46 ms.
+
+Bugs found and fixed while verifying: a pairing link opened in an already-open tab was ignored (hash-only navigation); newly started agents could land behind the per-branch *show more* cutoff because live diffs append to the client's arrays (the layout now orders by start time); clicks on graph nodes did not select their row; a `key: value` redaction rule let `Authorization: Bearer …` tokens through.
+
+### Open items
+
+- Unchanged from checkpoint 1 (no GitHub remote yet, so CI and Pages have not run).
+- Repositories with many branches show every local branch by default; the *Branches* menu narrows to checked-out branches or branches with agents.
+
 ## Checkpoint 1 — 2026-10-30: v0.1.0, phases P0–P6 implemented
 
 ### Environment used

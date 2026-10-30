@@ -30,6 +30,7 @@ nav:
       - Product handoff (original): development/product-handoff.md
       - Foundation decision: decisions/0001-product-foundation.md
       - Engineering decisions: decisions/0002-engineering-choices.md
+      - Dashboard and commit graph: decisions/0003-dashboard-commit-graph-and-excerpts.md
 extra_css:
   - assets/repobs.css
 validation:
