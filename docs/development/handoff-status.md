@@ -2,6 +2,15 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 13 — 2026-10-31: drag to pan; repositories panel header
+
+| Request | Implementation |
+| --- | --- |
+| Add button in the repositories panel is cropped | `Dropdown` `icon` (compact) variant for *Sort*; strip title ellipsizes, *Add* never shrinks |
+| Pan the view by click-and-hold, like a map | `useDragPan.ts` on the view's scroller: 4 px threshold, pointer capture, swallowed click after a pan, controls excluded; grab / grabbing cursors |
+
+Verification (2026-10-31, this machine): typecheck, lint and build exit 0; `npm run test:e2e` 27 passed, 1 skipped (new pan test: scroll offsets follow the drag, no selection, a click still selects); `npm test` 16 files / 135 tests passed; `npm run docs:build` exit 0. Screenshot checked: panel header with Sort icon and Add at default width.
+
 ## Checkpoint 12 — 2026-10-31: views, File and View menus (ADR 0005)
 
 | Request | Implementation |

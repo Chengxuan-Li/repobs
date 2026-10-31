@@ -25,6 +25,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
+- Drag with the mouse on a view to pan its history and rows like a map; plain clicks still select.
 - Views: open several dashboards (View → Open new view), each named *View n* with the smallest free number, renamable by double-clicking its tab, with its own filters, display options and repositories; the repositories panel's ticks follow the current view (ADR 0005).
 - File → Export / Open: annotations and views (names, settings, arrangement) in one JSON file. View → Refresh rescans now.
 - Ribbon menus (Repositories, View, Tools) with shortcuts, a command palette (Ctrl+K) and icon buttons for the layout; dockable panels (drag, split, collapse, close, maximize, reset) with the arrangement remembered per browser (ADR 0004).
@@ -43,6 +44,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Fixed
 
+- The repositories panel's *Add* button was cut off at the panel's default width; *Sort* is now a compact icon button.
 - Graph lines no longer show through the gaps between rows of the sticky label column.
 - A new pairing link opened in an already-open tab now re-pairs instead of being ignored.
 - Newly started agents no longer land behind the per-branch "show more" cutoff.

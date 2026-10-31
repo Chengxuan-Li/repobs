@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { ArrowUpDown, Plus } from 'lucide-react'
 import type { Repository } from '@repobs/contracts'
 import type { RepoSort } from '../../app/viewState'
 import { Dropdown } from '../../components/Dropdown'
@@ -51,14 +51,15 @@ export function RepoListPanel({
   return (
     <div className={styles.repoList}>
       <div className="section-strip">
-        <span className="label">Repositories</span>
+        <span className={`label ${styles.stripTitle}`}>Repositories</span>
         <span className={styles.spacer} />
         <Dropdown
           label="Sort"
+          icon={ArrowUpDown}
           value={SORTS.find(([s]) => s === sort)?.[1]}
           sections={[{ items: SORTS.map(([s, label]) => ({ type: 'radio' as const, label, checked: s === sort, onSelect: () => onSort(s) })) }]}
         />
-        <button type="button" className="btn btn-quiet" onClick={onAdd}>
+        <button type="button" className={`btn btn-quiet ${styles.stripButton}`} onClick={onAdd}>
           <Plus size={13} aria-hidden="true" /> Add
         </button>
       </div>

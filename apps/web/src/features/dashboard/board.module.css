@@ -66,9 +66,11 @@
   display: flex;
   border-bottom: 1px solid var(--color-border);
   outline: none;
-  cursor: default;
+  /* The lanes show the dashboard's grab cursor (drag to pan); the label column stays an arrow. */
+  cursor: inherit;
 }
 .label {
+  cursor: default;
   position: sticky;
   left: 0;
   z-index: 3;

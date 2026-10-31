@@ -100,6 +100,16 @@
   white-space: nowrap;
   max-width: 100%;
 }
+.stripTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stripButton {
+  flex: none;
+  white-space: nowrap;
+}
 .repoStats {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -170,6 +180,13 @@
   overflow: auto;
   outline: none;
   position: relative;
+  /* Drag to pan (useDragPan.ts). */
+  cursor: grab;
+}
+.scroller[data-panning],
+.scroller[data-panning] * {
+  cursor: grabbing !important;
+  user-select: none;
 }
 .scroller:focus-visible {
   outline: 2px solid var(--color-focus);

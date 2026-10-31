@@ -424,6 +424,31 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await setOption(page, 'Agents', 'Agent labels on timeline')
   })
 
+  test('dragging with the mouse pans the view like a map; a plain click still selects', async ({ page }) => {
+    await pair(page)
+    const scroller = page.getByLabel(/^Branches and agents\. Use the arrow keys/)
+    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Zoom in' }).click()
+    const at = () => scroller.evaluate((el) => ({ left: el.scrollLeft, top: el.scrollTop }))
+    const before = await at()
+    const box = (await scroller.boundingBox())!
+    const x = box.x + box.width - 80
+    const y = box.y + box.height - 60
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + 150, y - 100, { steps: 10 })
+    await expect(scroller).toHaveAttribute('data-panning', '')
+    await page.mouse.up()
+    const after = await at()
+    expect(Math.abs(after.left - (before.left - 150))).toBeLessThanOrEqual(2)
+    expect(Math.abs(after.top - (before.top + 100))).toBeLessThanOrEqual(2)
+    await expect(scroller).not.toHaveAttribute('data-panning', '')
+    // The drag did not select anything; a click still does.
+    await expect(details(page)).toContainText('Select an agent card')
+    await openCard(page, 'Tighten status parser')
+    await expect(details(page).getByRole('heading', { name: 'Tighten status parser' })).toBeVisible()
+    await page.getByRole('button', { name: /^Zoom \d+%, reset$/ }).click()
+  })
+
   test('the history zooms horizontally', async ({ page }) => {
     await pair(page)
     const svg = board(page, 'repo-a').locator('svg[data-lanes]')

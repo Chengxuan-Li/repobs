@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronDown, type LucideIcon } from 'lucide-react'
 import styles from './dropdown.module.css'
 
 // A labelled button showing its current value that opens either a menu of options (check boxes for
@@ -19,6 +19,7 @@ export function Dropdown({
   label,
   value,
   active = false,
+  icon: Icon,
   sections,
   children,
 }: {
@@ -27,6 +28,8 @@ export function Dropdown({
   value?: string
   /** Marks a dropdown whose setting differs from the default (for filters). */
   active?: boolean
+  /** Compact button for tight strips: the icon instead of the label and value (both stay in the name and tooltip). */
+  icon?: LucideIcon
   sections?: DropdownSection[]
   /** A panel of controls instead of a menu (role dialog). */
   children?: ReactNode
@@ -102,7 +105,8 @@ export function Dropdown({
       <button
         ref={trigger}
         type="button"
-        className={`btn ${styles.trigger} ${active ? styles.active : ''}`}
+        className={`btn ${styles.trigger} ${active ? styles.active : ''} ${Icon ? styles.compact : ''}`}
+        title={Icon ? (value ? `${label}: ${value}` : label) : undefined}
         aria-haspopup={isMenu ? 'menu' : 'dialog'}
         aria-expanded={open}
         aria-label={value ? `${label}: ${value}` : label}
@@ -114,8 +118,14 @@ export function Dropdown({
           }
         }}
       >
-        <span>{label}</span>
-        {value ? <span className={styles.value}>{value}</span> : null}
+        {Icon ? (
+          <Icon size={14} aria-hidden="true" />
+        ) : (
+          <>
+            <span>{label}</span>
+            {value ? <span className={styles.value}>{value}</span> : null}
+          </>
+        )}
         <ChevronDown size={12} aria-hidden="true" />
       </button>
       {open ? (

@@ -6,6 +6,11 @@
   padding: 0 6px 0 9px;
   white-space: nowrap;
 }
+.compact {
+  flex: none;
+  gap: 2px;
+  padding: 0 4px 0 6px;
+}
 .value {
   max-width: 14rem;
   overflow: hidden;

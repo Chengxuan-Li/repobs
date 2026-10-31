@@ -10,6 +10,7 @@ import { Legend } from './Legend'
 import { LABEL_W, LABEL_W_NARROW, RepoBoard } from './RepoBoard'
 import type { RepoSummary } from './RepoListPanel'
 import { buildTimeline } from './timeline'
+import { useDragPan } from './useDragPan'
 import boardStyles from './board.module.css'
 import styles from './dashboard.module.css'
 
@@ -177,6 +178,8 @@ export function Dashboard({
 
   // Keyboard: ↑/↓/Home/End move between rows across repositories, → / ← show or hide an agent's
   // spawned agents, Enter/Space selects.
+  const pan = useDragPan(scrollRef, () => setHover(undefined))
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     const target = e.target as HTMLElement
     if (['SELECT', 'INPUT', 'TEXTAREA'].includes(target.tagName)) return
@@ -215,9 +218,10 @@ export function Dashboard({
         className={styles.scroller}
         onKeyDown={onKeyDown}
         onScroll={() => setHover(undefined)}
+        {...pan}
         data-menu-bounds=""
         tabIndex={0}
-        aria-label="Branches and agents. Use the arrow keys to move between rows, right and left arrows to show or hide an agent's spawned agents, Enter to open it, plus and minus to zoom the history."
+        aria-label="Branches and agents. Use the arrow keys to move between rows, right and left arrows to show or hide an agent's spawned agents, Enter to open it, plus and minus to zoom the history. Drag with the mouse to pan."
         style={{ ['--axis-height' as string]: `${AXIS_HEIGHT}px`, ['--label-w' as string]: `${labelW}px` }}
       >
         <div className={styles.canvas} style={{ width: labelW + timeline.width }}>

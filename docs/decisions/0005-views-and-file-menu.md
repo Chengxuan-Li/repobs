@@ -18,6 +18,11 @@ The owner asked for several instances of the dashboard, each a named view with i
 7. **Refresh** asks the server to rescan everything now (`POST /rescan`); live updates make it rarely necessary.
 8. **Side panel widths.** Repositories at least 280 px (default 300), details at least 320 px; stored side bars narrower than that are widened on load. Repository entries no longer wrap (ellipsis).
 
+## Amendment (owner feedback, 2026-10-31)
+
+- **Drag to pan.** Pressing the primary mouse button on a view (not on a control) and moving more than 4 px pans its scroll area horizontally and vertically, like a map (`useDragPan.ts`); the click that ends a pan is swallowed so it selects nothing, and shorter presses stay clicks. Touch and pen keep native scrolling. The lanes show a grab cursor, the label column an arrow.
+- **Sort as an icon.** The repositories panel's *Sort* dropdown is a compact icon button (its value in the name and tooltip), so *Add* fits at the panel's minimum width.
+
 ## Consequences
 
 - Each view computes its own layout of the repositories it shows; the details panel resolves a selected branch row against the current view.
