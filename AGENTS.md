@@ -25,6 +25,7 @@ Read `docs/development/product-handoff.md`, `docs/decisions/0001-product-foundat
 - App-local annotations survive agent and worktree disappearance and are never written into transcripts or repos.
 - Enforce localhost security, validation, safe process spawning, private app storage and opt-in network integrations.
 - Keep UI consistent with the EnergyAtlas-derived design audit; do not copy unrelated energy application features.
+- Documentation-site styling (`mkdocs.yml` theme, `overrides/`, `docs/assets/stylesheets/`, landing-page layout) follows `design/docs-ui-spec.md`; its section 0 wins over the rest. `design/` is versioned but not published; the vendored fonts in `docs/assets/fonts/` are hand-maintained copies of the app's pinned `@fontsource-variable` files.
 - Use synthetic fixtures in automated tests. Never commit real session histories or user repository snapshots.
 - Cover empty, loading, success, stale, permission-denied, disconnected and error states; no silent no-op controls.
 

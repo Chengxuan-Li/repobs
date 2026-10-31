@@ -34,6 +34,7 @@ nav:
       - Reference UI alignment: decisions/0004-reference-ui-alignment-ribbon-docking.md
       - Views and File menu: decisions/0005-views-and-file-menu.md
       - Release packaging: decisions/0006-release-packaging.md
+      - Documentation site style: decisions/0007-docs-site-alignment.md
 extra_css:
   - assets/repobs.css
 validation:
