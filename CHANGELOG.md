@@ -8,6 +8,10 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 - Ready-to-run release download: `repobs-<version>.zip` (built app, launchers and its one runtime dependency; needs only Node.js 24) with `SHA256SUMS.txt`, built by `npm run package` and published by a tag-triggered release workflow (ADR 0006).
 
+### Changed
+
+- The documentation site uses Material for MkDocs in the application's look: light and dark themes, self-hosted Geist fonts, a landing page with a grid of the guides, tabs, breadcrumbs, search and instant navigation (ADR 0007).
+
 ## [0.2.0] — 2026-10-31
 
 A redesigned workbench: a commit graph with agents on a shared timeline, several named views, dockable panels and the reference UI's look (ADR 0003, 0004, 0005).

@@ -2,13 +2,24 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 16 — 2026-10-31: documentation site in the app's visual family (ADR 0007)
+
+| Request | Implementation |
+| --- | --- |
+| UI alignment for the MkDocs site | Material for MkDocs 9.7.7 (pinned in `requirements-docs.txt`) styled with the app's tokens (`docs/assets/stylesheets/site.css`); rules and owner decisions in `design/docs-ui-spec.md` (section 0 wins), referenced from `AGENTS.md` |
+| No font host | Geist and Geist Mono copied from the app's pinned `@fontsource-variable` 5.3.0 packages into `docs/assets/fonts/` with their OFL licences; `theme.font: false`; `overrides/main.html` preloads them |
+| Landing page | Hero, a grid of the eight guide and reference pages, the existing sections under numbered strips; sidebars hidden but kept as margins |
+| Navigation | Tabs *Home*, *Guide*, *Reference*, *Development*; no page URL changed; breadcrumbs; instant navigation (`site_url` set to the Pages address); no `repo_url` |
+
+Verification (2026-10-31, this machine, Edge in the app's browser pane, built site served locally): `python -m mkdocs build --strict` passes. Dark and light at 1440 px, phone at 375 px: no horizontal overflow; hero, strip labels, grid cells and paragraphs share one left edge (267 px into the frame on the landing page, the same absolute edge as on pages with sidebars); strips and grid rules reach the frame; each grid cell's empty area opens its page; fonts load from the site only and no request leaves the origin (the built pages reference no font host); instant navigation keeps the same document and re-requests no font (checked with a build whose `site_url` was the local address); search returns results; the generated API table scrolls inside its container; the phone drawer opens on the landing page. Not checked: the published GitHub Pages site (not pushed), Firefox and Safari. Material 9.7.7 prints an informational notice about MkDocs 2.0; it is not a build warning, and MkDocs stays pinned at 1.6.1.
+
 ## Checkpoint 15 — 2026-10-31: ready-to-run release package (ADR 0006)
 
 | Request | Implementation |
 | --- | --- |
 | The release only had the source zip; ship something usable | `scripts/package.mjs` (`npm run package`): `release/repobs-<version>.zip` with the built app, launchers, `zod`, licences and `THIRD-PARTY-NOTICES.txt`; `SHA256SUMS.txt`; notes from the changelog |
 | Repeatable releases | `.github/workflows/release.yml`: on `v*` tags, checks, build, package (tag must match the version), `gh release create` |
-| Docs | README and getting started: install from a release; real clone URL (`{URL}`, public); contributing: release steps; limitations: packaging |
+| Docs | README and getting started: install from a release; real clone URL (`https://github.com/Chengxuan-Li/repobs`, public); contributing: release steps; limitations: packaging |
 
 Verification (2026-10-31, this machine): the zip unpacked with Windows `Expand-Archive` into an empty folder; `npm start --no-open` there (empty data, Claude and Codex folders) reported `repobs 0.2.0`, `/api/v1/health` returned version 0.2.0, `/` served the UI, an unpaired `/api/v1/snapshot` returned 401, and Edge paired and showed *View 0* with no console errors. Packaging twice gave the same SHA-256. Lint, typecheck and tests: see the commit message.
 
