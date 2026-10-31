@@ -2,6 +2,18 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 15 — 2026-10-31: ready-to-run release package (ADR 0006)
+
+| Request | Implementation |
+| --- | --- |
+| The release only had the source zip; ship something usable | `scripts/package.mjs` (`npm run package`): `release/repobs-<version>.zip` with the built app, launchers, `zod`, licences and `THIRD-PARTY-NOTICES.txt`; `SHA256SUMS.txt`; notes from the changelog |
+| Repeatable releases | `.github/workflows/release.yml`: on `v*` tags, checks, build, package (tag must match the version), `gh release create` |
+| Docs | README and getting started: install from a release; real clone URL (`{URL}`, public); contributing: release steps; limitations: packaging |
+
+Verification (2026-10-31, this machine): the zip unpacked with Windows `Expand-Archive` into an empty folder; `npm start --no-open` there (empty data, Claude and Codex folders) reported `repobs 0.2.0`, `/api/v1/health` returned version 0.2.0, `/` served the UI, an unpaired `/api/v1/snapshot` returned 401, and Edge paired and showed *View 0* with no console errors. Packaging twice gave the same SHA-256. Lint, typecheck and tests: see the commit message.
+
+The v0.2.0 release itself was packaged from the `v0.2.0` tag's sources (the workflow did not exist when the tag was pushed) and published with `gh release create`.
+
 ## Checkpoint 14 — 2026-10-31: release preparation, v0.2.0
 
 - Version 0.2.0 in all package manifests, the lockfile's workspace entries and `APP_VERSION` (reported by `/health`).
@@ -11,7 +23,7 @@ Dated implementation checkpoints against the [product handoff](product-handoff.m
 
 Verification (2026-10-31, this machine) — see the release commit message for the final run: `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:integration`, `npm run build`, `npm run test:e2e`, `npm run docs:build`.
 
-Not done (owner decisions): tagging `v0.2.0` and pushing; whether `v0.1.0` gets a retroactive tag; a public clone URL for the README and getting-started placeholders; a dependency audit (`npm audit` contacts the npm registry).
+Done afterwards: `v0.2.0` tagged and pushed (owner approval); the clone URL is now the public repository (checkpoint 15). Still open: whether `v0.1.0` gets a retroactive tag; a dependency audit (`npm audit` contacts the npm registry).
 
 ## Checkpoint 13 — 2026-10-31: drag to pan; repositories panel header
 

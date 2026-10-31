@@ -22,6 +22,13 @@ npm run test:e2e
 npm run docs:build   # needs: python -m pip install -r requirements-docs.txt
 ```
 
+## Releasing
+
+1. Set the new version in `package.json`, `apps/server/package.json`, `apps/web/package.json`, `packages/contracts/package.json` (and their `@repobs/contracts` dependency), the workspace entries of `package-lock.json`, and `APP_VERSION` in `apps/server/src/config/config.ts`.
+2. Move the `Unreleased` entries of `CHANGELOG.md` into a `[X.Y.Z] — YYYY-MM-DD` section; the release notes are taken from it.
+3. Run the full check above, then `npm run package` and try the zip from a clean folder (`npm start` in the unzipped folder).
+4. Commit, then push an annotated tag `vX.Y.Z` on that commit. The *Release* workflow re-runs the checks, packages the zip and publishes a GitHub Release with the zip, `SHA256SUMS.txt` and the notes; it refuses a tag that does not match the package version.
+
 ## Ground rules
 
 - Keep Git access read-only. New Git commands need a product decision and an allowlist test (`apps/server/src/git/exec.ts`, `tests/git/exec.test.ts`).

@@ -27,6 +27,7 @@
     "test:all": "npm run test && npm run test:integration && npm run test:e2e",
     "docs:build": "node --conditions=development scripts/gen-api-docs.ts --check && python -m mkdocs build --strict",
     "clean": "node scripts/clean.mjs",
+    "package": "node scripts/package.mjs",
     "docs:api": "node --conditions=development scripts/gen-api-docs.ts"
   },
   "devDependencies": {

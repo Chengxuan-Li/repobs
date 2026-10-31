@@ -12,8 +12,12 @@ repobs is a local, read-only dashboard for developers with many Git worktrees, t
 
 Requires Node.js 24 LTS (24.11+) and Git for Windows.
 
+**From a release (no build):** download `repobs-<version>.zip` from [Releases](https://github.com/Chengxuan-Li/repobs/releases), unzip it, and run `npm start` in the unzipped folder.
+
+**From source:**
+
 ```powershell
-git clone <actual-repobs-url>   # placeholder: no public remote exists yet
+git clone https://github.com/Chengxuan-Li/repobs.git
 cd repobs
 npm ci
 npm run build

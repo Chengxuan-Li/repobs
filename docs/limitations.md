@@ -15,4 +15,4 @@
 - **Docking.** Panels and views dock within the browser window; floating and pop-out windows are not available. On narrow windows (below about 1,100 px) the side panels stay docked rather than turning into overlays, so the dashboard gets narrow.
 - **Views are per browser.** Views, their settings and the arrangement are stored in the browser (localStorage), not on the server; use File → Export / Open to move them to another browser.
 - **Pull requests** require the GitHub CLI and are limited to open PRs (100 per repository) on github.com remotes.
-- **Packaging.** Runs from a source checkout with Node.js; there is no packaged executable or installer yet.
+- **Packaging.** Releases are a ready-to-run zip that needs Node.js 24; there is no standalone executable or installer, and the zip is not code-signed.

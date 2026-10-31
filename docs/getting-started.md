@@ -9,10 +9,24 @@
 
 ## Install and start
 
+### From a release (recommended)
+
+1. Download `repobs-<version>.zip` from the [Releases page](https://github.com/Chengxuan-Li/repobs/releases). Optionally compare its SHA-256 with `SHA256SUMS.txt` (`Get-FileHash repobs-<version>.zip`).
+2. Unzip it anywhere, for example to `C:\Tools`.
+3. In the unzipped `repobs-<version>` folder, run:
+
+```powershell
+npm start
+```
+
+The zip holds the built app and its one runtime dependency: nothing is installed, built or downloaded. To upgrade, stop repobs and replace the folder with a newer release; your annotations and settings live in `%LOCALAPPDATA%\repobs`, not in the folder.
+
+### From source
+
 From a PowerShell prompt (a profile path containing spaces is fine):
 
 ```powershell
-git clone <actual-repobs-url>   # placeholder until a public remote exists
+git clone https://github.com/Chengxuan-Li/repobs.git
 cd repobs
 npm ci
 npm run build
@@ -21,7 +35,7 @@ npm start
 
 `npm start` starts the service on `http://127.0.0.1:47321` (or the next free port up to 47330), waits until its health check passes and then opens your default browser with a **one-time pairing link**. Keep the window open; press **Ctrl+C** to stop repobs cleanly.
 
-Alternatively run the Windows launcher, which also installs and builds on first use:
+Alternatively run the Windows launcher, which also installs and builds on first use (in a release folder it only starts repobs):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\start.ps1
@@ -52,7 +66,7 @@ This builds disposable repositories and synthetic Claude/Codex session folders a
 ## Stop and uninstall
 
 - Stop: Ctrl+C in the `npm start` window.
-- Uninstall: delete the repobs folder and the app data folder `%LOCALAPPDATA%\repobs` (database with your annotations, install secret, logs). Nothing else on the system is changed.
+- Uninstall: delete the repobs folder (source checkout or unzipped release) and the app data folder `%LOCALAPPDATA%\repobs` (database with your annotations, install secret, logs). Nothing else on the system is changed.
 
 ## Troubleshooting
 

@@ -1,0 +1,58 @@
+name: Release
+
+# Pushing a version tag (vX.Y.Z) publishes a GitHub Release with the ready-to-run zip, its
+# checksum and notes from CHANGELOG.md (scripts/package.mjs). The tag must match package.json.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history: the zip's timestamps come from the tagged commit.
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Configure Git identity for fixtures
+        run: |
+          git config --global user.name "repobs ci"
+          git config --global user.email "ci@repobs.invalid"
+      - name: Install
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Integration tests
+        run: npm run test:integration
+      - name: Build
+        run: npm run build
+      - name: Package
+        run: node scripts/package.mjs --tag "$GITHUB_REF_NAME"
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" \
+            "release/repobs-${version}.zip" release/SHA256SUMS.txt \
+            --verify-tag \
+            --title "repobs ${version}" \
+            --notes-file "release/notes-${version}.md"
