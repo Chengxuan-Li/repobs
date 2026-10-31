@@ -65,6 +65,13 @@ Everything else is collapsed:
 
 Excerpts are read mechanically from the provider's files, truncated, with obvious secrets redacted, and never stored; Settings → Privacy turns them off.
 
+**Where agent names appear** — two independent toggles in the filter bar:
+
+- **Agent labels on timeline** (on by default): each agent's bar ends with its name, status and how long ago it was last active, so you read who worked when right in the history. Near the right edge the label moves to the left of the bar. Hovering a label shows the agent's card.
+- **Agent names in list** (on by default): the names in the label column. Turn it off to give the history more room: the column narrows and each card keeps its provider mark, spawn-tree position and status menu.
+
+Either, both or neither can be on; with both off, hover a card or bar to see who it is.
+
 Spawned agents (Claude Code subagents, Codex sub-threads) are cards indented one step per spawn level under the agent that started them. The tree lines run in the gutter left of the cards and continue across rows, from the bottom of the parent's card to each child; on the lanes, a thin line links the parent's bar to its children's; **Hide spawned agents** removes them. Long lists show the 12 newest agents per branch and a *Show N more agents* row.
 
 ## Your notes

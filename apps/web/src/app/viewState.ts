@@ -19,6 +19,10 @@ export interface ViewState {
   filters: DashboardFilters
   /** Expand every agent row (otherwise rows are one line; expand individually). */
   details: boolean
+  /** Agent names in the label column (off: the column narrows to the spawn tree and status). */
+  agentNames: boolean
+  /** Agent labels at the end of each activity bar on the timeline. */
+  barLabels: boolean
   expandedAgents: string[]
   axisMode: AxisMode
   /** Horizontal zoom of the shared axis (1 = fit the commits to the viewport where possible). */
@@ -47,6 +51,8 @@ export const DEFAULT_VIEW: ViewState = {
   rightWidth: 360,
   filters: DEFAULT_FILTERS,
   details: false,
+  agentNames: true,
+  barLabels: true,
   expandedAgents: [],
   axisMode: 'sequence',
   zoom: 1,
@@ -89,6 +95,8 @@ export function loadView(): ViewState {
       axisMode: p.axisMode === 'time' || p.axisMode === 'compressed' ? p.axisMode : 'sequence',
       zoom: clamp(Number(p.zoom) || 1, MIN_ZOOM, MAX_ZOOM),
       collapseQuiet: p.collapseQuiet === true,
+      agentNames: p.agentNames !== false,
+      barLabels: p.barLabels !== false,
       expandedGroups: Array.isArray(p.expandedGroups) ? p.expandedGroups : [],
       // Views saved before the commit-order axis existed defaulted to a 7-day window.
       timeRange: p.axisMode ? (p.timeRange ?? 'all') : 'all',

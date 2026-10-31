@@ -7,10 +7,11 @@ import {
   type PullRequest,
   type Repository,
   type ReviewState,
+  WORKFLOW_LABELS,
   WORKFLOW_TONES,
   workflowStatus,
 } from '@repobs/contracts'
-import { Badge } from '../../components/primitives'
+import { Badge, formatAge } from '../../components/primitives'
 import { AgentRow } from './AgentRow'
 import { AgentHover, BranchHover, CommitHover, GroupHover, PendingHover, type ShowHover } from './HoverCard'
 import type { BoardRow, BranchRow, RepoLayout } from './layout'
@@ -22,6 +23,8 @@ import styles from './board.module.css'
 // on the shared axis. Row positions are measured, so expanded agents can be taller.
 
 export const LABEL_W = 360
+/** Label column width when agent names are shown on the timeline only. */
+export const LABEL_W_NARROW = 230
 
 interface Geometry {
   rows: Record<string, { top: number; height: number }>
@@ -34,6 +37,12 @@ export interface RepoBoardProps {
   graph?: CommitGraph
   pullRequests: PullRequest[]
   timeline: Timeline
+  /** Width of the label column (px). */
+  labelWidth: number
+  /** Agent names in the label column. */
+  agentNames: boolean
+  /** Agent labels at the end of their activity bars. */
+  barLabels: boolean
   viewportWidth: number
   expandAll: boolean
   expandedAgents: Set<string>
@@ -79,7 +88,7 @@ export const RepoBoard = memo(function RepoBoard(props: RepoBoardProps) {
     return () => ro.disconnect()
   }, [measure, collapsed])
 
-  const total = LABEL_W + timeline.width
+  const total = props.labelWidth + timeline.width
   return (
     <section className={styles.repo} aria-label={`${repo.displayName} repository`} id={`repo-${repo.id}`} style={{ width: total }}>
       <header className={styles.repoHeader}>
@@ -107,7 +116,7 @@ export const RepoBoard = memo(function RepoBoard(props: RepoBoardProps) {
           {layout.rows.length === 0 ? <p className={`${styles.emptyRow} small muted`}>No branches or agents match the current filters.</p> : null}
           <svg
             className={styles.overlay}
-            style={{ left: LABEL_W }}
+            style={{ left: props.labelWidth }}
             width={timeline.width}
             height={geo.height}
             aria-hidden="true"
@@ -194,6 +203,7 @@ function Row(props: { row: BoardRow } & RepoBoardProps) {
           hasChildren={row.hasChildren}
           expanded={expanded}
           focusable={tabbableId === row.id}
+          showName={props.agentNames}
           now={props.now}
           onToggle={() => props.onToggleAgent(s.id)}
           onReview={(r) => props.onReview(s.id, r)}
@@ -401,13 +411,31 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     const x1 = timeline.x(start)
     const x2 = Math.max(x1 + 4, timeline.x(end))
     barStart.set(row.id, x1)
-    const tone = WORKFLOW_TONES[workflowStatus(s, annotations.get(s.id))]
+    const status = workflowStatus(s, annotations.get(s.id))
+    const tone = WORKFLOW_TONES[status]
+    const hover = hoverProps(() => <AgentHover session={s} annotation={row.annotation} now={now} children={props.childCount.get(s.id) ?? 0} parentTitle={s.parentSessionId ? props.sessionsById.get(s.parentSessionId)?.title : undefined} />)
     els.push(
-      <g key={`b-${row.id}`} {...hoverProps(() => <AgentHover session={s} annotation={row.annotation} now={now} children={props.childCount.get(s.id) ?? 0} parentTitle={s.parentSessionId ? props.sessionsById.get(s.parentSessionId)?.title : undefined} />)}>
+      <g key={`b-${row.id}`} {...hover}>
         <rect x={x1} y={y - 7} width={x2 - x1} height={14} className={styles.hit} />
         <rect x={x1} y={y - 3} width={x2 - x1} height={6} className={`${styles.bar} ${styles[`bar_${tone}`]}`} />
       </g>,
     )
+    if (props.barLabels) {
+      // Name and age at the end of the work; flipped before the bar when it would run off the axis.
+      const name = clip(row.annotation?.displayAlias || s.title, 48)
+      const age = s.lastActivityAt ? formatAge(s.lastActivityAt, now) : ''
+      const tail = WORKFLOW_LABELS[status] + (age ? ` · ${age === 'now' ? 'now' : `${age} ago`}` : '')
+      const w = (name.length + tail.length + 3) * 6.2
+      const after = x2 + 8 + w <= timeline.width - 4
+      const before = !after && x1 - 8 - w >= 4
+      const lx = after ? x2 + 8 : before ? x1 - 8 : Math.max(4, timeline.width - 4 - w)
+      els.push(
+        <text key={`bl-${row.id}`} x={lx} y={y + 4} textAnchor={after || !before ? 'start' : 'end'} className={styles.barLabel} data-bar-label={s.id} {...hover}>
+          <tspan className={styles.barLabelName}>{name}</tspan>
+          <tspan className={styles[`barLabel_${tone}`]}> · {tail}</tspan>
+        </text>,
+      )
+    }
   }
   for (const link of layout.spawnLinks) {
     const py = center(link.from)
@@ -417,4 +445,8 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     els.push(<path key={`s-${link.to}`} d={`M${cx - 3},${py + 3} V${cy} H${cx}`} className={styles.spawnLink} fill="none" />)
   }
   return <>{els}</>
+}
+
+function clip(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text
 }

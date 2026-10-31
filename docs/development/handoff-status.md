@@ -2,6 +2,16 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 8 — 2026-10-30: seventh review — agent labels on the timeline (trial)
+
+| Request | Implementation |
+| --- | --- |
+| Agent info next to the end of its work in the chronology, as a mode enabled or disabled separately from the left column | `barLabels` and `agentNames` in the view state, each a filter-bar checkbox (both on by default). `RepoBoard.tsx` draws name · status · age after each bar (flipped before the bar near the axis end, with a halo over crossing lines); without names in the list the column narrows to `LABEL_W_NARROW` (230 px) and cards keep provider mark, tree and status menu |
+
+Verification (2026-10-30, this machine): typecheck, lint and build exit 0; `npm test` 14 files / 124 tests passed; `npm run test:e2e` 23 passed, 1 skipped (docs screenshot, regenerated); `npm run docs:build` exit 0. Integration suite not rerun (no backend change).
+
+Unknown: label width is estimated from the character count (6.2 px per character), so a label can still run slightly past the axis end with wide glyphs; not seen on the demo.
+
 ## Checkpoint 7 — 2026-10-30: sixth review — quiet commits are Git-quiet
 
 | Request | Implementation |

@@ -47,3 +47,8 @@
 ## Amendment (owner feedback, 2026-10-30, sixth review)
 
 - **Quiet means quiet in the Git sense.** Agent activity no longer keeps commits visible: a commit stays visible only as a branch tip or head, a fork base or merge endpoint, a merge, or a branch's first own commit. Consecutive commits an agent makes on one branch fold like any other run. (The earlier rule — any agent active on the branch within 5 minutes — kept nearly everything visible on real data, because sessions span days from first to last message.)
+
+## Amendment (owner decision, 2026-10-30, seventh review)
+
+- **Agent labels in the chronology (trial).** Each activity bar ends with the agent's name, workflow status and last-activity age, placed after the bar or, near the right edge of the axis, before it. The label marks the last *message*, not a commit: repobs does not attribute commits to agents.
+- **Two independent toggles**, both on by default: *Agent labels on timeline* and *Agent names in list*. Without names in the list the label column narrows (360 → 230 px) and keeps the spawn tree, provider mark and status/review menu, which stay in the fixed column because they rely on it (keyboard navigation, selection, the review menu).

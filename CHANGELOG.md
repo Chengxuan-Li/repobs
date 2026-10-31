@@ -20,6 +20,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
+- Agent labels on the timeline (name · status · last activity at the end of each bar) and a toggle to hide agent names in the list, which narrows the label column; each can be switched on or off independently.
 - Axis mode *Calendar, compressed*: calendar-proportional gaps with a minimum spacing between commits, so bursts of commits never collide; zoom scales only the time gaps.
 - The status badge on an agent card, and in its hover card, opens a menu to set your review state.
 - Horizontal zoom of the history axis: −/+ buttons, Ctrl + wheel, or +/−/0 keys.

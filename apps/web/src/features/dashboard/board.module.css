@@ -72,7 +72,7 @@
   position: sticky;
   left: 0;
   z-index: 3;
-  width: 360px;
+  width: var(--label-w, 360px);
   flex: none;
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
@@ -134,7 +134,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 0 1 auto;
+  /* Gives way before the branch name in a narrow column. */
+  flex: 0 50 auto;
   min-width: 0;
 }
 .dim {
@@ -380,6 +381,29 @@
   fill: var(--color-text-muted);
 }
 .bar_danger {
+  fill: var(--tone-danger-text);
+}
+/* Agent label at the end of its bar: a halo keeps it readable over lines it crosses. */
+.barLabel {
+  font-size: 11px;
+  fill: var(--color-text-muted);
+  paint-order: stroke;
+  stroke: var(--color-bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: all;
+  cursor: help;
+}
+.barLabelName {
+  fill: var(--color-text);
+}
+.barLabel_warning {
+  fill: var(--tone-warning-text);
+}
+.barLabel_info {
+  fill: var(--tone-info-text);
+}
+.barLabel_danger {
   fill: var(--tone-danger-text);
 }
 .spawnLink {

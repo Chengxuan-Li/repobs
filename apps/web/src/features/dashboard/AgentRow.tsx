@@ -21,6 +21,7 @@ export function AgentRow({
   hasChildren,
   expanded,
   focusable,
+  showName = true,
   now,
   onToggle,
   onReview,
@@ -32,6 +33,8 @@ export function AgentRow({
   expanded: boolean
   /** Whether the row's controls are in the tab order (the row is the current keyboard row). */
   focusable: boolean
+  /** Off when names are shown on the timeline only: the card keeps the provider mark and status. */
+  showName?: boolean
   now: number
   onToggle: () => void
   onReview: (review: ReviewState) => void
@@ -64,7 +67,7 @@ export function AgentRow({
           <span className={styles.providerMark} title={session.provider === 'claude' ? 'Claude Code' : 'Codex'}>
             {session.provider === 'claude' ? 'C' : 'X'}
           </span>
-          <span className={styles.agentName}>{title}</span>
+          {showName ? <span className={styles.agentName}>{title}</span> : <span className={styles.agentName} />}
           <ReviewMenu status={status} review={annotation?.review ?? 'unreviewed'} title={title} focusable={focusable} onReview={onReview} />
         </div>
         {expanded ? (

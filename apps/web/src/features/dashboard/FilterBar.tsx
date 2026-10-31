@@ -84,6 +84,12 @@ export function FilterBar({
           <input type="checkbox" checked={view.details} onChange={(e) => setView({ details: e.target.checked })} /> Expand agent details
         </label>
         <label className={styles.chip}>
+          <input type="checkbox" checked={view.agentNames} onChange={(e) => setView({ agentNames: e.target.checked })} /> Agent names in list
+        </label>
+        <label className={styles.chip}>
+          <input type="checkbox" checked={view.barLabels} onChange={(e) => setView({ barLabels: e.target.checked })} /> Agent labels on timeline
+        </label>
+        <label className={styles.chip}>
           <input type="checkbox" checked={!view.showSpawned} onChange={(e) => setView({ showSpawned: !e.target.checked })} /> Hide spawned agents
         </label>
         <label className={styles.chip}>

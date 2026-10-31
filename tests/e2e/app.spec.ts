@@ -310,6 +310,30 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(status).toHaveText('Unreviewed')
   })
 
+  test('agent labels on the timeline and names in the list toggle independently', async ({ page }) => {
+    await pair(page)
+    const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()
+    const label = svg.locator('text[data-bar-label^="claude:c3d2e4f6"]').first()
+    await expect(label).toContainText('Claude session c3d2e4f6')
+    await expect(label).toContainText('Working')
+    const parent = row(page, /^Claude session c3d2e4f6, Claude Code agent/)
+    const before = (await parent.boundingBox())!.width
+
+    // Names only on the timeline: the column narrows, cards keep their status menu and stay named for assistive tech.
+    await page.getByLabel('Agent names in list').uncheck()
+    await expect(parent).not.toContainText('Claude session c3d2e4f6')
+    await expect(parent.getByRole('button', { name: /change review state/ })).toBeVisible()
+    expect((await parent.locator('[class*="label"]').first().boundingBox())!.width).toBeLessThan(before)
+    await expect(label).toBeVisible()
+
+    // Names only in the list.
+    await page.getByLabel('Agent names in list').check()
+    await page.getByLabel('Agent labels on timeline').uncheck()
+    await expect(svg.locator('text[data-bar-label]')).toHaveCount(0)
+    await expect(parent).toContainText('Claude session c3d2e4f6')
+    await page.getByLabel('Agent labels on timeline').check()
+  })
+
   test('the history zooms horizontally', async ({ page }) => {
     await pair(page)
     const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()

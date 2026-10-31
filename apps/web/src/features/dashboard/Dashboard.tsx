@@ -7,7 +7,7 @@ import { FilterBar } from './FilterBar'
 import { AgentHover, HoverCard, type HoverState, type ShowHover } from './HoverCard'
 import type { RepoLayout } from './layout'
 import { Legend } from './Legend'
-import { LABEL_W, RepoBoard } from './RepoBoard'
+import { LABEL_W, LABEL_W_NARROW, RepoBoard } from './RepoBoard'
 import type { RepoSummary } from './RepoListPanel'
 import { buildTimeline } from './timeline'
 import boardStyles from './board.module.css'
@@ -56,6 +56,7 @@ export function Dashboard({
     return () => ro?.disconnect()
   }, [])
 
+  const labelW = view.agentNames ? LABEL_W : LABEL_W_NARROW
   const visibleIds = useMemo(() => new Set(repos.map((r) => r.repo.id)), [repos])
   const timeline = useMemo(
     () =>
@@ -73,17 +74,17 @@ export function Dashboard({
           .map((s) => ({ start: Date.parse(s.firstSeenAt ?? s.lastActivityAt ?? '') || now, end: Date.parse(s.lastActivityAt ?? '') || now })),
         rangeStart: view.timeRange === 'all' ? null : now - RANGE_MS[view.timeRange],
         now,
-        availableWidth: Math.max(240, viewport - LABEL_W),
+        availableWidth: Math.max(240, viewport - labelW),
         minSpacing: 22,
         zoom: view.zoom,
       }),
-    [view.axisMode, view.timeRange, view.zoom, layouts, visibleIds, filtered, now, viewport],
+    [view.axisMode, view.timeRange, view.zoom, layouts, visibleIds, filtered, now, viewport, labelW],
   )
 
   // Horizontal zoom keeps the point under the pointer (or the middle of the lanes) in place.
-  const zoomState = useRef({ zoom: view.zoom, width: timeline.width })
+  const zoomState = useRef({ zoom: view.zoom, width: timeline.width, labelW })
   useLayoutEffect(() => {
-    zoomState.current = { zoom: view.zoom, width: timeline.width }
+    zoomState.current = { zoom: view.zoom, width: timeline.width, labelW }
   })
   const anchor = useRef<{ frac: number; px: number }>(undefined)
   const zoomTo = useCallback(
@@ -92,8 +93,9 @@ export function Dashboard({
       const next = clamp(Math.round(zoom * 100) / 100, MIN_ZOOM, MAX_ZOOM)
       if (next === zoomState.current.zoom) return
       if (el) {
-        const at = px ?? LABEL_W + (el.clientWidth - LABEL_W) / 2
-        anchor.current = { frac: (el.scrollLeft + at - LABEL_W) / zoomState.current.width, px: at }
+        const lw = zoomState.current.labelW
+        const at = px ?? lw + (el.clientWidth - lw) / 2
+        anchor.current = { frac: (el.scrollLeft + at - lw) / zoomState.current.width, px: at }
       }
       setView({ zoom: next })
     },
@@ -104,8 +106,8 @@ export function Dashboard({
     const a = anchor.current
     if (!el || !a) return
     anchor.current = undefined
-    el.scrollLeft = a.frac * timeline.width + LABEL_W - a.px
-  }, [timeline.width])
+    el.scrollLeft = a.frac * timeline.width + labelW - a.px
+  }, [timeline.width, labelW])
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
@@ -210,11 +212,11 @@ export function Dashboard({
         data-menu-bounds=""
         tabIndex={0}
         aria-label="Branches and agents. Use the arrow keys to move between rows, right and left arrows to expand or collapse an agent, Enter to open it, plus and minus to zoom the history."
-        style={{ ['--axis-height' as string]: `${AXIS_HEIGHT}px` }}
+        style={{ ['--axis-height' as string]: `${AXIS_HEIGHT}px`, ['--label-w' as string]: `${labelW}px` }}
       >
-        <div className={styles.canvas} style={{ width: LABEL_W + timeline.width }}>
+        <div className={styles.canvas} style={{ width: labelW + timeline.width }}>
           <div className={styles.axis} style={{ height: AXIS_HEIGHT }}>
-            <div className={styles.axisLabel} style={{ width: LABEL_W }}>
+            <div className={styles.axisLabel} style={{ width: labelW }}>
               <span aria-hidden="true">{AXIS_LABELS[view.axisMode]}</span>
               <span className={styles.spacer} />
               <div className={styles.zoom} role="group" aria-label="Zoom history" onKeyDown={(e) => e.stopPropagation()}>
@@ -254,6 +256,9 @@ export function Dashboard({
                 graph={snapshot.commitGraphs.find((g) => g.repoId === repo.id)}
                 pullRequests={snapshot.pullRequests.filter((p) => p.repoId === repo.id)}
                 timeline={timeline}
+                labelWidth={labelW}
+                agentNames={view.agentNames}
+                barLabels={view.barLabels}
                 viewportWidth={viewport}
                 expandAll={view.details}
                 expandedAgents={expandedAgents}
@@ -280,7 +285,7 @@ export function Dashboard({
           })}
           {orphans.length ? (
             <section className={styles.orphans} aria-label="Sessions without a repository">
-              <div className={`section-strip ${styles.stickyNote}`} style={{ width: Math.min(viewport, LABEL_W + timeline.width) }}>
+              <div className={`section-strip ${styles.stickyNote}`} style={{ width: Math.min(viewport, labelW + timeline.width) }}>
                 <span className="label">Sessions without a repository</span>
                 <span className="small muted">annotated sessions whose repository is no longer registered</span>
               </div>
@@ -309,6 +314,7 @@ export function Dashboard({
                         hasChildren={false}
                         expanded={view.details || expandedAgents.has(s.id)}
                         focusable={view.selectedId === `session:${s.id}`}
+                        showName={view.agentNames}
                         now={now}
                         onToggle={() => toggleAgent(s.id)}
                         onReview={(r) => onReview(s.id, r)}
