@@ -3,9 +3,12 @@
 //     in time order, merged across all visible repositories, so the axis is the same for every
 //     project; times between items (agent activity) are interpolated between neighbours.
 //   time: a linear calendar scale over the chosen range.
+//   compressed: calendar order and gaps proportional to elapsed time, but every item keeps at least
+//     minSpacing from the previous one, so bursts of commits never collide; zoom scales only the
+//     time-proportional part of the gaps.
 // Pure and unit-tested (timeline.test.ts).
 
-export type AxisMode = 'sequence' | 'time'
+export type AxisMode = 'sequence' | 'time' | 'compressed'
 
 export interface Tick {
   x: number
@@ -38,7 +41,7 @@ export interface TimelineInput {
   now: number
   /** Width available for the lane area; the axis may be wider (horizontal scroll). */
   availableWidth: number
-  /** Minimum distance between commits in sequence mode. */
+  /** Minimum distance between commits in sequence and compressed modes. */
   minSpacing: number
   /**
    * Horizontal zoom (default 1). Above 1 the axis widens proportionally; below 1 commits may sit
@@ -51,7 +54,7 @@ export const PAD = 16
 const DAY = 86_400_000
 
 export function buildTimeline(input: TimelineInput): Timeline {
-  return input.mode === 'time' ? timeAxis(input) : sequenceAxis(input)
+  return input.mode === 'time' ? timeAxis(input) : input.mode === 'compressed' ? compressedAxis(input) : sequenceAxis(input)
 }
 
 function timeAxis(input: TimelineInput): Timeline {
@@ -138,4 +141,85 @@ function timeTicks(start: number, end: number, scale: (ms: number) => number, wi
     out.push({ x: scale(t), label })
   }
   return out
+}
+
+function compressedAxis(input: TimelineInput): Timeline {
+  const items = input.items
+    .filter((c) => input.rangeStart === null || c.time >= input.rangeStart)
+    .sort((a, b) => a.time - b.time || a.key.localeCompare(b.key))
+  const gap = input.minSpacing
+  const first = items[0]?.time ?? input.rangeStart ?? input.now - DAY
+  const start = input.rangeStart ?? Math.min(first, input.now - DAY)
+  // Pixels per ms: at zoom 1 the plain calendar scale for the available width; items closer than
+  // the minimum spacing push everything after them to the right (the axis grows and scrolls).
+  const scale = ((Math.max(input.availableWidth, 200) - 2 * PAD - gap) / Math.max(1, input.now - start)) * (input.zoom ?? 1)
+  const anchors: Array<{ t: number; x: number }> = []
+  const itemX = new Map<string, number>()
+  let x = PAD + gap / 2 + Math.max(0, first - start) * scale
+  let prev: number | undefined
+  for (const item of items) {
+    if (prev !== undefined) x += Math.max(gap, (item.time - prev) * scale)
+    prev = item.time
+    itemX.set(item.key, x)
+    anchors.push({ t: item.time, x })
+  }
+  const nowX = prev === undefined ? x : x + Math.max(gap, (input.now - prev) * scale)
+  anchors.push({ t: input.now, x: nowX })
+  const width = Math.max(input.availableWidth, nowX + gap / 2 + PAD)
+
+  // Piecewise linear between anchors; before the first item, the plain scale back to the start.
+  const at = (ms: number) => {
+    if (ms <= anchors[0]!.t) return anchors[0]!.x - (anchors[0]!.t - ms) * scale
+    if (ms >= input.now) return nowX
+    let lo = 0
+    let hi = anchors.length - 1
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1
+      if (anchors[mid]!.t <= ms) lo = mid
+      else hi = mid
+    }
+    const a = anchors[lo]!
+    const b = anchors[hi]!
+    return a.x + ((ms - a.t) / Math.max(1, b.t - a.t)) * (b.x - a.x)
+  }
+  const xOf = (ms: number) => Math.min(width - PAD, Math.max(PAD, at(ms)))
+  return { mode: 'compressed', width, x: xOf, commitX: (key) => itemX.get(key), start, end: input.now, ticks: rankedTicks(start, input.now, at), nowX }
+}
+
+/**
+ * Calendar ticks for a non-linear axis: "now" first, then boundaries by importance (year, month,
+ * day, 6 h, hour), each kept only if it is at least 72px from the ticks already placed.
+ */
+function rankedTicks(start: number, end: number, at: (ms: number) => number): Tick[] {
+  const HOUR = 3_600_000
+  const levels: Array<{ step: (d: Date) => void; label: (d: Date) => string }> = [
+    { step: (d) => d.setFullYear(d.getFullYear() + 1, 0, 1), label: (d) => String(d.getFullYear()) },
+    { step: (d) => d.setMonth(d.getMonth() + 1, 1), label: (d) => d.toLocaleDateString([], { month: 'short', year: 'numeric' }) },
+    { step: (d) => d.setDate(d.getDate() + 1), label: (d) => d.toLocaleDateString([], { month: 'short', day: 'numeric' }) },
+    { step: (d) => d.setHours(d.getHours() + 6), label: (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+    { step: (d) => d.setHours(d.getHours() + 1), label: (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+  ]
+  const floors = [
+    (d: Date) => d.setMonth(0, 1),
+    (d: Date) => d.setDate(1),
+    () => undefined,
+    (d: Date) => d.setHours(d.getHours() - (d.getHours() % 6)),
+    () => undefined,
+  ]
+  const placed: Tick[] = [{ x: at(end), label: 'now' }]
+  const free = (x: number) => placed.every((p) => Math.abs(p.x - x) >= 72)
+  levels.forEach((level, i) => {
+    // Skip fine levels over long spans (too many candidates to be useful).
+    if (i >= 3 && end - start > 60 * 24 * HOUR) return
+    if (i === 4 && end - start > 7 * 24 * HOUR) return
+    const d = new Date(start)
+    d.setHours(i <= 2 ? 0 : d.getHours(), 0, 0, 0)
+    floors[i]!(d)
+    if (d.getTime() < start) level.step(d)
+    for (let n = 0; d.getTime() <= end && n < 5000; n++, level.step(d)) {
+      const x = at(d.getTime())
+      if (free(x)) placed.push({ x, label: level.label(d) })
+    }
+  })
+  return placed.sort((a, b) => a.x - b.x)
 }

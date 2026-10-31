@@ -105,6 +105,7 @@ export function FilterBar({
           <select className="input" value={view.axisMode} onChange={(e) => setView({ axisMode: e.target.value as AxisMode })}>
             <option value="sequence">Commit order</option>
             <option value="time">Calendar time</option>
+            <option value="compressed">Calendar, compressed</option>
           </select>
         </label>
         <label className={styles.inline}>

@@ -46,7 +46,8 @@ Tick **Collapse quiet commits** to fold runs of commits that change nothing in t
 All repositories share one horizontal axis, labelled at the top; scroll sideways to go back through history (the view opens at the newest end).
 
 - **Axis → Commit order** (default): commits from every visible repository are evenly spaced in the order they were made; dates are labels, not distances. Agent bars sit between the commits made around the same time.
-- **Axis → Calendar time**: distances are proportional to elapsed time.
+- **Axis → Calendar time**: distances are proportional to elapsed time. Commits made close together can overlap.
+- **Axis → Calendar, compressed**: gaps follow elapsed time, but commits made close together are pushed apart to a minimum spacing, so a burst of commits stays readable. Distances are only proportional between well-separated commits; date labels mark where days and months start. Zooming stretches or shrinks the time gaps, never below that minimum spacing.
 - **History** limits how far back the axis goes (24 hours … 1 year, or everything loaded — the newest 400 commits per repository).
 - **Zoom** stretches or compresses the axis horizontally: the **−** / **+** buttons at the left of the axis, **Ctrl + mouse wheel** over the dashboard (zooms around the pointer), or **+**, **−** and **0** (reset) while the dashboard has focus. The percentage button resets to 100%. Zooming out below 100% only packs commits closer when history is wider than the window.
 

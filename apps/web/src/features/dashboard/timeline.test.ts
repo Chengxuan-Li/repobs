@@ -58,6 +58,28 @@ describe('shared timeline', () => {
     expect(t.width).toBe(1000)
   })
 
+  it('compressed mode follows the calendar but keeps a minimum gap between items', () => {
+    const minute = 60_000
+    const burst = [c('old', 9), ...Array.from({ length: 5 }, (_, i) => ({ ...c(`b${i}`, 3), time: Math.round((now - 3 * DAY + i * minute) / 1000) }))]
+    const input = { mode: 'compressed' as const, items: itemsOf([graph('r', burst)]), activity: [], rangeStart: null, now, availableWidth: 1000, minSpacing: 20 }
+    const t = buildTimeline(input)
+    const xs = ['b0', 'b1', 'b2', 'b3', 'b4'].map((k) => t.commitX(k)!)
+    for (let i = 1; i < xs.length; i++) expect(xs[i]! - xs[i - 1]!).toBeCloseTo(20) // a burst a minute apart: pushed apart
+    // Six days between "old" and the burst is a large, time-proportional gap.
+    expect(t.commitX('b0')! - t.commitX('old')!).toBeGreaterThan(400)
+    expect(t.width).toBeGreaterThanOrEqual(1000)
+    expect(t.x(now - 3 * DAY + 2.5 * minute)).toBeGreaterThan(xs[2]!) // activity interpolates between items
+    expect(t.x(now - 3 * DAY + 2.5 * minute)).toBeLessThan(xs[3]!)
+    expect(t.ticks.some((k) => k.label === 'now')).toBe(true)
+
+    // Zoom scales only the time part: the burst stays at the minimum gap, the long gap grows.
+    const zoomed = buildTimeline({ ...input, zoom: 2 })
+    expect(zoomed.commitX('b1')! - zoomed.commitX('b0')!).toBeCloseTo(20)
+    expect(zoomed.commitX('b0')! - zoomed.commitX('old')!).toBeGreaterThan(1.9 * (t.commitX('b0')! - t.commitX('old')!))
+    const out = buildTimeline({ ...input, zoom: 0.1 })
+    expect(out.commitX('b0')! - out.commitX('old')!).toBeGreaterThanOrEqual(20)
+  })
+
   it('zoom widens both axes proportionally and never shrinks below the viewport', () => {
     const many = graph('m', Array.from({ length: 200 }, (_, i) => c(`m${i}`, 200 - i)))
     const base = { mode: 'sequence' as const, items: itemsOf([many]), activity: [], rangeStart: null, now, availableWidth: 500, minSpacing: 20 }

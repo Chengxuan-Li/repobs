@@ -86,7 +86,7 @@ export function loadView(): ViewState {
       collapsedRepos: Array.isArray(p.collapsedRepos) ? p.collapsedRepos : [],
       expandedBranches: Array.isArray(p.expandedBranches) ? p.expandedBranches : [],
       expandedAgents: Array.isArray(p.expandedAgents) ? p.expandedAgents : [],
-      axisMode: p.axisMode === 'time' ? 'time' : 'sequence',
+      axisMode: p.axisMode === 'time' || p.axisMode === 'compressed' ? p.axisMode : 'sequence',
       zoom: clamp(Number(p.zoom) || 1, MIN_ZOOM, MAX_ZOOM),
       collapseQuiet: p.collapseQuiet === true,
       expandedGroups: Array.isArray(p.expandedGroups) ? p.expandedGroups : [],

@@ -15,6 +15,7 @@ import styles from './dashboard.module.css'
 
 const AXIS_HEIGHT = 24
 const ZOOM_STEP = 1.5
+const AXIS_LABELS = { sequence: 'Commits in order →', time: 'Calendar time →', compressed: 'Calendar, compressed →' } as const
 
 export function Dashboard({
   snapshot,
@@ -214,7 +215,7 @@ export function Dashboard({
         <div className={styles.canvas} style={{ width: LABEL_W + timeline.width }}>
           <div className={styles.axis} style={{ height: AXIS_HEIGHT }}>
             <div className={styles.axisLabel} style={{ width: LABEL_W }}>
-              <span aria-hidden="true">{view.axisMode === 'sequence' ? 'Commits in order →' : 'Calendar time →'}</span>
+              <span aria-hidden="true">{AXIS_LABELS[view.axisMode]}</span>
               <span className={styles.spacer} />
               <div className={styles.zoom} role="group" aria-label="Zoom history" onKeyDown={(e) => e.stopPropagation()}>
                 <button type="button" className={styles.zoomButton} aria-label="Zoom out" title="Zoom out (−, or Ctrl + wheel)" disabled={view.zoom <= MIN_ZOOM} onClick={() => zoomTo(view.zoom / ZOOM_STEP)}>

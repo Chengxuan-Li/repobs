@@ -94,6 +94,17 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     expect(new Set(widths).size).toBe(1)
     await page.getByLabel('Axis').selectOption('time')
     await expect(page.getByText('Calendar time →')).toBeVisible()
+    // Compressed calendar: no two commits on the axis closer than the minimum spacing.
+    await page.getByLabel('Axis').selectOption('compressed')
+    await expect(page.getByText('Calendar, compressed →')).toBeVisible()
+    const xs = await board(page, 'repo-a')
+      .locator('svg[aria-hidden="true"]')
+      .last()
+      .locator('circle[class*="commit"]')
+      .evaluateAll((els) => els.map((e) => Number(e.getAttribute('cx'))))
+    const sorted = [...new Set(xs)].sort((a, b) => a - b)
+    expect(sorted.length).toBeGreaterThan(5)
+    for (let i = 1; i < sorted.length; i++) expect(sorted[i]! - sorted[i - 1]!).toBeGreaterThanOrEqual(21.9)
     await page.getByLabel('Axis').selectOption('sequence')
   })
 

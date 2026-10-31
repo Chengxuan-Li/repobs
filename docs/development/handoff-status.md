@@ -2,6 +2,14 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 6 — 2026-10-30: fifth review — compressed calendar axis
+
+| Request | Implementation |
+| --- | --- |
+| Commits collide in calendar mode; try a calendar mode that only shrinks the space between elements, keeping a minimum distance | New axis mode *Calendar, compressed* (`compressedAxis` and `rankedTicks` in `timeline.ts`): gaps are `max(22 px, elapsed × scale)`, zoom scales only the time part; agent activity interpolates between items; saved views accept the new mode |
+
+Verification (2026-10-30, this machine): typecheck, lint and build exit 0; `npm test` 14 files / 124 tests passed; `npm run test:e2e` 22 passed, 1 skipped (docs screenshot); `npm run docs:build` exit 0. Integration suite not rerun (no backend change). Visual check on the demo: the ten scratch commits made seconds apart overlap in *Calendar time* and sit 22 px apart in *Calendar, compressed*.
+
 ## Checkpoint 5 — 2026-10-30: fourth review (ADR 0003 amendment)
 
 | Request | Implementation |

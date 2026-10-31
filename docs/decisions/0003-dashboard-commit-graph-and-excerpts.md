@@ -39,3 +39,7 @@
 - **The status badge is the review control.** It opens a review-state menu on the dashboard row and in the agent's hover card; the hover card opens beside the label column so the pointer can reach it.
 - **Metro-style connector tracks.** Overlapping collinear connector legs get parallel tracks 4 px apart (`routing.ts`): lanes keep the centre; a leg that turns later sits closer to the centre and others step outwards on the side they turn to, so a bundle leaving one commit does not cross itself; when a side is full (4 tracks) the other side is used.
 - **Horizontal zoom** (25%–1600%) of the shared axis, by buttons, Ctrl + wheel (anchored at the pointer) or +/−/0 keys; stored with the per-browser view.
+
+## Amendment (owner feedback, 2026-10-30, fifth review)
+
+- **Calendar, compressed axis (experimental, opt-in).** A third axis mode: items in time order, each gap `max(minimum spacing, elapsed time × scale)`, where the scale at 100% is the plain calendar scale for the window and zoom multiplies only the scale. Plain calendar time stays linear (honest distances, collisions possible); commit order stays the default. Ticks on the non-linear axis are placed by importance (now, year, month, day, 6 h, hour) with a 72 px minimum distance.
