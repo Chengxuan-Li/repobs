@@ -39,7 +39,7 @@ Click **Legend** in the filter bar for the meaning of every mark.
 
 ### Collapsing quiet commits
 
-Tick **Collapse quiet commits** to fold runs of commits that change nothing in the picture — no branch head, no fork or merge, not the first commit of a branch, and no agent active on that branch within five minutes — into one pill showing how many commits it hides. Hover a pill to list its commits (newest first); move onto the list and hover a commit for its subject, id, date and push state. Click the pill, or **Show these commits on the graph**, to expand that run. Unticking the box shows everything; ticking it again re-collapses all runs.
+Tick **Collapse quiet commits** to fold runs of commits that are quiet in the Git sense — no branch head, no fork or merge, not the first commit of a branch — into one pill. A burst of commits an agent made on one branch counts as quiet, as long as nothing branches off or merges in between showing how many commits it hides. Hover a pill to list its commits (newest first); move onto the list and hover a commit for its subject, id, date and push state. Click the pill, or **Show these commits on the graph**, to expand that run. Unticking the box shows everything; ticking it again re-collapses all runs.
 
 ### The shared axis
 

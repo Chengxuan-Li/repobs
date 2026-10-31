@@ -23,7 +23,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - Axis mode *Calendar, compressed*: calendar-proportional gaps with a minimum spacing between commits, so bursts of commits never collide; zoom scales only the time gaps.
 - The status badge on an agent card, and in its hover card, opens a menu to set your review state.
 - Horizontal zoom of the history axis: −/+ buttons, Ctrl + wheel, or +/−/0 keys.
-- *Collapse quiet commits*: runs of uneventful commits fold into a counted pill; hover to list and inspect them, click to expand.
+- *Collapse quiet commits*: runs of commits without branching, merging or branch heads (including bursts made by an agent) fold into a counted pill; hover to list and inspect them, click to expand.
 - Branch relationships: *from X* (forked from), *→ X* (merged into) and *at X* (no own commits; dashed pointer to the commit it sits on).
 - A legend for every graph mark and colour; richer hover cards for commits, branches, uncommitted changes and agents.
 - Commit graph per repository on a timeline: one row per branch, fork/merge edges, pushed vs local-only vs not-pulled commits, uncommitted-changes markers (read-only `git log`, at most 400 commits).

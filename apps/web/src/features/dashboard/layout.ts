@@ -105,7 +105,7 @@ export interface LayoutOptions {
   sessionLimit: number
   /** Branch row ids whose session list is fully expanded. */
   expandedBranches: Set<string>
-  /** Collapse runs of commits that change nothing in the topology (no heads, forks, merges or agents). */
+  /** Collapse runs of commits that change nothing in the topology (no heads, forks or merges). */
   collapseQuiet: boolean
   /** Group ids the user expanded while collapsing is on. */
   expandedGroups: Set<string>
@@ -120,9 +120,6 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   collapseQuiet: false,
   expandedGroups: new Set(),
 }
-
-/** Agents active within this margin of a commit make the commit "eventful". */
-const ACTIVITY_MARGIN_MS = 5 * 60_000
 
 const pending = (w: Worktree) => (w.status.state === 'ok' ? w.status.staged + w.status.unstaged + w.status.untracked + w.status.conflicted : 0)
 
@@ -304,25 +301,26 @@ export function layoutRepository(
     if (visible.length < sessions.length) rows.push({ kind: 'more', id: `more:${row.id}`, branchRowId: row.id, hidden: sessions.length - visible.length })
   }
   const { groups, groupOf } = options.collapseQuiet
-    ? groupQuietCommits(commits, edges, branchRows, input.branches, options.expandedGroups)
+    ? groupQuietCommits(commits, edges, branchRows.map(({ row }) => row), input.branches, options.expandedGroups)
     : { groups: [], groupOf: new Map<string, string>() }
   return { rows, commits, edges: groupOf.size ? remapEdges(edges, groupOf) : edges, spawnLinks, groups, groupOf }
 }
 
 /**
- * Commits worth showing individually: branch tips (local and remote), the first own commit of a
- * branch, fork bases, merges and merge sources, and commits made while an agent on that branch was
- * active. Runs of two or more other commits along one row's first-parent chain become a group.
+ * Quiet in the Git sense: commits worth showing individually are branch tips (local and remote),
+ * the first own commit of a branch, fork bases, merges and merge sources. Everything else — however
+ * many commits an agent made in a burst — is quiet; runs of two or more quiet commits along one
+ * row's first-parent chain become a group.
  */
 function groupQuietCommits(
   commits: Map<string, PlacedCommit>,
   edges: GraphEdge[],
-  branchRows: Array<{ row: BranchRow; sessions: AgentSession[] }>,
+  branchRows: BranchRow[],
   branches: BranchRef[],
   expanded: Set<string>,
 ) {
   const keep = new Set<string>(branches.map((b) => b.tipOid).filter(Boolean))
-  for (const { row } of branchRows) if (row.headOid) keep.add(row.headOid)
+  for (const row of branchRows) if (row.headOid) keep.add(row.headOid)
   for (const e of edges) {
     if (e.kind === 'lane') continue
     keep.add(e.from)
@@ -333,24 +331,8 @@ function groupQuietCommits(
     const parent = commit.parents[0] ? commits.get(commit.parents[0]) : undefined
     if (!parent || parent.rowId !== rowId) keep.add(commit.oid)
   }
-  const activity = new Map<string, Array<[number, number]>>()
-  for (const { row, sessions } of branchRows) {
-    activity.set(
-      row.id,
-      sessions.map((s) => {
-        const start = Date.parse(s.firstSeenAt ?? s.lastActivityAt ?? '') || 0
-        const end = Date.parse(s.lastActivityAt ?? '') || start
-        return [start - ACTIVITY_MARGIN_MS, end + ACTIVITY_MARGIN_MS] as [number, number]
-      }),
-    )
-  }
-
   const byRow = new Map<string, CommitNode[]>()
-  for (const { commit, rowId } of commits.values()) {
-    const t = commit.time * 1000
-    if ((activity.get(rowId) ?? []).some(([a, b]) => t >= a && t <= b)) keep.add(commit.oid)
-    byRow.set(rowId, [...(byRow.get(rowId) ?? []), commit])
-  }
+  for (const { commit, rowId } of commits.values()) byRow.set(rowId, [...(byRow.get(rowId) ?? []), commit])
 
   const groups: CommitGroup[] = []
   const groupOf = new Map<string, string>()

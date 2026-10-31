@@ -260,7 +260,7 @@ export function GroupHover({ group, branch, onExpand }: { group: CommitGroup; br
         {group.commits.length} quiet commits{branch ? <> on <span className="mono">{branch}</span></> : null}
       </div>
       <div className="small muted">
-        {fmt(group.start)} – {fmt(group.end)} · no branching, merging, branch heads or agent activity
+        {fmt(group.start)} – {fmt(group.end)} · no branching, merging or branch heads
       </div>
       <ul className={styles.commitList} aria-label="Collapsed commits">
         {newestFirst.map((c) => (

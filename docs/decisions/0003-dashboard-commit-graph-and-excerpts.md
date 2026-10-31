@@ -43,3 +43,7 @@
 ## Amendment (owner feedback, 2026-10-30, fifth review)
 
 - **Calendar, compressed axis (experimental, opt-in).** A third axis mode: items in time order, each gap `max(minimum spacing, elapsed time × scale)`, where the scale at 100% is the plain calendar scale for the window and zoom multiplies only the scale. Plain calendar time stays linear (honest distances, collisions possible); commit order stays the default. Ticks on the non-linear axis are placed by importance (now, year, month, day, 6 h, hour) with a 72 px minimum distance.
+
+## Amendment (owner feedback, 2026-10-30, sixth review)
+
+- **Quiet means quiet in the Git sense.** Agent activity no longer keeps commits visible: a commit stays visible only as a branch tip or head, a fork base or merge endpoint, a merge, or a branch's first own commit. Consecutive commits an agent makes on one branch fold like any other run. (The earlier rule — any agent active on the branch within 5 minutes — kept nearly everything visible on real data, because sessions span days from first to last message.)
