@@ -198,3 +198,15 @@ footer directions use the label style: Geist, 0.6rem, semibold, sentence case, m
 - **Footer:** previous/next with label-style directions; a meta line with a top rule.
 - **Strips and grids:** sections 0.8 and 0.13.
 - **Motion:** 150 ms colour transitions; none under `prefers-reduced-motion: reduce`.
+
+## 4. Additions found during verification (2026-10-31)
+
+- **Wide tables:** in a table of five or more columns (the generated API index) the last column, which holds prose, keeps
+  a minimum width of 16rem; the table scrolls inside its container instead of wrapping that column a word per line.
+- **Phone drawer on the landing page:** the landing page hides its navigation sidebar, which also emptied Material's phone
+  drawer. Below the tabs breakpoint the sidebar is shown as the drawer anyway, so the menu button always opens the
+  navigation.
+- **Grid columns:** four columns from 60em, two from 30em, one below, so the landing grid's eight cells fill whole rows.
+- **Local preview:** instant navigation only intercepts links listed in the sitemap, whose URLs come from `site_url`. A
+  local build served elsewhere than the Pages address reloads on each click; `mkdocs serve` rewrites `site_url` and
+  behaves like the published site.
