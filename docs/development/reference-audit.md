@@ -22,14 +22,15 @@ The EnergyAtlas UI is a **visual reference only** (handoff section 2.1). This pa
 | Rules on pane boundaries, under the ribbon, above the status bar, under header strips; section strips on the raised surface with small uppercase mono labels | Same; tree pane, center and inspector separated by 1 px rules with resizable splitters |
 | Buttons: square, 1 px interactive edge, hover turns edge and label to accent; primary is an inverted block; disabled has a dashed edge and still explains itself | Same (`.btn`, `.btn-primary`, disabled buttons carry a `title` reason) |
 | Data tables: raised header with mono uppercase labels, rules between rows, no zebra striping | Same (`.data-table`) |
-| Narrow one-line ribbon, bottom status bar, contextual inspection panel | Same information architecture with repobs content |
+| Narrow one-line ribbon with menus, a command search and icon buttons; bottom status bar; panels in dockable side bars around a centre tab set (FlexLayout) | Same structure with repobs commands and panels ([decision 0004](../decisions/0004-reference-ui-alignment-ribbon-docking.md)) |
+| Labels (tabs, strips, table headers, status bar, menus, buttons) in the interface sans, sentence case, 12 px semibold; buttons a raised block, fields a well with a heavier bottom edge | Same, through `--label-*`, `--button-*` and `--field-*` tokens |
 | Light / dark / system appearance, persisted; first frame set before the bundle runs | Same behaviour; persisted on the server (Settings) and mirrored to `localStorage` for the first frame via an external `theme-init.js` (the CSP forbids inline scripts) |
 
 ## Deliberate deviations
 
-- **No FlexLayout docking.** The reference docks panes with FlexLayout; repobs uses a stable three-pane shell (handoff 3.2) with stable pane ids for later docking.
+- ~~No FlexLayout docking~~ — adopted in [decision 0004](../decisions/0004-reference-ui-alignment-ribbon-docking.md): repobs now docks its panels with `flexlayout-react`, themed with its own tokens.
 - **Tree instead of workflow stages.** The main navigation is the repository → branch → worktree → session tree; no 12-stage process, maps, charts, chat or compute controls were taken.
 - **Custom accessible tree instead of React Aria.** See [decision 0002](../decisions/0002-engineering-choices.md); the reference uses React Aria Components elsewhere.
-- **Labels in Geist Mono.** The reference owner moved labels back to Geist (decision 0021, section 12); repobs keeps Geist Mono for small technical labels, as the repobs handoff asks.
+- ~~Labels in Geist Mono~~ — aligned in [decision 0004](../decisions/0004-reference-ui-alignment-ribbon-docking.md): labels and panel titles use Geist, sentence case, as in the reference; Geist Mono remains for identifiers and data.
 - **Fonts from npm, not vendored.** repobs installs Geist Mono from `@fontsource-variable/geist-mono` (pinned) for version and license tracking instead of vendoring files.
 - **No product mark.** repobs uses a plain text wordmark and a generic favicon; no EnergyAtlas logo or brand asset.

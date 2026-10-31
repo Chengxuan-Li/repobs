@@ -1,0 +1,194 @@
+.ribbon {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.brand {
+  flex: none;
+  font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: 0.02em;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.separator {
+  align-self: stretch;
+  width: 1px;
+  margin: 6px 4px;
+  background: var(--color-border);
+}
+
+.menuButton,
+.quickButton,
+.searchButton {
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0;
+  cursor: pointer;
+  transition:
+    color var(--transition),
+    background-color var(--transition),
+    border-color var(--transition);
+}
+/* Menu names in the label style; the open menu is an inverted block. */
+.menuButton {
+  min-height: 24px;
+  padding: 2px 8px;
+  font-family: var(--label-font);
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
+}
+.menuButton[aria-expanded='true'] {
+  background: var(--color-text);
+  color: var(--color-surface);
+  box-shadow:
+    inset 0 0 0 1px var(--color-accent),
+    inset 0 0 0 3px var(--color-surface);
+}
+.menuButton:hover:not([aria-expanded='true']),
+.quickButton:hover {
+  border-color: var(--color-border-interactive);
+  background: var(--button-bg-hover);
+}
+.quickButton {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+.quickButton[aria-pressed='true'] {
+  background: var(--color-selected-bg);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* The command search reads as a field: a well with the field's heavier bottom edge. */
+.searchButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 15rem;
+  min-height: 24px;
+  padding: 1px 8px;
+  border: var(--field-edge);
+  border-bottom: var(--field-edge-bottom);
+  background: var(--field-bg);
+  color: var(--color-text-muted);
+  font-family: var(--label-font);
+  font-size: var(--label-size);
+}
+.searchButton > span {
+  flex: 1;
+  text-align: left;
+}
+.searchButton:hover {
+  border-color: var(--color-accent);
+  color: var(--color-text);
+}
+.kbd {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+/* Menus and palette rows: check column, label, shortcut. */
+.menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 16rem;
+  max-height: 70vh;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-popover);
+}
+.menuSection {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-border);
+}
+.menuHeading {
+  padding: 2px 8px 2px 28px;
+  font-family: var(--label-font);
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
+  color: var(--color-text-muted);
+}
+.menuItem {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  column-gap: 4px;
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+  text-align: left;
+  cursor: default;
+  outline: none;
+}
+.menuItem:hover,
+.menuItem:focus-visible {
+  background: var(--color-selected-bg);
+}
+.menuCheck {
+  display: inline-grid;
+  place-items: center;
+  color: var(--color-accent);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: start center;
+  padding-top: 12vh;
+  background: rgb(0 0 0 / 35%);
+}
+.palette {
+  width: min(40rem, calc(100vw - 2rem));
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-popover);
+}
+.paletteInput {
+  display: block;
+  width: calc(100% - 16px);
+  height: 30px;
+  margin: 8px;
+  font-size: var(--font-size-base);
+}
+.paletteList {
+  list-style: none;
+  max-height: 50vh;
+  overflow: auto;
+  margin: 0;
+  padding: 4px;
+  border-top: 1px solid var(--color-border);
+}
+.paletteActive {
+  background: var(--color-selected-bg);
+}
+.paletteGroup {
+  color: var(--color-text-muted);
+}
+.paletteEmpty {
+  padding: 12px;
+  color: var(--color-text-muted);
+}

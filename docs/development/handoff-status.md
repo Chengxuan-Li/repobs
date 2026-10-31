@@ -2,6 +2,20 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 9 — 2026-10-30: reference UI alignment (ADR 0004)
+
+| Request | Implementation |
+| --- | --- |
+| Panel titles not in a mono font | `--label-*` tokens (sans, sentence case, 12 px semibold) for `.label`, section strips, table headers, filter labels, status bar, menus, buttons and badges; mono kept for identifiers |
+| Borrow the ribbon content | `Ribbon.tsx`: Repositories / View / Tools menus with checks, submenus and shortcuts; *Search commands* (Ctrl+K) command palette; icon buttons; one command list in `WorkbenchShell.tsx` |
+| Adjustable dockable flexible layout | `flexlayout-react` 0.11.0 (pinned); `dockLayout.ts` (default model, validated restore, toggle/show panel, maximize that collapses side bars, reset) and `dock.css` (repobs theme) |
+
+Also: raised buttons and well-style fields (control grammar), overlay scrollbars.
+
+Verification (2026-10-30, this machine): typecheck, lint and build exit 0; `npm test` 15 files / 127 tests passed; `npm run test:e2e` 24 passed, 1 skipped (docs screenshot, regenerated); `npm run docs:build` exit 0. Manual check in Edge: dragging the Details tab beside the dashboard docks it, the empty side bar shows its drop hint, no console or CSP errors. Integration suite not rerun (no backend change).
+
+Unknown: narrow windows (under ~1100 px) — the reference switches side panels to overlays there; repobs does not yet.
+
 ## Checkpoint 8 — 2026-10-30: seventh review — agent labels on the timeline (trial)
 
 | Request | Implementation |

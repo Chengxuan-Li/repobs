@@ -2,13 +2,23 @@
 
 ## The workbench
 
-- **Ribbon** (top): repositories-panel toggle, **Add repositories**, Diagnostics, theme (system → light → dark), Settings, details-panel toggle.
-- **Dashboard** (center, always open): one section per repository with its branches, commits and agents on a shared timeline. This is the primary working panel.
-- **Repositories panel** (left, optional, resizable): which repositories are shown on the dashboard, their agent counts and last activity; click a name to jump to it, untick to hide it, **×** to remove it from repobs (no files are touched).
-- **Details panel** (right, optional, resizable): evidence and your notes for the selected agent, or upstream/worktree/status details for the selected branch.
+- **Ribbon** (top): the **Repositories**, **View** and **Tools** menus; **Search commands** (Ctrl+K), which finds and runs any command by typing part of its name; and icon buttons for Add repositories, the repositories and details panels, Maximize dashboard, Reset layout, Full screen, theme (system → light → dark), Diagnostics and Settings.
+- **Dashboard** (centre tab, always open): one section per repository with its branches, commits and agents on a shared timeline. This is the primary working panel.
+- **Repositories panel** (left side bar by default): which repositories are shown on the dashboard, their agent counts and last activity; click a name to jump to it, untick to hide it, **×** to remove it from repobs (no files are touched).
+- **Details panel** (right side bar by default): evidence and your notes for the selected agent, or upstream/worktree/status details for the selected branch. Selecting an agent or branch opens it if it is hidden.
 - **Status bar** (bottom): counts, last sync time, live connection state, and a *Monitoring degraded* link when something needs attention.
 
-Only the panels scroll; the page itself never does. Panel widths, filters, toggles, hidden/collapsed repositories, the selection and the theme are remembered.
+### Arranging the panels
+
+The panels dock like an IDE's:
+
+- Click a panel's name in a side bar to collapse or expand it; drag the edge between panels to resize.
+- **Drag** a panel's tab beside the dashboard, into the other side bar, or onto the dashboard's tab strip; the drop target is outlined while you drag. An empty side bar still accepts panels.
+- Close a docked panel with its **×**; bring it back from **View → Repositories panel / Details panel**, the ribbon buttons, or Ctrl+B / Ctrl+Alt+B.
+- **Maximize dashboard** collapses the open panels to give the history the whole window; press it again to bring them back.
+- **Reset layout** restores the default arrangement.
+
+Only the panels scroll; the page itself never does. The arrangement, filters, toggles, hidden/collapsed repositories, the selection and the theme are remembered in this browser.
 
 ## Adding repositories
 
@@ -105,8 +115,12 @@ Everything saves automatically to the local repobs database. Notes belong to the
 | ↑ / ↓, Home / End | Move between branch and agent rows across repositories |
 | → / ← | Expand / collapse the focused agent |
 | Enter or Space | Select the row (opens it in the details panel) |
-| Esc | Close dialogs and suggestion lists |
-| ← / → on a panel divider | Resize the panel |
+| Esc | Close dialogs, menus and suggestion lists |
+| Ctrl+K | Search commands |
+| Ctrl+B / Ctrl+Alt+B | Show or hide the repositories / details panel |
+| F6 / Shift+F6 | Move focus to the next / previous group of tabs |
+| + / − / 0 (dashboard focused) | Zoom the history in / out / reset |
+| ↓ on a ribbon menu, then ↑ / ↓ | Open the menu and move through it |
 
 ## Removing a repository
 

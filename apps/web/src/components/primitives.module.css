@@ -4,7 +4,10 @@
   height: 18px;
   padding: 0 5px;
   border: 1px solid currentColor;
-  font-family: var(--font-mono);
+  font-family: var(--label-font);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  text-transform: var(--label-case);
   font-size: var(--font-size-label);
   line-height: 1;
   white-space: nowrap;
@@ -60,8 +63,7 @@
   color: var(--color-text-muted);
 }
 .confidence {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-label);
+  font-size: var(--font-size-small);
   color: var(--color-text-muted);
 }
 

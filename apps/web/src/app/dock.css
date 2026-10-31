@@ -1,0 +1,146 @@
+/* FlexLayout themed with the repobs tokens, so light and dark follow the same palette. Tab strips
+   use the label style; the selected tab is an inverted block (EnergyAtlas family convention). */
+:root {
+  --flexlayout-font-family: var(--font-sans);
+  --flexlayout-font-size: var(--font-size-base);
+
+  --flexlayout-color-background: var(--color-bg);
+  --flexlayout-color-base: var(--color-surface);
+  --flexlayout-color-text: var(--color-text);
+  --flexlayout-color-border: var(--color-border);
+  --flexlayout-color-focus: var(--color-focus);
+  --flexlayout-color-icon: var(--color-text-muted);
+
+  --flexlayout-color-tab-content: var(--color-surface);
+  --flexlayout-color-tab-selected: var(--color-surface);
+  --flexlayout-color-tab-selected-background: var(--color-text);
+  --flexlayout-color-tab-unselected: var(--color-text-muted);
+  --flexlayout-color-tab-unselected-background: transparent;
+  --flexlayout-color-tabset-background: var(--color-surface-raised);
+  --flexlayout-color-tabset-background-selected: var(--color-surface-raised);
+  --flexlayout-color-tabset-background-maximized: var(--color-surface-raised);
+  --flexlayout-color-tabset-divider-line: var(--color-border);
+
+  --flexlayout-color-border-background: var(--color-surface-raised);
+  --flexlayout-color-border-divider-line: var(--color-border);
+  --flexlayout-color-border-tab-content: var(--color-surface);
+  --flexlayout-color-border-tab-selected: var(--color-surface);
+  --flexlayout-color-border-tab-selected-background: var(--color-text);
+  --flexlayout-color-border-tab-unselected: var(--color-text-muted);
+  --flexlayout-color-border-tab-unselected-background: transparent;
+
+  --flexlayout-splitter-size: 1px;
+  --flexlayout-splitter-active-size: 7px;
+  --flexlayout-color-splitter: var(--color-border);
+  --flexlayout-color-splitter-hover: var(--color-accent);
+  --flexlayout-color-splitter-drag: var(--color-accent);
+
+  --flexlayout-color-popup-border: var(--color-border);
+  --flexlayout-color-popup-selected: var(--color-text);
+  --flexlayout-color-popup-selected-background: var(--color-selected-bg);
+  --flexlayout-color-popup-unselected: var(--color-text);
+  --flexlayout-color-popup-unselected-background: var(--color-surface-raised);
+  --flexlayout-color-toolbar-button-hover: var(--color-selected-bg);
+
+  --flexlayout-color-drag1: var(--color-accent);
+  --flexlayout-color-drag2: var(--color-accent);
+  --flexlayout-color-drag1-background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  --flexlayout-color-drag2-background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+  --flexlayout-color-drag-rect: var(--color-text);
+  --flexlayout-color-drag-rect-border: var(--color-accent);
+  --flexlayout-color-drag-rect-background: var(--color-surface-raised);
+  --flexlayout-color-edge-marker: var(--color-border-interactive);
+  --flexlayout-color-edge-icon: var(--color-surface);
+  --flexlayout-color-overflow: var(--color-text-muted);
+}
+
+.flexlayout__tabset_tabbar_outer {
+  min-height: 2rem;
+}
+
+.flexlayout__tab_button,
+.flexlayout__border_button {
+  min-height: 1.5rem;
+  border-radius: 0;
+  font-family: var(--label-font);
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  text-transform: var(--label-case);
+}
+.flexlayout__border_button {
+  gap: 0.375rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* The selected tab: an inverted block inside a thin accent outline, drawn inset with a gap of the
+   strip's colour (the tab bar clips anything outside). */
+.flexlayout__tab_button--selected,
+.flexlayout__border_button--selected {
+  box-shadow:
+    inset 0 0 0 1px var(--color-accent),
+    inset 0 0 0 3px var(--color-surface-raised);
+}
+.flexlayout__tab_button--selected:hover,
+.flexlayout__border_button--selected:hover {
+  color: var(--color-surface);
+}
+
+/* Hovering an unselected tab: the pane surface and an interactive edge, visible on its own. */
+.flexlayout__tab_button--unselected:hover,
+.flexlayout__border_button--unselected:hover {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: inset 0 0 0 1px var(--color-border-interactive);
+  transition:
+    color var(--transition),
+    background-color var(--transition);
+}
+
+.flexlayout__tab_button:focus-visible,
+.flexlayout__border_button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+/* Square shapes throughout. */
+.flexlayout__tab_button_trailing,
+.flexlayout__border_button_trailing,
+.flexlayout__border_toolbar_button,
+.flexlayout__tab_toolbar_button,
+.flexlayout__splitter:hover,
+.flexlayout__splitter_drag,
+.flexlayout__outline_rect,
+.flexlayout__outline_rect_edge,
+.flexlayout__drag_rect,
+.flexlayout__popup_menu_item,
+.flexlayout__popup_menu_container {
+  border-radius: 0;
+}
+.flexlayout__popup_menu_container {
+  box-shadow: var(--shadow-popover);
+}
+.flexlayout__popup_menu_item {
+  font-family: var(--label-font);
+  font-size: var(--label-size);
+}
+
+/* Splitters: a hairline until pointed at, then the accent. */
+.flexlayout__splitter,
+.flexlayout__splitter:hover {
+  transition: background-color var(--transition);
+}
+.flexlayout__splitter:hover,
+.flexlayout__splitter_drag {
+  background-color: var(--color-accent);
+}
+
+/* An empty side bar still accepts drops, and says so. */
+.flexlayout__border_inner_tab_container:empty::after {
+  content: 'Drop a panel here to dock it';
+  padding: 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-family: var(--label-font);
+  font-size: var(--label-size);
+  white-space: nowrap;
+}

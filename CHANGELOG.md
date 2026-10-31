@@ -6,6 +6,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Changed
 
+- Labels and panel titles use the interface sans in sentence case instead of mono uppercase; buttons and fields follow the reference control style (ADR 0004).
 - Agents are cards indented by spawn depth, with tree lines in a gutter left of the cards that run across rows; coloured left-edge stripes removed.
 - Finished agents you have not reviewed show *Unreviewed* (neutral) instead of *Ready* (green).
 - Connectors that would overlap are drawn on parallel tracks, metro-map style.
@@ -20,6 +21,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
+- Ribbon menus (Repositories, View, Tools) with shortcuts, a command palette (Ctrl+K) and icon buttons for the layout; dockable panels (drag, split, collapse, close, maximize, reset) with the arrangement remembered per browser (ADR 0004).
 - Agent labels on the timeline (name · status · last activity at the end of each bar) and a toggle to hide agent names in the list, which narrows the label column; each can be switched on or off independently.
 - Axis mode *Calendar, compressed*: calendar-proportional gaps with a minimum spacing between commits, so bursts of commits never collide; zoom scales only the time gaps.
 - The status badge on an agent card, and in its hover card, opens a menu to set your review state.

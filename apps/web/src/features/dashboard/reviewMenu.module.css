@@ -7,7 +7,10 @@
   gap: 3px;
   cursor: pointer;
   font: inherit;
-  font-family: var(--font-mono);
+  font-family: var(--label-font);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  text-transform: var(--label-case);
   font-size: var(--font-size-label);
 }
 .trigger:hover {
@@ -37,10 +40,12 @@
 }
 .head {
   padding: 2px 10px 4px;
-  font-size: var(--font-size-label);
+  font-family: var(--label-font);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  text-transform: var(--label-case);
+  font-size: var(--label-size);
   color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 .item {
   display: flex;

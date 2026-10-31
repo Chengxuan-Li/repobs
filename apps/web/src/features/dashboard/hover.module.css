@@ -43,10 +43,12 @@
   overflow-wrap: anywhere;
 }
 .kind {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-label);
+  font-family: var(--label-font);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  text-transform: var(--label-case);
+  font-size: var(--font-size-small);
   color: var(--color-text-muted);
-  text-transform: uppercase;
 }
 .tag {
   font-family: var(--font-mono);

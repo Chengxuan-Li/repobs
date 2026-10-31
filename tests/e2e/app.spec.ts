@@ -310,6 +310,49 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(status).toHaveText('Unreviewed')
   })
 
+  test('ribbon menus, command palette and shortcuts drive the dockable layout', async ({ page }) => {
+    await pair(page)
+    const repos = page.getByRole('complementary', { name: 'Repositories panel' })
+    await expect(details(page)).toBeVisible()
+    await expect(repos).toBeVisible()
+
+    // A menu toggles the details panel; the state survives a reload.
+    await page.getByRole('button', { name: 'View', exact: true }).click()
+    const menu = page.getByRole('menu', { name: 'View menu' })
+    await expect(menu.getByRole('menuitemcheckbox', { name: /Details panel/ })).toHaveAttribute('aria-checked', 'true')
+    await menu.getByRole('menuitemcheckbox', { name: /Details panel/ }).click()
+    await expect(details(page)).toBeHidden()
+    await page.reload()
+    await expect(board(page, 'repo-a')).toBeVisible()
+    await expect(details(page)).toBeHidden()
+
+    // Ctrl+B toggles the repositories panel; the quick button shows its state.
+    await page.locator('body').click({ position: { x: 5, y: 5 } })
+    await page.keyboard.press('Control+B')
+    await expect(repos).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Repositories panel' })).toHaveAttribute('aria-pressed', 'false')
+
+    // The command palette finds and runs any command.
+    await page.keyboard.press('Control+K')
+    const palette = page.getByRole('dialog', { name: 'Search commands' })
+    await palette.getByRole('combobox').fill('compressed')
+    await page.keyboard.press('Enter')
+    await expect(palette).toBeHidden()
+    await expect(page.getByText('Calendar, compressed →')).toBeVisible()
+
+    // Selecting an agent brings the details panel back; reset restores the default arrangement.
+    await openCard(page, 'Tighten status parser')
+    await expect(details(page)).toBeVisible()
+    await page.getByRole('button', { name: 'Reset layout' }).click()
+    await expect(repos).toBeVisible()
+    await expect(details(page)).toBeVisible()
+    await page.getByRole('button', { name: 'Maximize dashboard' }).click()
+    await expect(repos).toBeHidden()
+    await page.getByRole('button', { name: 'Maximize dashboard' }).click()
+    await expect(repos).toBeVisible()
+    await page.getByLabel('Axis').selectOption('sequence')
+  })
+
   test('agent labels on the timeline and names in the list toggle independently', async ({ page }) => {
     await pair(page)
     const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Activity, Moon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Settings as SettingsIcon, Sun, SunMoon } from 'lucide-react'
+import { Layout, type TabNode } from 'flexlayout-react'
+import 'flexlayout-react/style/light.css'
+import { Activity, Expand, Maximize2, Moon, PanelLeft, PanelRight, Plus, RotateCcw, Settings as SettingsIcon, Sun, SunMoon } from 'lucide-react'
 import {
   type AgentSession,
   type AnnotationSummary,
@@ -23,12 +25,15 @@ import { SettingsPanel } from '../features/settings/SettingsPanel'
 import { api, ApiError } from './api'
 import type { Connection } from './store'
 import { applyTheme } from './theme'
-import { clamp, type RepoSort, useViewState } from './viewState'
+import { type PanelId, type TabComponent, useDockLayout } from './dockLayout'
+import { type Command, Ribbon } from './Ribbon'
+import { clamp, MAX_ZOOM, MIN_ZOOM, type RepoSort, useViewState } from './viewState'
+import './dock.css'
 import styles from './shell.module.css'
 
-// Workbench (ADR 0003): one primary working panel — the repository dashboard — plus optional
-// side panels: repositories on the left, details and notes on the right. Only the panels scroll;
-// the page itself never does.
+// Workbench (ADR 0003, ADR 0004): the ribbon, a dockable layout — the dashboard in the centre, the
+// repositories and details panels in side bars that can be moved, split, collapsed or closed —
+// and the status bar. Only the panels scroll; the page itself never does.
 
 export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snapshot; connection: Connection; error?: string }) {
   const [view, setView] = useViewState()
@@ -37,6 +42,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
   const [theme, setTheme] = useState<ThemePreference>(() => (localStorage.getItem('repobs.theme') as ThemePreference | null) ?? 'system')
   const [notice, setNotice] = useState<string>()
   const now = useNow(30_000)
+  const dock = useDockLayout()
 
   useEffect(() => {
     api<Settings>('GET', '/settings').then(
@@ -112,7 +118,14 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     return m
   }, [summaries, hidden, snapshot.branches, snapshot.worktrees, snapshot.commitGraphs, filtered, annotations, layoutOptions])
 
-  const select = useCallback((id: string) => setView({ selectedId: id, rightOpen: true }), [setView])
+  const { showPanel } = dock
+  const select = useCallback(
+    (id: string) => {
+      setView({ selectedId: id })
+      showPanel('details')
+    },
+    [setView, showPanel],
+  )
 
   const setReview = useCallback(async (sessionId: string, review: ReviewState) => {
     try {
@@ -142,8 +155,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     }
   }
 
-  const cycleTheme = async () => {
-    const next: ThemePreference = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system'
+  const chooseTheme = async (next: ThemePreference) => {
     setTheme(next)
     applyTheme(next)
     try {
@@ -155,166 +167,185 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
 
   const selected = useMemo(() => resolveSelection(snapshot, layouts, view.selectedId), [snapshot, layouts, view.selectedId])
   const empty = snapshot.repositories.length === 0
-  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : SunMoon
 
-  const resizer = (side: 'left' | 'right') => ({
-    role: 'separator' as const,
-    'aria-orientation': 'vertical' as const,
-    'aria-label': side === 'left' ? 'Resize repositories panel' : 'Resize details panel',
-    tabIndex: 0,
-    className: styles.splitter,
-    onPointerDown: (e: React.PointerEvent) => {
-      e.preventDefault()
-      const startX = e.clientX
-      const startW = side === 'left' ? view.leftWidth : view.rightWidth
-      const move = (ev: PointerEvent) =>
-        setView(side === 'left' ? { leftWidth: clamp(startW + ev.clientX - startX, 180, 420) } : { rightWidth: clamp(startW - (ev.clientX - startX), 280, 560) })
-      const up = () => {
-        window.removeEventListener('pointermove', move)
-        window.removeEventListener('pointerup', up)
-      }
-      window.addEventListener('pointermove', move)
-      window.addEventListener('pointerup', up)
-    },
-    onKeyDown: (e: React.KeyboardEvent) => {
-      const d = e.key === 'ArrowLeft' ? -16 : e.key === 'ArrowRight' ? 16 : 0
-      if (!d) return
-      e.preventDefault()
-      setView((v) => (side === 'left' ? { leftWidth: clamp(v.leftWidth + d, 180, 420) } : { rightWidth: clamp(v.rightWidth - d, 280, 560) }))
-    },
+  const dashboardPanel = (
+    <main className={styles.main} aria-label="Dashboard">
+      {notice ? (
+        <div className={styles.notice}>
+          <InlineAlert tone="info" onDismiss={() => setNotice(undefined)}>
+            {notice}
+          </InlineAlert>
+        </div>
+      ) : null}
+      {error ? (
+        <div className={styles.notice}>
+          <InlineAlert tone="danger">{error}</InlineAlert>
+        </div>
+      ) : null}
+      {empty ? (
+        <div className={styles.boards}>
+          <EmptyState
+            title="Observe your Git worktrees and coding agents, locally"
+            action={
+              <button type="button" className="btn btn-primary" onClick={() => setDialog('add')}>
+                <Plus size={13} aria-hidden="true" /> Add repositories
+              </button>
+            }
+          >
+            <p>Register local Git repositories to see their branches and commits on a timeline, with the Claude Code and Codex agents that worked on each branch.</p>
+            <p>repobs only reads: it never changes your repositories or agent histories, and needs no API keys.</p>
+          </EmptyState>
+        </div>
+      ) : (
+        <Dashboard
+          snapshot={snapshot}
+          filtered={filtered}
+          annotations={annotations}
+          layouts={layouts}
+          repos={summaries.filter((s) => !hidden.has(s.repo.id))}
+          tags={tags}
+          view={view}
+          setView={setView}
+          now={now}
+          onSelect={select}
+          onReview={(id, r) => void setReview(id, r)}
+        />
+      )}
+    </main>
+  )
+
+  const panels: Record<TabComponent, () => React.ReactNode> = {
+    dashboard: () => dashboardPanel,
+    repositories: () => (
+      <aside className={styles.side} aria-label="Repositories panel">
+        <RepoListPanel
+          summaries={summaries}
+          hidden={hidden}
+          now={now}
+          onToggle={(id, visible) => setView((v) => ({ hiddenRepos: visible ? v.hiddenRepos.filter((x) => x !== id) : [...v.hiddenRepos, id] }))}
+          onJump={(id) => {
+            setView((v) => ({ collapsedRepos: v.collapsedRepos.filter((x) => x !== id) }))
+            document.getElementById(`repo-${id}`)?.scrollIntoView({ block: 'start' })
+          }}
+          onAdd={() => setDialog('add')}
+          onRemove={setConfirmRemove}
+        />
+      </aside>
+    ),
+    details: () => (
+      <aside className={styles.side} aria-label="Details panel">
+        <div className="section-strip">
+          <span className="label">{selected?.session ? 'Agent' : selected?.branch ? 'Branch' : 'Details'}</span>
+          {selected ? (
+            <button type="button" className="btn btn-quiet" onClick={() => setView({ selectedId: undefined })}>
+              Clear
+            </button>
+          ) : null}
+        </div>
+        <div className={styles.sideBody}>
+          {selected?.session ? (
+            <SessionDetails snapshot={snapshot} session={selected.session} now={now} knownTags={tags} onSelect={select} />
+          ) : selected?.branch ? (
+            <BranchDetails snapshot={snapshot} row={selected.branch} />
+          ) : (
+            <div className="small muted">
+              <p>Select an agent card to see its evidence and edit your notes, review state, tags and checklist.</p>
+              <p>Select a branch row for its upstream, worktrees and status.</p>
+              <p>Observed agent status and your review state are separate: an agent can be idle and still need your review.</p>
+            </div>
+          )}
+        </div>
+      </aside>
+    ),
+  }
+  const factory = (node: TabNode) => {
+    const render = panels[node.getComponent() as TabComponent]
+    return render ? render() : <p className="small muted">Unknown panel “{node.getName()}”. Reset the layout from the View menu.</p>
+  }
+
+  const panelCommand = (panel: PanelId, label: string, shortcut: string, icon: Command['icon']): Command => ({
+    id: `view.${panel}`,
+    label,
+    group: 'View',
+    shortcut,
+    icon,
+    pressed: dock.isPanelVisible(panel),
+    run: () => dock.togglePanel(panel),
   })
+  const toggle = (id: string, label: string, key: 'legendOpen' | 'details' | 'agentNames' | 'barLabels' | 'showRemoteOnly' | 'collapseQuiet'): Command => ({
+    id,
+    label,
+    group: 'View',
+    submenu: 'Dashboard',
+    pressed: view[key],
+    run: () => setView((v) => ({ [key]: !v[key], ...(key === 'collapseQuiet' ? { expandedGroups: [] } : {}) })),
+  })
+  const zoom = (factor: number) => setView((v) => ({ zoom: clamp(Math.round(v.zoom * factor * 100) / 100, MIN_ZOOM, MAX_ZOOM) }))
+  const commands: Command[] = [
+    { id: 'repos.add', label: 'Add repositories', group: 'Repositories', icon: Plus, run: () => setDialog('add') },
+    ...(['activity', 'active', 'name', 'manual'] as RepoSort[]).map((sort) => ({
+      id: `repos.sort.${sort}`,
+      label: { activity: 'Last activity', active: 'Active agents', name: 'Name', manual: 'Manual order' }[sort],
+      group: 'Repositories' as const,
+      submenu: 'Sort by',
+      pressed: view.repoSort === sort,
+      run: () => setView({ repoSort: sort }),
+    })),
+    panelCommand('repositories', 'Repositories panel', 'Ctrl+B', PanelLeft),
+    panelCommand('details', 'Details panel', 'Ctrl+Alt+B', PanelRight),
+    { id: 'view.maximize', label: 'Maximize dashboard', group: 'View', icon: Maximize2, pressed: dock.isMaximized(), run: dock.toggleMaximize },
+    { id: 'view.reset', label: 'Reset layout', group: 'View', icon: RotateCcw, run: dock.reset },
+    {
+      id: 'view.fullscreen',
+      label: 'Full screen',
+      group: 'View',
+      icon: Expand,
+      run: () => void (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => undefined),
+    },
+    toggle('view.legend', 'Legend', 'legendOpen'),
+    toggle('view.expand', 'Expand agent details', 'details'),
+    toggle('view.agentNames', 'Agent names in list', 'agentNames'),
+    toggle('view.barLabels', 'Agent labels on timeline', 'barLabels'),
+    { id: 'view.spawned', label: 'Hide spawned agents', group: 'View', submenu: 'Dashboard', pressed: !view.showSpawned, run: () => setView((v) => ({ showSpawned: !v.showSpawned })) },
+    toggle('view.remoteOnly', 'Remote-only branches', 'showRemoteOnly'),
+    toggle('view.quiet', 'Collapse quiet commits', 'collapseQuiet'),
+    ...(['sequence', 'time', 'compressed'] as const).map((mode) => ({
+      id: `view.axis.${mode}`,
+      label: { sequence: 'Commit order', time: 'Calendar time', compressed: 'Calendar, compressed' }[mode],
+      group: 'View' as const,
+      submenu: 'Axis',
+      pressed: view.axisMode === mode,
+      run: () => setView({ axisMode: mode }),
+    })),
+    { id: 'view.zoomIn', label: 'Zoom in', group: 'View', submenu: 'Axis', run: () => zoom(1.5) },
+    { id: 'view.zoomOut', label: 'Zoom out', group: 'View', submenu: 'Axis', run: () => zoom(1 / 1.5) },
+    { id: 'view.zoomReset', label: 'Reset zoom', group: 'View', submenu: 'Axis', run: () => setView({ zoom: 1 }) },
+    ...(['system', 'light', 'dark'] as ThemePreference[]).map((t) => ({
+      id: `view.theme.${t}`,
+      label: { system: 'Match the system', light: 'Light', dark: 'Dark' }[t],
+      group: 'View' as const,
+      submenu: 'Theme',
+      pressed: theme === t,
+      run: () => void chooseTheme(t),
+    })),
+    {
+      id: 'view.themeCycle',
+      label: `Switch theme (now ${theme})`,
+      group: 'View',
+      submenu: 'Theme',
+      icon: theme === 'light' ? Sun : theme === 'dark' ? Moon : SunMoon,
+      run: () => void chooseTheme(theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system'),
+    },
+    { id: 'tools.diagnostics', label: 'Diagnostics', group: 'Tools', icon: Activity, run: () => setDialog('diagnostics') },
+    { id: 'tools.settings', label: 'Settings', group: 'Tools', icon: SettingsIcon, run: () => setDialog('settings') },
+  ]
 
   return (
     <div className={styles.shell}>
-      <header className={styles.ribbon}>
-        <button
-          type="button"
-          className="btn btn-quiet btn-icon"
-          onClick={() => setView({ leftOpen: !view.leftOpen })}
-          aria-label={view.leftOpen ? 'Hide repositories panel' : 'Show repositories panel'}
-          aria-pressed={view.leftOpen}
-        >
-          {view.leftOpen ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
-        </button>
-        <span className={styles.brand}>repobs</span>
-        <span className={styles.rule} aria-hidden="true" />
-        <button type="button" className="btn" onClick={() => setDialog('add')}>
-          <Plus size={13} aria-hidden="true" /> Add repositories
-        </button>
-        <span className={styles.spacer} />
-        <button type="button" className="btn btn-quiet" onClick={() => setDialog('diagnostics')} title="Adapters, watchers and Git health">
-          <Activity size={13} aria-hidden="true" /> Diagnostics
-        </button>
-        <button type="button" className="btn btn-quiet btn-icon" onClick={() => void cycleTheme()} aria-label={`Theme: ${theme}. Switch theme`} title={`Theme: ${theme}`}>
-          <ThemeIcon size={14} />
-        </button>
-        <button type="button" className="btn btn-quiet" onClick={() => setDialog('settings')}>
-          <SettingsIcon size={13} aria-hidden="true" /> Settings
-        </button>
-        <button
-          type="button"
-          className="btn btn-quiet btn-icon"
-          onClick={() => setView({ rightOpen: !view.rightOpen })}
-          aria-label={view.rightOpen ? 'Hide details panel' : 'Show details panel'}
-          aria-pressed={view.rightOpen}
-        >
-          {view.rightOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
-        </button>
-      </header>
+      <Ribbon commands={commands} quick={QUICK_COMMANDS} paletteShortcut="Ctrl+K" />
 
-      <div className={styles.body}>
-        {view.leftOpen ? (
-          <>
-            <aside className={styles.side} style={{ width: view.leftWidth }} aria-label="Repositories panel">
-              <RepoListPanel
-                summaries={summaries}
-                hidden={hidden}
-                now={now}
-                onToggle={(id, visible) => setView((v) => ({ hiddenRepos: visible ? v.hiddenRepos.filter((x) => x !== id) : [...v.hiddenRepos, id] }))}
-                onJump={(id) => {
-                  setView((v) => ({ collapsedRepos: v.collapsedRepos.filter((x) => x !== id) }))
-                  document.getElementById(`repo-${id}`)?.scrollIntoView({ block: 'start' })
-                }}
-                onAdd={() => setDialog('add')}
-                onRemove={setConfirmRemove}
-              />
-            </aside>
-            <div {...resizer('left')} aria-valuenow={view.leftWidth} aria-valuemin={180} aria-valuemax={420} />
-          </>
-        ) : null}
-
-        <main className={styles.main} aria-label="Dashboard">
-          {notice ? (
-            <div className={styles.notice}>
-              <InlineAlert tone="info" onDismiss={() => setNotice(undefined)}>
-                {notice}
-              </InlineAlert>
-            </div>
-          ) : null}
-          {error ? (
-            <div className={styles.notice}>
-              <InlineAlert tone="danger">{error}</InlineAlert>
-            </div>
-          ) : null}
-          {empty ? (
-            <div className={styles.boards}>
-              <EmptyState
-                title="Observe your Git worktrees and coding agents, locally"
-                action={
-                  <button type="button" className="btn btn-primary" onClick={() => setDialog('add')}>
-                    <Plus size={13} aria-hidden="true" /> Add repositories
-                  </button>
-                }
-              >
-                <p>Register local Git repositories to see their branches and commits on a timeline, with the Claude Code and Codex agents that worked on each branch.</p>
-                <p>repobs only reads: it never changes your repositories or agent histories, and needs no API keys.</p>
-              </EmptyState>
-            </div>
-          ) : (
-            <Dashboard
-              snapshot={snapshot}
-              filtered={filtered}
-              annotations={annotations}
-              layouts={layouts}
-              repos={summaries.filter((s) => !hidden.has(s.repo.id))}
-              tags={tags}
-              view={view}
-              setView={setView}
-              now={now}
-              onSelect={select}
-              onReview={(id, r) => void setReview(id, r)}
-            />
-          )}
-        </main>
-
-        {view.rightOpen ? (
-          <>
-            <div {...resizer('right')} aria-valuenow={view.rightWidth} aria-valuemin={280} aria-valuemax={560} />
-            <aside className={styles.side} style={{ width: view.rightWidth }} aria-label="Details panel">
-              <div className="section-strip">
-                <span className="label">{selected?.session ? 'Agent' : selected?.branch ? 'Branch' : 'Details'}</span>
-                {selected ? (
-                  <button type="button" className="btn btn-quiet" onClick={() => setView({ selectedId: undefined })}>
-                    Clear
-                  </button>
-                ) : null}
-              </div>
-              <div className={styles.sideBody}>
-                {selected?.session ? (
-                  <SessionDetails snapshot={snapshot} session={selected.session} now={now} knownTags={tags} onSelect={select} />
-                ) : selected?.branch ? (
-                  <BranchDetails snapshot={snapshot} row={selected.branch} />
-                ) : (
-                  <div className="small muted">
-                    <p>Select an agent card to see its evidence and edit your notes, review state, tags and checklist.</p>
-                    <p>Select a branch row for its upstream, worktrees and status.</p>
-                    <p>Observed agent status and your review state are separate: an agent can be idle and still need your review.</p>
-                  </div>
-                )}
-              </div>
-            </aside>
-          </>
-        ) : null}
+      <div className={styles.dock}>
+        <Layout model={dock.model} factory={factory} onModelChange={dock.onModelChange} keyMap={{ focusNextTabset: 'F6', focusPreviousTabset: 'Shift+F6' }} />
       </div>
 
       <GlobalStatusBar snapshot={snapshot} annotations={annotations} connection={connection} onDiagnostics={() => setDialog('diagnostics')} />
@@ -369,6 +400,9 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
 }
 
 /** The selected agent, or the selected branch row as laid out on the dashboard (with its relations). */
+/** Icon buttons on the ribbon, in order. */
+const QUICK_COMMANDS = ['repos.add', 'view.repositories', 'view.details', 'view.maximize', 'view.reset', 'view.fullscreen', 'view.themeCycle', 'tools.diagnostics', 'tools.settings']
+
 function resolveSelection(snapshot: Snapshot, layouts: Map<string, RepoLayout>, id: string | undefined): { session?: AgentSession; branch?: BranchRow } | undefined {
   if (!id) return undefined
   if (id.startsWith('session:')) {

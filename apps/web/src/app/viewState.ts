@@ -11,10 +11,6 @@ export type TimeRange = '1d' | '7d' | '30d' | '90d' | '365d' | 'all'
 export type RepoSort = 'activity' | 'active' | 'name' | 'manual'
 
 export interface ViewState {
-  leftOpen: boolean
-  rightOpen: boolean
-  leftWidth: number
-  rightWidth: number
   selectedId?: string
   filters: DashboardFilters
   /** Expand every agent row (otherwise rows are one line; expand individually). */
@@ -45,10 +41,6 @@ export interface ViewState {
 const KEY = 'repobs.view.v2'
 
 export const DEFAULT_VIEW: ViewState = {
-  leftOpen: true,
-  rightOpen: true,
-  leftWidth: 240,
-  rightWidth: 360,
   filters: DEFAULT_FILTERS,
   details: false,
   agentNames: true,
@@ -80,8 +72,6 @@ export function loadView(): ViewState {
     return {
       ...DEFAULT_VIEW,
       ...p,
-      leftWidth: clamp(Number(p.leftWidth) || DEFAULT_VIEW.leftWidth, 180, 420),
-      rightWidth: clamp(Number(p.rightWidth) || DEFAULT_VIEW.rightWidth, 280, 560),
       filters: {
         ...f,
         // 'ready' was renamed 'unreviewed'.

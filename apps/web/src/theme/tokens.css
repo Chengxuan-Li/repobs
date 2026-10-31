@@ -39,9 +39,28 @@
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
+  /* Labels — panel titles, section strips, table headers, the status bar, ribbon menus and
+     buttons — follow the reference: the interface sans, sentence case, small and semibold.
+     Mono is kept for identifiers: branch names, commit ids, paths and counts. */
+  --label-font: var(--font-sans);
+  --label-case: none;
+  --label-size: var(--font-size-small);
+  --label-tracking: 0;
+  --label-weight: 600;
+
+  /* Control grammar: a field is a well with a heavier bottom edge; a button is a raised block
+     with an even edge. */
+  --field-bg: var(--color-surface);
+  --field-edge: 1px solid var(--color-border-interactive);
+  --field-edge-bottom: 2px solid var(--color-border-interactive);
+  --button-bg: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
+  --button-bg-hover: color-mix(in srgb, var(--color-text) 14%, var(--color-surface));
+  --button-bg-pressed: color-mix(in srgb, var(--color-text) 20%, var(--color-surface));
+  --transition: 150ms ease;
+
   --row-height: 26px;
-  --ribbon-height: 40px;
-  --statusbar-height: 26px;
+  --ribbon-height: 36px;
+  --statusbar-height: 28px;
 }
 
 :root[data-theme='dark'] {
@@ -136,6 +155,34 @@ textarea {
   color: inherit;
 }
 
+/* Hierarchy comes from weight, tone and spacing rather than heading size. */
+h1,
+h2,
+h3,
+h4 {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+}
+
+/* Scrollbars stay out of the way: a dim rectangle that brightens on hover. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  background: color-mix(in srgb, var(--color-text-muted) 40%, transparent);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-text-muted) 75%, transparent);
+  background-clip: content-box;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -167,14 +214,25 @@ textarea {
   padding: 0 var(--space-2);
   border: 1px solid var(--color-border-interactive);
   border-radius: 0;
-  background: var(--color-surface);
-  font-size: var(--font-size-small);
+  background: var(--button-bg);
+  font-family: var(--label-font);
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  text-transform: var(--label-case);
   cursor: pointer;
   white-space: nowrap;
+  transition:
+    color var(--transition),
+    background-color var(--transition),
+    border-color var(--transition);
 }
 .btn:hover:not(:disabled) {
   border-color: var(--color-accent);
-  color: var(--color-accent);
+  background: var(--button-bg-hover);
+}
+.btn:active:not(:disabled) {
+  background: var(--button-bg-pressed);
 }
 .btn:disabled {
   border-style: dashed;
@@ -197,6 +255,7 @@ textarea {
 }
 .btn-quiet:hover:not(:disabled) {
   border-color: var(--color-border-interactive);
+  background: var(--button-bg-hover);
 }
 .btn-danger:hover:not(:disabled) {
   border-color: var(--tone-danger-text);
@@ -211,11 +270,16 @@ textarea {
 .input {
   height: 26px;
   padding: 0 var(--space-2);
-  border: 1px solid var(--color-border-interactive);
+  border: var(--field-edge);
+  border-bottom: var(--field-edge-bottom);
   border-radius: 0;
-  background: var(--color-surface);
+  background: var(--field-bg);
   font-size: var(--font-size-small);
   min-width: 0;
+  transition: border-color var(--transition);
+}
+.input:focus {
+  border-color: var(--color-accent);
 }
 textarea.input {
   height: auto;
@@ -229,12 +293,16 @@ textarea.input {
 }
 
 .label {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-label);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--label-font);
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  text-transform: var(--label-case);
   color: var(--color-text-muted);
+}
+/* A panel or section title: the label style in the text colour. */
+.section-strip .label {
+  color: var(--color-text);
 }
 
 .section-strip {
@@ -263,11 +331,11 @@ textarea.input {
 }
 .data-table th {
   text-align: left;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-label);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-family: var(--label-font);
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  text-transform: var(--label-case);
   color: var(--color-text-muted);
   background: var(--color-surface-raised);
   border-bottom: 1px solid var(--color-border);
