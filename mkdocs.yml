@@ -15,7 +15,6 @@ theme:
   custom_dir: overrides
   # No font host: docs/assets/stylesheets/fonts.css serves Geist and Geist Mono from the site.
   font: false
-  logo: assets/favicon.svg
   favicon: assets/favicon.svg
   language: en
   features:

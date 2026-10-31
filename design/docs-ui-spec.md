@@ -15,9 +15,9 @@ Decided by the owner on 2026-10-31. These are implementation rules, not one-off 
 ### 0.1 Brand
 
 - The site stays **repobs**. This is a visual-family alignment with the repobs application, not a rename.
-- The header shows the repobs mark (`docs/assets/favicon.svg`, a copy of the app's `apps/web/public/favicon.svg`) and the
-  text wordmark `repobs`; the same mark is the favicon. No EnergyAtlas logo, mark or brand asset (reference audit, "No
-  product mark").
+- The header shows only the text wordmark `repobs`: no mark in the header or the phone drawer (owner request,
+  2026-10-31). The browser favicon is the repobs mark (`docs/assets/favicon.svg`, a copy of the app's
+  `apps/web/public/favicon.svg`). No EnergyAtlas logo, mark or brand asset (reference audit, "No product mark").
 
 ### 0.2 Sources of truth
 
@@ -74,7 +74,7 @@ Targets (WCAG 2.2 AA): text below 24 px at least 4.5:1 on every surface it sits 
 
 - A restrained hero followed immediately by a shared-border grid of the documentation pages; not a marketing page.
 - Headline: "Observe your Git worktrees and coding agents, locally." in Geist bold; one sentence of supporting copy; a
-  primary *Get started* button and a *Download a release* button.
+  primary *Get started* button and a *Download* button (the releases page).
 - The landing page hides both sidebars but keeps their widths as empty margins, without their rules, so its text starts
   where every other page's text starts. Strips and grid rules still run from frame to frame.
 - The headline is sized to the hero's width (container query units) so it stays on at most two lines on desktop.

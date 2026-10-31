@@ -10,7 +10,7 @@ hide:
 
 repobs is a local-first, read-only dashboard for developers who juggle many Git worktrees, temporary agent branches and Claude Code / Codex sessions across projects.
 
-[Get started](getting-started.md){ .md-button .md-button--primary } [Download a release](https://github.com/Chengxuan-Li/repobs/releases){ .md-button }
+[Get started](getting-started.md){ .md-button .md-button--primary } [Download](https://github.com/Chengxuan-Li/repobs/releases){ .md-button }
 
 </div>
 
