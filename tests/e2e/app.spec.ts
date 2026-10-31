@@ -11,8 +11,17 @@ const state = () => readE2EState(port)
 
 async function pair(page: Page) {
   await page.goto(`/#pair=${mintPairingToken(state().dataDir) as string}`)
-  await expect(page.getByRole('button', { name: 'Add repositories' }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'File', exact: true })).toBeVisible()
 }
+
+/** Runs a ribbon menu command (File or View). */
+async function runMenu(page: Page, menuName: 'File' | 'View', item: string) {
+  await page.getByRole('button', { name: menuName, exact: true }).click()
+  const menu = page.getByRole('menu', { name: `${menuName} menu` })
+  await menu.getByRole('menuitem', { name: item }).or(menu.getByRole('menuitemcheckbox', { name: item })).click()
+}
+const view = (page: Page, name: string) => page.getByRole('main', { name: `${name} dashboard` })
+const viewTab = (page: Page, name: string) => page.locator('.flexlayout__tab_button', { hasText: new RegExp(`^${name}$`) })
 
 const board = (page: Page, repo: string) => page.getByRole('region', { name: `${repo} repository` })
 const row = (page: Page, name: string | RegExp) => page.getByRole('listitem', { name })
@@ -56,7 +65,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('invalid and duplicate paths are reported per path', async ({ page }) => {
     await pair(page)
-    await page.getByRole('button', { name: 'Add repositories' }).first().click()
+    await page.getByRole('complementary', { name: 'Repositories panel' }).getByRole('button', { name: 'Add', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Add repositories' })
     for (const p of [state().git.repoA, path.join(state().root, 'nowhere')]) {
       await dialog.getByLabel('Local repository path').fill(p)
@@ -122,6 +131,8 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
   test('hovering a commit shows its message; the legend explains the marks', async ({ page }) => {
     await pair(page)
     const svg = board(page, 'repo-a').locator('svg[data-lanes]')
+    // The newest end is shown first; the first local commit can sit under the sticky label column.
+    await page.getByLabel(/^Branches and agents. Use the arrow keys/).evaluate((el) => (el.scrollLeft = 0))
     const node = svg.locator('circle[class*="local"]').first()
     await node.scrollIntoViewIfNeeded()
     const box = (await node.boundingBox())!
@@ -369,12 +380,12 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     // Selecting an agent brings the details panel back; reset restores the default arrangement.
     await openCard(page, 'Tighten status parser')
     await expect(details(page)).toBeVisible()
-    await page.getByRole('button', { name: 'Reset layout' }).click()
+    await runMenu(page, 'View', 'Reset layout')
     await expect(repos).toBeVisible()
     await expect(details(page)).toBeVisible()
-    await page.getByRole('button', { name: 'Maximize dashboard' }).click()
+    await runMenu(page, 'View', 'Maximize view')
     await expect(repos).toBeHidden()
-    await page.getByRole('button', { name: 'Maximize dashboard' }).click()
+    await runMenu(page, 'View', 'Maximize view')
     await expect(repos).toBeVisible()
     await setOption(page, 'Timeline', 'Commit order')
   })
@@ -466,31 +477,89 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await pair(page)
     await openCard(page, 'Document worktree states')
     await expect(details(page)).toContainText('synthetic answer')
-    await page.getByRole('button', { name: 'Settings' }).click()
+    await runMenu(page, 'File', 'Settings')
     const settings = page.getByRole('dialog', { name: 'Settings' })
     await settings.getByLabel('Show latest message excerpts on agent cards').uncheck()
     await settings.getByRole('button', { name: 'Save settings' }).click()
     await expect(details(page)).not.toContainText('synthetic answer', { timeout: 15_000 })
-    await page.getByRole('button', { name: 'Settings' }).click()
+    await runMenu(page, 'File', 'Settings')
     await settings.getByLabel('Show latest message excerpts on agent cards').check()
     await settings.getByRole('button', { name: 'Save settings' }).click()
   })
 
   test('diagnostics report adapters without transcript text', async ({ page }) => {
     await pair(page)
-    await page.getByRole('button', { name: 'Diagnostics' }).click()
+    await runMenu(page, 'File', 'Diagnostics')
     const diag = page.getByRole('dialog', { name: 'Diagnostics' })
     await expect(diag.getByRole('cell', { name: 'Claude Code' })).toBeVisible()
     await expect(diag).not.toContainText('synthetic prompt')
     await page.keyboard.press('Escape')
   })
 
-  test('removing a repository only removes the dashboard entry', async ({ page }) => {
+  test('views: several named dashboards, each with its own repositories', async ({ page }) => {
     await pair(page)
-    await page.getByRole('button', { name: 'Remove repo-b from the dashboard' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Remove repository from dashboard' })
-    await expect(dialog).toContainText('No files, branches or worktrees are deleted')
-    await dialog.getByRole('button', { name: 'Remove from dashboard' }).click()
+    await expect(view(page, 'View 0')).toBeVisible()
+    await runMenu(page, 'View', 'Open new view')
+    await expect(view(page, 'View 1')).toBeVisible()
+    // The repository panel lists every repository; its ticks are the current view's selection.
+    await page.getByRole('checkbox', { name: 'Show repo-b in View 1' }).uncheck()
+    await expect(view(page, 'View 1').getByRole('region', { name: 'repo-b repository' })).toBeHidden()
+    await expect(view(page, 'View 1').getByRole('button', { name: 'Repositories: 1 of 2' })).toBeVisible()
+    await viewTab(page, 'View 0').click()
+    await expect(view(page, 'View 0').getByRole('region', { name: 'repo-b repository' })).toBeVisible()
+    await expect(page.getByRole('checkbox', { name: 'Show repo-b in View 0' })).toBeChecked()
+
+    // Renaming View 0 frees its number for the next new view.
+    await page.keyboard.press('Control+K')
+    await page.getByRole('dialog', { name: 'Search commands' }).getByRole('combobox').fill('rename view')
+    await page.keyboard.press('Enter')
+    const rename = page.getByRole('dialog', { name: 'Rename view' })
+    await rename.getByLabel('Name').fill('View main')
+    await rename.getByLabel('Name').press('Enter')
+    await expect(view(page, 'View main')).toBeVisible()
+    await runMenu(page, 'View', 'Open new view')
+    await expect(view(page, 'View 0')).toBeVisible()
+
+    // Names, settings and the arrangement survive a reload.
+    await page.reload()
+    await viewTab(page, 'View 1').click()
+    await expect(view(page, 'View 1').getByRole('region', { name: 'repo-a repository' })).toBeVisible()
+    await expect(view(page, 'View 1').getByRole('region', { name: 'repo-b repository' })).toBeHidden()
+
+    // Views close from their tabs, except the last one.
+    for (const name of ['View 1', 'View 0']) await viewTab(page, name).locator('.flexlayout__tab_button_trailing').click()
+    await expect(viewTab(page, 'View main')).toBeVisible()
+    await viewTab(page, 'View main').locator('.flexlayout__tab_button_trailing').click()
+    await expect(page.getByText('The last view cannot be closed.')).toBeVisible()
+    await expect(view(page, 'View main')).toBeVisible()
+  })
+
+  test('File → Export writes annotations and views; Open reads them back', async ({ page }) => {
+    await pair(page)
+    const download = page.waitForEvent('download')
+    await runMenu(page, 'File', 'Export')
+    const file = await (await download).path()
+    const data = JSON.parse(fs.readFileSync(file, 'utf8')) as { format: string; annotations: { annotations: unknown[] }; workbench: { views: Array<{ name: string }> } }
+    expect(data.format).toBe('repobs-export')
+    expect(data.annotations.annotations.length).toBeGreaterThan(0)
+    expect(data.workbench.views.map((v) => v.name)).toEqual(['View 0'])
+    expect(JSON.stringify(data)).not.toContain('synthetic answer') // no transcript content
+
+    // Opening a file with another view replaces the views.
+    data.workbench.views = [{ ...data.workbench.views[0]!, name: 'Imported' }]
+    const chooser = page.waitForEvent('filechooser')
+    await runMenu(page, 'File', 'Open')
+    await (await chooser).setFiles({ name: 'export.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)) })
+    await expect(page.getByText(/1 view opened/)).toBeVisible()
+    await expect(view(page, 'Imported')).toBeVisible()
+  })
+
+  test('removing a repository only removes it from repobs', async ({ page }) => {
+    await pair(page)
+    await page.getByRole('button', { name: 'Remove repo-b from repobs' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Remove repository from repobs' })
+    await expect(dialog).toContainText('no files, branches or worktrees are deleted')
+    await dialog.getByRole('button', { name: 'Remove from repobs' }).click()
     await expect(board(page, 'repo-b')).toBeHidden()
     expect(fs.existsSync(path.join(state().git.repoB, 'b.txt'))).toBe(true)
   })

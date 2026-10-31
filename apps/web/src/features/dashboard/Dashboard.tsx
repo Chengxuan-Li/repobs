@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import { type AgentSession, type AnnotationSummary, type ReviewState, type Snapshot, workflowStatus } from '@repobs/contracts'
-import { clamp, MAX_ZOOM, MIN_ZOOM, RANGE_MS, type ViewState } from '../../app/viewState'
+import { clamp, MAX_ZOOM, MIN_ZOOM, RANGE_MS, type ViewPatch, type ViewState } from '../../app/viewState'
 import { AgentRow } from './AgentRow'
 import { FilterBar } from './FilterBar'
 import { AgentHover, HoverCard, type HoverState, type ShowHover } from './HoverCard'
@@ -26,6 +26,8 @@ export function Dashboard({
   tags,
   view,
   setView,
+  allRepos,
+  selectedId,
   now,
   onSelect,
   onReview,
@@ -37,7 +39,10 @@ export function Dashboard({
   repos: RepoSummary[]
   tags: string[]
   view: ViewState
-  setView: (patch: Partial<ViewState> | ((v: ViewState) => Partial<ViewState>)) => void
+  setView: (patch: ViewPatch) => void
+  /** Every registered repository; the view shows those it does not hide. */
+  allRepos: RepoSummary[]
+  selectedId?: string
   now: number
   onSelect: (id: string) => void
   onReview: (sessionId: string, review: ReviewState) => void
@@ -203,7 +208,7 @@ export function Dashboard({
   const orphans = filtered.filter((s) => !s.repoId)
   return (
     <>
-      <FilterBar view={view} setView={setView} knownTags={tags} shown={filtered.length} total={snapshot.sessions.length} />
+      <FilterBar view={view} setView={setView} knownTags={tags} repositories={allRepos.map((r) => ({ id: r.repo.id, name: r.repo.displayName }))} shown={filtered.length} total={snapshot.sessions.length} />
       {view.legendOpen ? <Legend axisMode={view.axisMode} /> : null}
       <div
         ref={scrollRef}
@@ -263,8 +268,8 @@ export function Dashboard({
                 viewportWidth={viewport}
                 now={now}
                 collapsed={collapsed.has(repo.id)}
-                selectedId={view.selectedId}
-                tabbableId={view.selectedId}
+                selectedId={selectedId}
+                tabbableId={selectedId}
                 shownAgents={sessions.length}
                 totalAgents={summary.agents}
                 attention={sessions.filter((s) => ['needs_input', 'needs_review'].includes(workflowStatus(s, annotations.get(s.id)))).length}
@@ -297,7 +302,7 @@ export function Dashboard({
                     data-session-id={s.id}
                     data-row-id={`session:${s.id}`}
                     tabIndex={-1}
-                    className={`${boardStyles.row} ${boardStyles.row_session} ${view.selectedId === `session:${s.id}` ? boardStyles.selected : ''}`}
+                    className={`${boardStyles.row} ${boardStyles.row_session} ${selectedId === `session:${s.id}` ? boardStyles.selected : ''}`}
                     aria-label={`${annotations.get(s.id)?.displayAlias || s.title}, ${s.provider === 'claude' ? 'Claude Code' : 'Codex'} agent`}
                     onClick={() => onSelect(`session:${s.id}`)}
                   >
@@ -313,7 +318,7 @@ export function Dashboard({
                         hasChildren={false}
                         childCount={0}
                         expanded={false}
-                        focusable={view.selectedId === `session:${s.id}`}
+                        focusable={selectedId === `session:${s.id}`}
                         showName={view.agentNames}
                         onToggle={() => toggleAgent(s.id)}
                         onReview={(r) => onReview(s.id, r)}

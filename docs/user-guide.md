@@ -2,9 +2,11 @@
 
 ## The workbench
 
-- **Ribbon** (top): the **Repositories**, **View** and **Tools** menus; **Search commands** (Ctrl+K), which finds and runs any command by typing part of its name; and icon buttons for Add repositories, the repositories and details panels, Maximize dashboard, Reset layout, Full screen, theme (system → light → dark), Diagnostics and Settings.
-- **Dashboard** (centre tab, always open): one section per repository with its branches, commits and agents on a shared timeline. This is the primary working panel.
-- **Repositories panel** (left side bar by default): which repositories are shown on the dashboard, their agent counts and last activity; click a name to jump to it, untick to hide it, **×** to remove it from repobs (no files are touched).
+- **Ribbon** (top): the **File** and **View** menus; **Search commands** (Ctrl+K), which finds and runs any command by typing part of its name (including the current view's display options, renaming it, zoom and repository sorting); and icon buttons for the repositories and details panels and the theme (system → light → dark).
+  - **File**: **Export…**, **Open…**, **Settings**, **Diagnostics**.
+  - **View**: **Panels** (repositories panel, details panel, Maximize view, Reset layout), **Open new view**, **Styling** (match the system, light, dark), **Full screen**, **Refresh** (read every repository and agent session again now; normally changes arrive by themselves).
+- **Views** (centre tabs): each view is a dashboard — one section per repository with its branches, commits and agents on a shared timeline — with its own filters, display options and repositories. See [Views](#views).
+- **Repositories panel** (left side bar by default): every repository registered in repobs, with agent counts and last activity, sorted by the **Sort** dropdown. The ticks are the current view's selection (*Ticked repositories are shown in View 0*); click a name to jump to it in the current view, **×** to remove it from repobs (no files are touched).
 - **Details panel** (right side bar by default): evidence and your notes for the selected agent, or upstream/worktree/status details for the selected branch. Selecting an agent or branch opens it if it is hidden.
 - **Status bar** (bottom): counts, last sync time, live connection state, and a *Monitoring degraded* link when something needs attention.
 
@@ -13,12 +15,25 @@
 The panels dock like an IDE's:
 
 - Click a panel's name in a side bar to collapse or expand it; drag the edge between panels to resize.
-- **Drag** a panel's tab beside the dashboard, into the other side bar, or onto the dashboard's tab strip; the drop target is outlined while you drag. An empty side bar still accepts panels.
-- Close a docked panel with its **×**; bring it back from **View → Repositories panel / Details panel**, the ribbon buttons, or Ctrl+B / Ctrl+Alt+B.
-- **Maximize dashboard** collapses the open panels to give the history the whole window; press it again to bring them back.
-- **Reset layout** restores the default arrangement.
+- **Drag** a panel's or a view's tab beside another view, into the other side bar, or onto a tab strip; the drop target is outlined while you drag. An empty side bar still accepts panels.
+- Side panels keep a minimum width (repositories 280 px, details 320 px) so their one-line entries do not wrap.
+- Close a docked panel with its **×**; bring it back from **View → Panels**, the ribbon buttons, or Ctrl+B / Ctrl+Alt+B.
+- **View → Panels → Maximize view** collapses the open panels to give the current view the whole window; choose it again to bring them back.
+- **View → Panels → Reset layout** puts every view back into one tab strip and the panels back in their side bars; views keep their names and settings.
 
-Only the panels scroll; the page itself never does. The arrangement, filters, toggles, hidden/collapsed repositories, the selection and the theme are remembered in this browser.
+Only the panels scroll; the page itself never does. The arrangement, the views with their settings, the selection and the theme are remembered in this browser.
+
+## Views
+
+A view is a dashboard tab with its own settings: filters, display options, axis and zoom, collapsed and expanded rows, and which repositories it shows. Use views for different angles on the same project — say, one on the main repository with every agent, one on a scratch repository showing only agents that need input.
+
+- **View → Open new view** (Ctrl+Alt+N) adds one beside the current view, with default settings. It is named *View n* with the smallest number no other view uses, counting from 0: rename *View 0* and *View 1* to *View main* and *View 1*, and the next new view is *View 0*.
+- **Rename** a view by double-clicking its tab, or with *Rename view* from Search commands. Names cannot be empty or repeat another view's name.
+- **Close** a view with the **×** on its tab; its settings are dropped. The last view cannot be closed.
+- **Which repositories a view shows**: tick or untick them in the repositories panel (the ticks follow the current view) or use the view's **Repositories** dropdown. A newly registered repository appears in every view.
+- The **current view** is the one you last selected, clicked or focused; the repositories panel, the details panel and the view commands in Search commands act on it. The selection (which agent or branch the details panel shows) is shared by all views.
+
+**File → Export…** saves one JSON file with your annotations (aliases, review states, tags, notes and checklists, as in Settings → Annotations; no transcript content) and every view with its name, settings and the arrangement. **File → Open…** reads such a file: annotations are merged (older or already present ones are skipped) and its views replace the current ones. It also accepts an annotation export from Settings.
 
 ## Adding repositories
 
@@ -111,12 +126,13 @@ The agent count follows the filters, and **Clear filters** resets them. Filters 
 
 **View options** (how the history is drawn):
 
+- **Repositories**: all repositories, or tick the ones this view shows (the same as the ticks in the repositories panel).
 - **Branches**: all branches, checked-out ones, or branches with agents; *Remote-only branches*; *Collapse quiet commits*.
 - **Agents**: *Collapse spawned agents*, *Agent names in list*, *Agent labels on timeline*.
 - **Timeline**: the axis mode and how much history to show.
 - **Legend** explains every mark.
 
-Check boxes keep the dropdown open so you can set several; Esc or a click elsewhere closes it. The same toggles are in the ribbon's **View** menu, and **Repositories → Sort by** orders the repositories.
+Check boxes keep the dropdown open so you can set several; Esc or a click elsewhere closes it. The same toggles are in Search commands (Ctrl+K) under *Current view*. These settings belong to the view: another view keeps its own.
 
 ## Keyboard
 
@@ -129,10 +145,12 @@ Check boxes keep the dropdown open so you can set several; Esc or a click elsewh
 | Esc | Close dialogs, menus and suggestion lists |
 | Ctrl+K | Search commands |
 | Ctrl+B / Ctrl+Alt+B | Show or hide the repositories / details panel |
+| Ctrl+Alt+N | Open a new view |
+| Double-click a view's tab | Rename the view |
 | F6 / Shift+F6 | Move focus to the next / previous group of tabs |
 | + / − / 0 (dashboard focused) | Zoom the history in / out / reset |
 | ↓ on a ribbon menu, then ↑ / ↓ | Open the menu and move through it |
 
 ## Removing a repository
 
-In the repositories panel, **×** → **Remove from dashboard**. This only removes the entry from repobs; no files, branches or worktrees are touched and your session notes are kept.
+In the repositories panel, **×** → **Remove from repobs**. It disappears from every view. This only removes the entry from repobs; no files, branches or worktrees are touched and your session notes are kept.

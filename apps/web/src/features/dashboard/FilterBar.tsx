@@ -1,6 +1,6 @@
 import { Search } from 'lucide-react'
 import { PROVIDER_LABELS, type Provider, WORKFLOW_LABELS, type WorkflowStatus } from '@repobs/contracts'
-import type { TimeRange, ViewState } from '../../app/viewState'
+import type { TimeRange, ViewPatch, ViewState } from '../../app/viewState'
 import { Dropdown, type DropdownSection } from '../../components/Dropdown'
 import { TagInput } from '../annotations/TagInput'
 import { DEFAULT_FILTERS, filtersActive, LAST_MESSAGE_OPTIONS } from './filters'
@@ -74,12 +74,15 @@ export function FilterBar({
   view,
   setView,
   knownTags,
+  repositories,
   shown,
   total,
 }: {
   view: ViewState
-  setView: (patch: Partial<ViewState> | ((v: ViewState) => Partial<ViewState>)) => void
+  setView: (patch: ViewPatch) => void
   knownTags: string[]
+  /** Every registered repository; the view shows those it does not hide. */
+  repositories: Array<{ id: string; name: string }>
   shown: number
   total: number
 }) {
@@ -142,6 +145,27 @@ export function FilterBar({
           ) : null}
         </div>
         <div className={styles.filterGroup} role="group" aria-label="View options">
+          <Dropdown
+            label="Repositories"
+            value={
+              view.hiddenRepos.length === 0
+                ? 'All'
+                : `${repositories.filter((r) => !view.hiddenRepos.includes(r.id)).length} of ${repositories.length}`
+            }
+            active={view.hiddenRepos.length > 0}
+            sections={[
+              { items: [{ type: 'radio', label: 'All repositories', checked: view.hiddenRepos.length === 0, onSelect: () => setView({ hiddenRepos: [] }) }] },
+              {
+                heading: 'Shown in this view',
+                items: repositories.map((r) => ({
+                  type: 'check' as const,
+                  label: r.name,
+                  checked: !view.hiddenRepos.includes(r.id),
+                  onToggle: () => setView((v) => ({ hiddenRepos: v.hiddenRepos.includes(r.id) ? v.hiddenRepos.filter((x) => x !== r.id) : [...v.hiddenRepos, r.id] })),
+                })),
+              },
+            ]}
+          />
           <Dropdown
             label="Branches"
             value={BRANCH_MODES.find(([m]) => m === view.branchMode)?.[1]}

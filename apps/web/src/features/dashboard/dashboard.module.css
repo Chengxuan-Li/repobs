@@ -100,6 +100,17 @@
   white-space: nowrap;
   max-width: 100%;
 }
+.repoStats {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.repoHint {
+  margin: 0;
+  padding: 6px var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
 .attentionDot {
   font-family: var(--font-mono);
   font-size: var(--font-size-label);

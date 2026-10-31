@@ -3,12 +3,15 @@ import { Check, Search } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import styles from './ribbon.module.css'
 
-// The ribbon (EnergyAtlas family layout): the wordmark, one menu per command group, a "Search
-// commands" field that opens the command palette, and icon buttons for the most used layout
-// commands. Every command lives in one list, so menus, palette, buttons and shortcuts agree.
+// The ribbon (EnergyAtlas family layout): the wordmark, the File and View menus, a "Search
+// commands" field that opens the command palette, and icon buttons for the side panels and the
+// theme. Every command lives in one list, so menus, palette, buttons and shortcuts agree; groups
+// without a menu (the current view's display options, repository order) are reached from the
+// palette and from their own controls.
 
-export type CommandGroup = 'Repositories' | 'View' | 'Tools'
-export const COMMAND_GROUPS: CommandGroup[] = ['Repositories', 'View', 'Tools']
+export type CommandGroup = 'File' | 'View' | 'Current view' | 'Repositories'
+/** Groups with a ribbon menu, in order. */
+export const MENU_GROUPS: CommandGroup[] = ['File', 'View']
 
 export interface Command {
   id: string
@@ -21,6 +24,8 @@ export interface Command {
   icon?: LucideIcon
   /** On/off state for toggles (shown as a check). */
   pressed?: boolean
+  /** Reached from the palette (and shortcuts) only, not from a menu. */
+  paletteOnly?: boolean
   run: () => void
 }
 
@@ -32,8 +37,8 @@ export function Ribbon({ commands, quick, paletteShortcut }: { commands: Command
     <header className={styles.ribbon}>
       <span className={styles.brand}>repobs</span>
       <div role="toolbar" aria-label="Workbench commands" className={styles.toolbar}>
-        {COMMAND_GROUPS.map((group) => (
-          <MenuButton key={group} label={group} commands={commands.filter((c) => c.group === group)} />
+        {MENU_GROUPS.map((group) => (
+          <MenuButton key={group} label={group} commands={commands.filter((c) => c.group === group && !c.paletteOnly)} />
         ))}
         <span className={styles.separator} aria-hidden="true" />
         <button type="button" className={styles.searchButton} aria-keyshortcuts={paletteShortcut.replace('Ctrl', 'Control')} onClick={() => setPalette(true)}>
@@ -128,7 +133,7 @@ function MenuButton({ label, commands }: { label: string; commands: Command[] })
       {open ? (
         <div ref={menu} role="menu" aria-label={`${label} menu`} className={styles.menu} style={pos} onKeyDown={onKey}>
           {sections.map(([submenu, items], si) => (
-            <div key={submenu ?? `s${si}`} role="group" aria-label={submenu} className={si ? styles.menuSection : undefined}>
+            <div key={si} role="group" aria-label={submenu} className={si ? styles.menuSection : undefined}>
               {submenu ? (
                 <div className={styles.menuHeading} aria-hidden="true">
                   {submenu}
@@ -162,10 +167,15 @@ function MenuButton({ label, commands }: { label: string; commands: Command[] })
   )
 }
 
+/** Runs of consecutive commands with the same submenu, in list order (a menu's sections). */
 function groupBySubmenu(commands: Command[]): Array<[string | undefined, Command[]]> {
-  const out = new Map<string | undefined, Command[]>()
-  for (const c of commands) out.set(c.submenu, [...(out.get(c.submenu) ?? []), c])
-  return [...out.entries()]
+  const out: Array<[string | undefined, Command[]]> = []
+  for (const c of commands) {
+    const last = out[out.length - 1]
+    if (last && last[0] === c.submenu) last[1].push(c)
+    else out.push([c.submenu, [c]])
+  }
+  return out
 }
 
 /** Type to filter every command; Enter runs the highlighted one. */

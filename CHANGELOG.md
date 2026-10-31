@@ -6,9 +6,10 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Changed
 
+- The ribbon has File and View menus; only the side-panel and theme icon buttons remain. Other commands are in Search commands (Ctrl+K). Side panels keep a minimum width so their entries stay on one line (ADR 0005).
 - Agent cards on the dashboard no longer expand to show details (hover or select an agent instead). The chevron appears only on agents that spawned others and shows or hides them; spawned agents start collapsed (*Agents → Collapse spawned agents*).
 - The agent label at the end of each timeline bar is now a card like the list card, with the status dropdown to set your review state.
-- The dashboard filter bar is a line of dropdowns showing their current values: Harness and Status are multiple choice, Last message and Tags filter, and Branches, Agents and Timeline hold the display options; repository sorting is in Repositories → Sort by (ADR 0004).
+- The dashboard filter bar is a line of dropdowns showing their current values: Harness and Status are multiple choice, Last message and Tags filter, and Branches, Agents and Timeline hold the display options; repository sorting moved to the repositories panel (ADR 0004, ADR 0005).
 - Labels and panel titles use the interface sans in sentence case instead of mono uppercase; buttons and fields follow the reference control style (ADR 0004).
 - Agents are cards indented by spawn depth, with tree lines in a gutter left of the cards that run across rows; coloured left-edge stripes removed.
 - Finished agents you have not reviewed show *Unreviewed* (neutral) instead of *Ready* (green).
@@ -24,6 +25,8 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
+- Views: open several dashboards (View → Open new view), each named *View n* with the smallest free number, renamable by double-clicking its tab, with its own filters, display options and repositories; the repositories panel's ticks follow the current view (ADR 0005).
+- File → Export / Open: annotations and views (names, settings, arrangement) in one JSON file. View → Refresh rescans now.
 - Ribbon menus (Repositories, View, Tools) with shortcuts, a command palette (Ctrl+K) and icon buttons for the layout; dockable panels (drag, split, collapse, close, maximize, reset) with the arrangement remembered per browser (ADR 0004).
 - Agent labels on the timeline (name · status · last activity at the end of each bar) and a toggle to hide agent names in the list, which narrows the label column; each can be switched on or off independently.
 - Axis mode *Calendar, compressed*: calendar-proportional gaps with a minimum spacing between commits, so bursts of commits never collide; zoom scales only the time gaps.

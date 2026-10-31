@@ -32,6 +32,7 @@ nav:
       - Engineering decisions: decisions/0002-engineering-choices.md
       - Dashboard and commit graph: decisions/0003-dashboard-commit-graph-and-excerpts.md
       - Reference UI alignment: decisions/0004-reference-ui-alignment-ribbon-docking.md
+      - Views and File menu: decisions/0005-views-and-file-menu.md
 extra_css:
   - assets/repobs.css
 validation:

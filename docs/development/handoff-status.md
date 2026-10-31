@@ -2,6 +2,20 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 12 — 2026-10-31: views, File and View menus (ADR 0005)
+
+| Request | Implementation |
+| --- | --- |
+| Multiple dashboard instances as named views, renamable, layout saved | `dockLayout.ts`: view tabs (`viewTabs`, `openView`, `renameView`, guarded close/rename in `onAction`), `nextViewName`; `ViewPanel.tsx` per view; `viewState.ts` per-view settings in `repobs.workbench.v1` |
+| "View X", smallest unused number from 0 | `nextViewName` (unit-tested with the owner's example) |
+| Repository selection per view; repositories panel stays the list of all | per-view `hiddenRepos`; panel ticks edit the current view and name it; *Repositories* dropdown in the view's bar |
+| Side panels keep a minimum width | panel `minWidth` 280 / 320 px, `borderMinSize`, narrow stored side bars widened; repository entries ellipsize |
+| File: Export, Open, Settings, Diagnostics; View: Panels, Open new view, Styling, Full screen, Refresh; only side-panel and theme icons | `WorkbenchShell.tsx` command list, `Ribbon.tsx` `MENU_GROUPS` and `paletteOnly`; export/open JSON (`repobs-export` v1) |
+
+Verification (2026-10-31, this machine): typecheck, lint and build exit 0; `npm test` 16 files / 135 tests passed; `npm run test:e2e` 26 passed, 1 skipped (docs screenshot, regenerated); `npm run docs:build` exit 0. Screenshots checked: two views with different repository selections, View menu sections, no console errors.
+
+Unknown: narrow-window overlay panels (unchanged). Opening a file replaces views without a confirmation step; annotations merge as with Settings → Import.
+
 ## Checkpoint 11 — 2026-10-31: chevron for spawned agents, timeline cards (ADR 0003, eighth review)
 
 | Request | Implementation |

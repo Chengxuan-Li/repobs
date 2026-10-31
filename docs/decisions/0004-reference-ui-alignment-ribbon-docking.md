@@ -2,6 +2,7 @@
 
 - Status: accepted (owner request, 2026-10-30)
 - Supersedes: the "No FlexLayout docking" and "Labels in Geist Mono" deviations in [the reference audit](../development/reference-audit.md)
+- Amended by: [0005](0005-views-and-file-menu.md) (views, File and View menus, fewer icon buttons)
 
 ## Context
 

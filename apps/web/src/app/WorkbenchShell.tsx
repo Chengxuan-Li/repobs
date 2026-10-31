@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Layout, type TabNode } from 'flexlayout-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type IJsonModel, Layout, Model, TabNode } from 'flexlayout-react'
 import 'flexlayout-react/style/light.css'
-import { Activity, Expand, Maximize2, Moon, PanelLeft, PanelRight, Plus, RotateCcw, Settings as SettingsIcon, Sun, SunMoon } from 'lucide-react'
+import { Moon, PanelLeft, PanelRight, Sun, SunMoon } from 'lucide-react'
 import {
   type AgentSession,
+  AnnotationExport,
   type AnnotationSummary,
   isLiveKind,
   type Repository,
@@ -13,11 +14,10 @@ import {
   type ThemePreference,
   workflowStatus,
 } from '@repobs/contracts'
-import { Dialog, EmptyState, InlineAlert, useNow } from '../components/primitives'
-import { Dashboard } from '../features/dashboard/Dashboard'
+import { Dialog, InlineAlert, useNow } from '../components/primitives'
 import { BranchDetails, SessionDetails } from '../features/dashboard/DetailsPanel'
-import { knownTags as collectTags, sessionMatches } from '../features/dashboard/filters'
-import { type BranchRow, type LayoutOptions, layoutRepository, type RepoLayout, repositoryLastActivity } from '../features/dashboard/layout'
+import { knownTags as collectTags } from '../features/dashboard/filters'
+import { type BranchRow, type RepoLayout, repositoryLastActivity } from '../features/dashboard/layout'
 import { RepoListPanel, type RepoSummary } from '../features/dashboard/RepoListPanel'
 import { AddRepositoryDialog } from '../features/settings/AddRepositoryDialog'
 import { DiagnosticsPanel } from '../features/settings/DiagnosticsPanel'
@@ -25,24 +25,39 @@ import { SettingsPanel } from '../features/settings/SettingsPanel'
 import { api, ApiError } from './api'
 import type { Connection } from './store'
 import { applyTheme } from './theme'
-import { type PanelId, type TabComponent, useDockLayout } from './dockLayout'
+import { defaultLayout, type PanelId, type TabComponent, useDockLayout, viewTabs } from './dockLayout'
 import { type Command, Ribbon } from './Ribbon'
-import { clamp, MAX_ZOOM, MIN_ZOOM, type RepoSort, useViewState } from './viewState'
+import { useViewData, ViewPanel } from './ViewPanel'
+import { clamp, DEFAULT_VIEW, MAX_ZOOM, MIN_ZOOM, normalizeView, type RepoSort, useWorkbenchState, type ViewState } from './viewState'
 import './dock.css'
 import styles from './shell.module.css'
 
-// Workbench (ADR 0003, ADR 0004): the ribbon, a dockable layout — the dashboard in the centre, the
-// repositories and details panels in side bars that can be moved, split, collapsed or closed —
-// and the status bar. Only the panels scroll; the page itself never does.
+// Workbench (ADR 0003, ADR 0004, ADR 0005): the ribbon, a dockable layout — any number of views
+// (dashboard tabs, each with its own settings) in the centre, the repositories and details panels
+// in side bars that can be moved, split, collapsed or closed — and the status bar. Only the panels
+// scroll; the page itself never does.
+
+/** File format of File → Export / Open. */
+const EXPORT_FORMAT = 'repobs-export'
 
 export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snapshot; connection: Connection; error?: string }) {
-  const [view, setView] = useViewState()
-  const [dialog, setDialog] = useState<'add' | 'settings' | 'diagnostics' | undefined>()
+  const bench = useWorkbenchState()
+  const { state, settingsFor, setView, setShared, keepViews, replaceViews } = bench
+  const [dialog, setDialog] = useState<'add' | 'settings' | 'diagnostics' | 'rename' | undefined>()
   const [confirmRemove, setConfirmRemove] = useState<Repository | undefined>()
   const [theme, setTheme] = useState<ThemePreference>(() => (localStorage.getItem('repobs.theme') as ThemePreference | null) ?? 'system')
   const [notice, setNotice] = useState<string>()
   const now = useNow(30_000)
-  const dock = useDockLayout()
+  // The current view: the one last selected, clicked or focused. Ribbon commands, the repository
+  // ticks and the details panel follow it.
+  const [currentId, setCurrentId] = useState<string>()
+  const dock = useDockLayout({
+    onRejected: setNotice,
+    onViewSelected: setCurrentId,
+    // Settings of closed views are dropped.
+    onViewsChanged: keepViews,
+  })
+  const fileInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     api<Settings>('GET', '/settings').then(
@@ -54,12 +69,13 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     )
   }, [])
 
+  const views = useMemo(() => dock.views(), [dock])
+  const current = views.find((v) => v.id === currentId) ?? views[0]
+  const view = current ? settingsFor(current.id) : DEFAULT_VIEW
+  const setCurrentView = useCallback((patch: Parameters<typeof setView>[1]) => current && setView(current.id, patch), [current, setView])
+
   const annotations = useMemo(() => new Map(snapshot.annotations.map((a) => [a.sessionId, a])), [snapshot.annotations])
   const tags = useMemo(() => collectTags(snapshot.annotations), [snapshot.annotations])
-  const filtered = useMemo(
-    () => snapshot.sessions.filter((s) => sessionMatches(s, annotations.get(s.id), view.filters, now)),
-    [snapshot.sessions, annotations, view.filters, now],
-  )
 
   const summaries: RepoSummary[] = useMemo(() => {
     const list = snapshot.repositories.map((repo) => {
@@ -78,54 +94,20 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
       name: (a, b) => a.repo.displayName.localeCompare(b.repo.displayName),
       manual: (a, b) => a.repo.order - b.repo.order,
     }
-    return list.sort(by[view.repoSort])
-  }, [snapshot, annotations, view.repoSort])
+    return list.sort(by[state.repoSort])
+  }, [snapshot, annotations, state.repoSort])
 
+  // The current view's layouts resolve a selected branch row (with its relations) for the details panel.
+  const { layouts } = useViewData(snapshot, view, annotations, summaries, now)
   const hidden = useMemo(() => new Set(view.hiddenRepos), [view.hiddenRepos])
-  const layoutOptions: LayoutOptions = useMemo(
-    () => ({
-      branchMode: view.branchMode,
-      collapseSpawned: view.collapseSpawned,
-      toggledAgents: new Set(view.toggledAgents),
-      showRemoteOnly: view.showRemoteOnly,
-      sessionLimit: 12,
-      expandedBranches: new Set(view.expandedBranches),
-      collapseQuiet: view.collapseQuiet,
-      expandedGroups: new Set(view.expandedGroups),
-    }),
-    [view.branchMode, view.collapseSpawned, view.toggledAgents, view.showRemoteOnly, view.expandedBranches, view.collapseQuiet, view.expandedGroups],
-  )
-
-  // Layouts are computed once here so the dashboard and the details panel agree (branch relations).
-  const layouts = useMemo(() => {
-    const m = new Map<string, RepoLayout>()
-    for (const { repo } of summaries) {
-      if (hidden.has(repo.id)) continue
-      m.set(
-        repo.id,
-        layoutRepository(
-          repo,
-          {
-            branches: snapshot.branches.filter((b) => b.repoId === repo.id),
-            worktrees: snapshot.worktrees.filter((w) => w.repoId === repo.id),
-            sessions: filtered.filter((s) => s.repoId === repo.id),
-            annotations,
-            graph: snapshot.commitGraphs.find((g) => g.repoId === repo.id),
-          },
-          layoutOptions,
-        ),
-      )
-    }
-    return m
-  }, [summaries, hidden, snapshot.branches, snapshot.worktrees, snapshot.commitGraphs, filtered, annotations, layoutOptions])
 
   const { showPanel } = dock
   const select = useCallback(
     (id: string) => {
-      setView({ selectedId: id })
+      setShared({ selectedId: id })
       showPanel('details')
     },
-    [setView, showPanel],
+    [setShared, showPanel],
   )
 
   const setReview = useCallback(async (sessionId: string, review: ReviewState) => {
@@ -150,7 +132,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
   const removeRepository = async (repo: Repository) => {
     try {
       await api('DELETE', `/repositories/${repo.id}`)
-      setNotice(`${repo.displayName} was removed from the dashboard. No files were changed; your session notes are kept.`)
+      setNotice(`${repo.displayName} was removed from repobs. No files were changed; your session notes are kept.`)
     } catch (e) {
       setNotice(e instanceof ApiError ? e.message : 'Could not remove the repository')
     }
@@ -166,67 +148,120 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     }
   }
 
-  const selected = useMemo(() => resolveSelection(snapshot, layouts, view.selectedId), [snapshot, layouts, view.selectedId])
-  const empty = snapshot.repositories.length === 0
+  const openView = () => {
+    const id = dock.openView(current?.id)
+    setView(id, DEFAULT_VIEW)
+    setCurrentId(id)
+  }
 
-  const dashboardPanel = (
-    <main className={styles.main} aria-label="Dashboard">
-      {notice ? (
-        <div className={styles.notice}>
-          <InlineAlert tone="info" onDismiss={() => setNotice(undefined)}>
-            {notice}
-          </InlineAlert>
-        </div>
-      ) : null}
-      {error ? (
-        <div className={styles.notice}>
-          <InlineAlert tone="danger">{error}</InlineAlert>
-        </div>
-      ) : null}
-      {empty ? (
-        <div className={styles.boards}>
-          <EmptyState
-            title="Observe your Git worktrees and coding agents, locally"
-            action={
-              <button type="button" className="btn btn-primary" onClick={() => setDialog('add')}>
-                <Plus size={13} aria-hidden="true" /> Add repositories
-              </button>
-            }
-          >
-            <p>Register local Git repositories to see their branches and commits on a timeline, with the Claude Code and Codex agents that worked on each branch.</p>
-            <p>repobs only reads: it never changes your repositories or agent histories, and needs no API keys.</p>
-          </EmptyState>
-        </div>
-      ) : (
-        <Dashboard
-          snapshot={snapshot}
-          filtered={filtered}
-          annotations={annotations}
-          layouts={layouts}
-          repos={summaries.filter((s) => !hidden.has(s.repo.id))}
-          tags={tags}
-          view={view}
-          setView={setView}
-          now={now}
-          onSelect={select}
-          onReview={(id, r) => void setReview(id, r)}
-        />
-      )}
-    </main>
-  )
+  const refresh = async () => {
+    try {
+      await api('POST', '/rescan')
+      setNotice('Refreshed: repositories and agent sessions were read again.')
+    } catch (e) {
+      setNotice(e instanceof ApiError ? e.message : 'Could not refresh')
+    }
+  }
 
-  const panels: Record<TabComponent, () => React.ReactNode> = {
-    dashboard: () => dashboardPanel,
+  // File → Export: your annotations and every view (name, settings, arrangement) as one JSON file.
+  // Annotations are the sanitized server export: no transcript content.
+  const exportFile = async () => {
+    try {
+      const annotationExport = await api<AnnotationExport>('GET', '/annotations/export')
+      const payload = {
+        format: EXPORT_FORMAT,
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        annotations: annotationExport,
+        workbench: {
+          repoSort: state.repoSort,
+          views: views.map((v) => ({ id: v.id, name: v.name, settings: settingsFor(v.id) })),
+          layout: dock.model.toJson(),
+        },
+      }
+      const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `repobs-export-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (e) {
+      setNotice(e instanceof ApiError ? e.message : 'Could not export')
+    }
+  }
+
+  // File → Open: a file from Export (annotations are merged, views replace the current ones), or an
+  // annotation export from Settings.
+  const openFile = async (file: File) => {
+    try {
+      if (file.size > 20_000_000) throw new Error('This file is too large for a repobs export.')
+      const data = JSON.parse(await file.text()) as Record<string, unknown>
+      const done: string[] = []
+      const isExport = data?.format === EXPORT_FORMAT
+      const annotationPart = AnnotationExport.safeParse(isExport ? data.annotations : data)
+      if (!isExport && !annotationPart.success) throw new Error('This file is not a repobs export.')
+      if (annotationPart.success) {
+        const res = await api<{ imported: number; skipped: number }>('POST', '/annotations/import', annotationPart.data)
+        done.push(`${res.imported} annotations imported (${res.skipped} skipped: older or already present)`)
+      }
+      const bench = isExport ? (data.workbench as { repoSort?: RepoSort; views?: unknown; layout?: unknown } | undefined) : undefined
+      const list = Array.isArray(bench?.views) ? (bench.views as Array<{ id?: unknown; name?: unknown; settings?: unknown }>) : []
+      const opened = list
+        .filter((v) => typeof v.id === 'string' && v.id && typeof v.name === 'string' && v.name.trim())
+        .map((v) => ({ id: v.id as string, name: (v.name as string).trim().slice(0, 80), settings: normalizeView(v.settings) }))
+      if (opened.length) {
+        const settings: Record<string, ViewState> = Object.fromEntries(opened.map((v) => [v.id, v.settings]))
+        replaceViews(settings)
+        // The arrangement from the file if it holds these views, else the views side by side as tabs.
+        const names = Object.fromEntries(opened.map((v) => [v.id, v.name]))
+        const layoutViews = bench?.layout ? viewIdsOf(bench.layout) : []
+        if (!(opened.every((v) => layoutViews.includes(v.id)) && dock.load(bench?.layout, names))) dock.load(defaultLayout(opened))
+        if (bench?.repoSort) setShared({ repoSort: bench.repoSort })
+        setCurrentId(opened[0]!.id)
+        done.push(`${opened.length} ${opened.length === 1 ? 'view' : 'views'} opened`)
+      }
+      setNotice(`${file.name}: ${done.join('; ') || 'nothing to open'}.`)
+    } catch (e) {
+      setNotice(e instanceof SyntaxError ? 'This file is not valid JSON.' : e instanceof Error ? e.message : 'Could not open the file')
+    }
+  }
+
+  const selected = useMemo(() => resolveSelection(snapshot, layouts, state.selectedId), [snapshot, layouts, state.selectedId])
+
+  const panels: Record<TabComponent, (node: TabNode) => React.ReactNode> = {
+    dashboard: (node) => (
+      <ViewPanel
+        name={node.getName()}
+        view={settingsFor(node.getId())}
+        setView={(patch) => setView(node.getId(), patch)}
+        snapshot={snapshot}
+        annotations={annotations}
+        summaries={summaries}
+        tags={tags}
+        selectedId={state.selectedId}
+        now={now}
+        onActivate={() => {
+          if (currentId !== node.getId()) setCurrentId(node.getId())
+        }}
+        onSelect={select}
+        onReview={(id, r) => void setReview(id, r)}
+        onAdd={() => setDialog('add')}
+      />
+    ),
     repositories: () => (
       <aside className={styles.side} aria-label="Repositories panel">
         <RepoListPanel
           summaries={summaries}
           hidden={hidden}
+          viewName={current?.name ?? 'the current view'}
+          sort={state.repoSort}
           now={now}
-          onToggle={(id, visible) => setView((v) => ({ hiddenRepos: visible ? v.hiddenRepos.filter((x) => x !== id) : [...v.hiddenRepos, id] }))}
+          onSort={(repoSort) => setShared({ repoSort })}
+          onToggle={(id, visible) => setCurrentView((v) => ({ hiddenRepos: visible ? v.hiddenRepos.filter((x) => x !== id) : [...v.hiddenRepos, id] }))}
           onJump={(id) => {
-            setView((v) => ({ collapsedRepos: v.collapsedRepos.filter((x) => x !== id) }))
-            document.getElementById(`repo-${id}`)?.scrollIntoView({ block: 'start' })
+            setCurrentView((v) => ({ collapsedRepos: v.collapsedRepos.filter((x) => x !== id) }))
+            if (current) dock.selectView(current.id)
+            document.querySelector(`[aria-label="${CSS.escape(`${current?.name ?? ''} dashboard`)}"] #repo-${CSS.escape(id)}`)?.scrollIntoView({ block: 'start' })
           }}
           onAdd={() => setDialog('add')}
           onRemove={setConfirmRemove}
@@ -238,7 +273,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
         <div className="section-strip">
           <span className="label">{selected?.session ? 'Agent' : selected?.branch ? 'Branch' : 'Details'}</span>
           {selected ? (
-            <button type="button" className="btn btn-quiet" onClick={() => setView({ selectedId: undefined })}>
+            <button type="button" className="btn btn-quiet" onClick={() => setShared({ selectedId: undefined })}>
               Clear
             </button>
           ) : null}
@@ -261,13 +296,14 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
   }
   const factory = (node: TabNode) => {
     const render = panels[node.getComponent() as TabComponent]
-    return render ? render() : <p className="small muted">Unknown panel “{node.getName()}”. Reset the layout from the View menu.</p>
+    return render ? render(node) : <p className="small muted">Unknown panel “{node.getName()}”. Reset the layout from View → Panels.</p>
   }
 
   const panelCommand = (panel: PanelId, label: string, shortcut: string, icon: Command['icon']): Command => ({
     id: `view.${panel}`,
     label,
     group: 'View',
+    submenu: 'Panels',
     shortcut,
     icon,
     pressed: dock.isPanelVisible(panel),
@@ -276,86 +312,120 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
   const toggle = (id: string, label: string, key: 'legendOpen' | 'agentNames' | 'barLabels' | 'showRemoteOnly' | 'collapseQuiet' | 'collapseSpawned'): Command => ({
     id,
     label,
-    group: 'View',
-    submenu: 'Dashboard',
+    group: 'Current view',
     pressed: view[key],
+    paletteOnly: true,
     // Switching a collapse mode resets the exceptions made under the old one.
-    run: () => setView((v) => ({ [key]: !v[key], ...(key === 'collapseQuiet' ? { expandedGroups: [] } : key === 'collapseSpawned' ? { toggledAgents: [] } : {}) })),
+    run: () => setCurrentView((v) => ({ [key]: !v[key], ...(key === 'collapseQuiet' ? { expandedGroups: [] } : key === 'collapseSpawned' ? { toggledAgents: [] } : {}) })),
   })
-  const zoom = (factor: number) => setView((v) => ({ zoom: clamp(Math.round(v.zoom * factor * 100) / 100, MIN_ZOOM, MAX_ZOOM) }))
+  const zoom = (factor: number) => setCurrentView((v) => ({ zoom: clamp(Math.round(v.zoom * factor * 100) / 100, MIN_ZOOM, MAX_ZOOM) }))
   const commands: Command[] = [
-    { id: 'repos.add', label: 'Add repositories', group: 'Repositories', icon: Plus, run: () => setDialog('add') },
-    ...(['activity', 'active', 'name', 'manual'] as RepoSort[]).map((sort) => ({
-      id: `repos.sort.${sort}`,
-      label: { activity: 'Last activity', active: 'Active agents', name: 'Name', manual: 'Manual order' }[sort],
-      group: 'Repositories' as const,
-      submenu: 'Sort by',
-      pressed: view.repoSort === sort,
-      run: () => setView({ repoSort: sort }),
-    })),
+    { id: 'file.export', label: 'Export…', group: 'File', run: () => void exportFile() },
+    { id: 'file.open', label: 'Open…', group: 'File', run: () => fileInput.current?.click() },
+    { id: 'file.settings', label: 'Settings', group: 'File', run: () => setDialog('settings') },
+    { id: 'file.diagnostics', label: 'Diagnostics', group: 'File', run: () => setDialog('diagnostics') },
+
     panelCommand('repositories', 'Repositories panel', 'Ctrl+B', PanelLeft),
     panelCommand('details', 'Details panel', 'Ctrl+Alt+B', PanelRight),
-    { id: 'view.maximize', label: 'Maximize dashboard', group: 'View', icon: Maximize2, pressed: dock.isMaximized(), run: dock.toggleMaximize },
-    { id: 'view.reset', label: 'Reset layout', group: 'View', icon: RotateCcw, run: dock.reset },
-    {
-      id: 'view.fullscreen',
-      label: 'Full screen',
-      group: 'View',
-      icon: Expand,
-      run: () => void (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => undefined),
-    },
-    toggle('view.legend', 'Legend', 'legendOpen'),
-    toggle('view.agentNames', 'Agent names in list', 'agentNames'),
-    toggle('view.barLabels', 'Agent labels on timeline', 'barLabels'),
-    toggle('view.spawned', 'Collapse spawned agents', 'collapseSpawned'),
-    toggle('view.remoteOnly', 'Remote-only branches', 'showRemoteOnly'),
-    toggle('view.quiet', 'Collapse quiet commits', 'collapseQuiet'),
-    ...(['sequence', 'time', 'compressed'] as const).map((mode) => ({
-      id: `view.axis.${mode}`,
-      label: { sequence: 'Commit order', time: 'Calendar time', compressed: 'Calendar, compressed' }[mode],
-      group: 'View' as const,
-      submenu: 'Axis',
-      pressed: view.axisMode === mode,
-      run: () => setView({ axisMode: mode }),
-    })),
-    { id: 'view.zoomIn', label: 'Zoom in', group: 'View', submenu: 'Axis', run: () => zoom(1.5) },
-    { id: 'view.zoomOut', label: 'Zoom out', group: 'View', submenu: 'Axis', run: () => zoom(1 / 1.5) },
-    { id: 'view.zoomReset', label: 'Reset zoom', group: 'View', submenu: 'Axis', run: () => setView({ zoom: 1 }) },
+    { id: 'view.maximize', label: 'Maximize view', group: 'View', submenu: 'Panels', pressed: dock.isMaximized(), run: () => dock.toggleMaximize(current?.id) },
+    { id: 'view.reset', label: 'Reset layout', group: 'View', submenu: 'Panels', run: dock.reset },
+    { id: 'view.new', label: 'Open new view', group: 'View', shortcut: 'Ctrl+Alt+N', run: openView },
     ...(['system', 'light', 'dark'] as ThemePreference[]).map((t) => ({
       id: `view.theme.${t}`,
       label: { system: 'Match the system', light: 'Light', dark: 'Dark' }[t],
       group: 'View' as const,
-      submenu: 'Theme',
+      submenu: 'Styling',
       pressed: theme === t,
       run: () => void chooseTheme(t),
     })),
     {
+      id: 'view.fullscreen',
+      label: 'Full screen',
+      group: 'View',
+      run: () => void (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => undefined),
+    },
+    { id: 'view.refresh', label: 'Refresh', group: 'View', run: () => void refresh() },
+    {
       id: 'view.themeCycle',
       label: `Switch theme (now ${theme})`,
       group: 'View',
-      submenu: 'Theme',
+      submenu: 'Styling',
+      paletteOnly: true,
       icon: theme === 'light' ? Sun : theme === 'dark' ? Moon : SunMoon,
       run: () => void chooseTheme(theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system'),
     },
-    { id: 'tools.diagnostics', label: 'Diagnostics', group: 'Tools', icon: Activity, run: () => setDialog('diagnostics') },
-    { id: 'tools.settings', label: 'Settings', group: 'Tools', icon: SettingsIcon, run: () => setDialog('settings') },
+
+    { id: 'current.rename', label: `Rename view (${current?.name ?? ''})…`, group: 'Current view', paletteOnly: true, run: () => setDialog('rename') },
+    toggle('current.legend', 'Legend', 'legendOpen'),
+    toggle('current.agentNames', 'Agent names in list', 'agentNames'),
+    toggle('current.barLabels', 'Agent labels on timeline', 'barLabels'),
+    toggle('current.spawned', 'Collapse spawned agents', 'collapseSpawned'),
+    toggle('current.remoteOnly', 'Remote-only branches', 'showRemoteOnly'),
+    toggle('current.quiet', 'Collapse quiet commits', 'collapseQuiet'),
+    ...(['sequence', 'time', 'compressed'] as const).map((mode) => ({
+      id: `current.axis.${mode}`,
+      label: `Axis: ${{ sequence: 'Commit order', time: 'Calendar time', compressed: 'Calendar, compressed' }[mode]}`,
+      group: 'Current view' as const,
+      paletteOnly: true,
+      pressed: view.axisMode === mode,
+      run: () => setCurrentView({ axisMode: mode }),
+    })),
+    { id: 'current.zoomIn', label: 'Zoom in', group: 'Current view', paletteOnly: true, run: () => zoom(1.5) },
+    { id: 'current.zoomOut', label: 'Zoom out', group: 'Current view', paletteOnly: true, run: () => zoom(1 / 1.5) },
+    { id: 'current.zoomReset', label: 'Reset zoom', group: 'Current view', paletteOnly: true, run: () => setCurrentView({ zoom: 1 }) },
+
+    { id: 'repos.add', label: 'Add repositories…', group: 'Repositories', paletteOnly: true, run: () => setDialog('add') },
+    ...(['activity', 'active', 'name', 'manual'] as RepoSort[]).map((sort) => ({
+      id: `repos.sort.${sort}`,
+      label: `Sort by ${{ activity: 'last activity', active: 'active agents', name: 'name', manual: 'manual order' }[sort]}`,
+      group: 'Repositories' as const,
+      paletteOnly: true,
+      pressed: state.repoSort === sort,
+      run: () => setShared({ repoSort: sort }),
+    })),
   ]
 
   return (
     <div className={styles.shell}>
       <Ribbon commands={commands} quick={QUICK_COMMANDS} paletteShortcut="Ctrl+K" />
 
+      <div className={styles.notices}>
+        {notice ? (
+          <InlineAlert tone="info" onDismiss={() => setNotice(undefined)}>
+            {notice}
+          </InlineAlert>
+        ) : null}
+        {error ? <InlineAlert tone="danger">{error}</InlineAlert> : null}
+      </div>
+
       <div className={styles.dock}>
-        <Layout model={dock.model} factory={factory} onModelChange={dock.onModelChange} keyMap={{ focusNextTabset: 'F6', focusPreviousTabset: 'Shift+F6' }} />
+        <Layout
+          model={dock.model}
+          factory={factory}
+          onModelChange={dock.onModelChange}
+          onAction={dock.onAction}
+          keyMap={{ focusNextTabset: 'F6', focusPreviousTabset: 'Shift+F6' }}
+        />
       </div>
 
       <GlobalStatusBar snapshot={snapshot} annotations={annotations} connection={connection} onDiagnostics={() => setDialog('diagnostics')} />
 
+      <input
+        ref={fileInput}
+        type="file"
+        accept="application/json,.json"
+        hidden
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          e.target.value = ''
+          if (f) void openFile(f)
+        }}
+      />
+
       {dialog === 'add' ? (
-        <AddRepositoryDialog
-          onClose={() => setDialog(undefined)}
-          onAdded={(ids) => setView((v) => ({ hiddenRepos: v.hiddenRepos.filter((x) => !ids.includes(x)) }))}
-        />
+        <AddRepositoryDialog onClose={() => setDialog(undefined)} onAdded={(ids) => setCurrentView((v) => ({ hiddenRepos: v.hiddenRepos.filter((x) => !ids.includes(x)) }))} />
       ) : null}
       {dialog === 'settings' ? (
         <SettingsPanel
@@ -367,9 +437,10 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
         />
       ) : null}
       {dialog === 'diagnostics' ? <DiagnosticsPanel onClose={() => setDialog(undefined)} /> : null}
+      {dialog === 'rename' && current ? <RenameDialog name={current.name} onClose={() => setDialog(undefined)} onRename={(name) => dock.renameView(current.id, name)} /> : null}
       {confirmRemove ? (
         <Dialog
-          title="Remove repository from dashboard"
+          title="Remove repository from repobs"
           onClose={() => setConfirmRemove(undefined)}
           footer={
             <>
@@ -385,14 +456,14 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
                   void removeRepository(repo)
                 }}
               >
-                Remove from dashboard
+                Remove from repobs
               </button>
             </>
           }
         >
           <p>
-            Stop observing <strong>{confirmRemove.displayName}</strong>? This only removes it from repobs. No files, branches or worktrees are deleted, and your
-            session notes are kept.
+            Stop observing <strong>{confirmRemove.displayName}</strong>? It disappears from every view. This only removes it from repobs: no files, branches or
+            worktrees are deleted, and your session notes are kept.
           </p>
         </Dialog>
       ) : null}
@@ -400,10 +471,57 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
   )
 }
 
-/** The selected agent, or the selected branch row as laid out on the dashboard (with its relations). */
-/** Icon buttons on the ribbon, in order. */
-const QUICK_COMMANDS = ['repos.add', 'view.repositories', 'view.details', 'view.maximize', 'view.reset', 'view.fullscreen', 'view.themeCycle', 'tools.diagnostics', 'tools.settings']
+/** View ids in a stored or opened arrangement (none if it does not parse). */
+function viewIdsOf(layout: unknown): string[] {
+  try {
+    return viewTabs(Model.fromJson(layout as IJsonModel)).map((t) => t.getId())
+  } catch {
+    return []
+  }
+}
 
+/** Icon buttons on the ribbon, in order. */
+const QUICK_COMMANDS = ['view.repositories', 'view.details', 'view.themeCycle']
+
+function RenameDialog({ name, onClose, onRename }: { name: string; onClose: () => void; onRename: (name: string) => boolean }) {
+  const [text, setText] = useState(name)
+  const submit = () => {
+    if (onRename(text)) onClose()
+  }
+  return (
+    <Dialog
+      title="Rename view"
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" className="btn btn-primary" onClick={submit}>
+            Rename
+          </button>
+        </>
+      }
+    >
+      <label className={styles.renameField}>
+        <span className="label">Name</span>
+        <input
+          className="input"
+          value={text}
+          maxLength={80}
+          autoFocus
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit()
+          }}
+        />
+      </label>
+      <p className="small muted">You can also double-click a view’s tab to rename it.</p>
+    </Dialog>
+  )
+}
+
+/** The selected agent, or the selected branch row as laid out in the current view (with its relations). */
 function resolveSelection(snapshot: Snapshot, layouts: Map<string, RepoLayout>, id: string | undefined): { session?: AgentSession; branch?: BranchRow } | undefined {
   if (!id) return undefined
   if (id.startsWith('session:')) {
