@@ -52,3 +52,9 @@
 
 - **Agent labels in the chronology (trial).** Each activity bar ends with the agent's name, workflow status and last-activity age, placed after the bar or, near the right edge of the axis, before it. The label marks the last *message*, not a commit: repobs does not attribute commits to agents.
 - **Two independent toggles**, both on by default: *Agent labels on timeline* and *Agent names in list*. Without names in the list the label column narrows (360 → 230 px) and keeps the spawn tree, provider mark and status/review menu, which stay in the fixed column because they rely on it (keyboard navigation, selection, the review menu).
+
+## Amendment (owner feedback, 2026-10-31, eighth review)
+
+- **No details on the dashboard.** Agent cards stay one line: the expanded block (state, excerpt, tags, notes) and *Expand agent details* are removed; that information is in the hover card and the details panel.
+- **The chevron is for spawned agents only.** It appears only on an agent that spawned others, with their count while hidden, and shows or hides them (also → / ←). Spawned agents start hidden (*Agents → Collapse spawned agents*, on by default); per-parent choices are exceptions to that switch and reset when it changes, like expanded quiet-commit groups. This replaces *Hide spawned agents*.
+- **The timeline label is a card.** The agent's label at the end of its bar is an HTML card styled like the list card — provider mark, name, last-activity age and the status badge with the same review menu — placed after the bar or before it near the axis end, in a layer above the lanes and under the sticky label column. Its review buttons are out of the tab order; the list card's menu is the keyboard route.

@@ -1,14 +1,13 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { type AgentSession, type AnnotationSummary, type ReviewState, workflowStatus } from '@repobs/contracts'
-import { formatAge, StatusIndicator } from '../../components/primitives'
 import type { TreeGuide } from './layout'
 import { ReviewMenu } from './ReviewMenu'
 import styles from './board.module.css'
 
 // One agent per line, as a card indented by its spawn depth: name (or your alias) and its workflow
 // status, which opens the review menu. Spawn lines run in the gutter left of the cards, so they can
-// pass between rows. Everything else is in the hover card, the expanded block (chevron, → / ←, or
-// "Expand agent details"), or the details panel.
+// pass between rows. An agent that spawned others has a chevron (or → / ←) that shows or hides them.
+// Details stay out of the dashboard: they are in the hover card and the details panel.
 
 /** Left edge of a depth-0 card and the indent per spawn level (px). */
 export const CARD_BASE = 8
@@ -19,29 +18,30 @@ export function AgentRow({
   annotation,
   guides,
   hasChildren,
+  childCount,
   expanded,
   focusable,
   showName = true,
-  now,
   onToggle,
   onReview,
 }: {
   session: AgentSession
   annotation?: AnnotationSummary
   guides: TreeGuide[]
+  /** Spawned agents are shown directly below. */
   hasChildren: boolean
+  /** Agents it spawned (0: no chevron). */
+  childCount: number
   expanded: boolean
   /** Whether the row's controls are in the tab order (the row is the current keyboard row). */
   focusable: boolean
   /** Off when names are shown on the timeline only: the card keeps the provider mark and status. */
   showName?: boolean
-  now: number
   onToggle: () => void
   onReview: (review: ReviewState) => void
 }) {
   const status = workflowStatus(session, annotation)
   const title = annotation?.displayAlias || session.title
-  const total = (annotation?.checklistOpen ?? 0) + (annotation?.checklistDone ?? 0)
   const depth = guides.length
   return (
     <div className={`${styles.agent} ${session.historical ? styles.historical : ''}`} data-status={status}>
@@ -51,54 +51,31 @@ export function AgentRow({
       {hasChildren ? <span className={styles.guideStub} style={{ left: CARD_BASE + depth * CARD_INDENT + 7 }} aria-hidden="true" /> : null}
       <div className={styles.card} style={{ marginLeft: CARD_BASE + depth * CARD_INDENT }}>
         <div className={styles.agentLine}>
-          <button
-            type="button"
-            className={styles.expand}
-            tabIndex={-1}
-            aria-label={expanded ? `Collapse ${title}` : `Expand ${title}`}
-            aria-expanded={expanded}
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggle()
-            }}
-          >
-            {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-          </button>
+          {childCount ? (
+            <button
+              type="button"
+              className={styles.expand}
+              tabIndex={-1}
+              aria-label={`${expanded ? 'Hide' : 'Show'} ${childCount} spawned ${childCount === 1 ? 'agent' : 'agents'} of ${title}`}
+              title={`${expanded ? 'Hide' : 'Show'} ${childCount} spawned ${childCount === 1 ? 'agent' : 'agents'}`}
+              aria-expanded={expanded}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggle()
+              }}
+            >
+              {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              {expanded ? null : <span className={styles.childCount}>{childCount}</span>}
+            </button>
+          ) : (
+            <span className={styles.expandSpace} aria-hidden="true" />
+          )}
           <span className={styles.providerMark} title={session.provider === 'claude' ? 'Claude Code' : 'Codex'}>
             {session.provider === 'claude' ? 'C' : 'X'}
           </span>
           {showName ? <span className={styles.agentName}>{title}</span> : <span className={styles.agentName} />}
           <ReviewMenu status={status} review={annotation?.review ?? 'unreviewed'} title={title} focusable={focusable} onReview={onReview} />
         </div>
-        {expanded ? (
-          <div className={styles.agentMore} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.moreLine}>
-              <StatusIndicator state={session.state} />
-              <span className="mono small muted">{formatAge(session.lastActivityAt, now)} ago</span>
-              {session.agentType ? <span className="small muted">{session.agentType}</span> : null}
-              {total ? (
-                <span className="mono small muted">
-                  ☑ {annotation!.checklistDone}/{total}
-                </span>
-              ) : null}
-            </div>
-            {session.lastMessage ? (
-              <p className={styles.excerpt}>
-                <span className={styles.excerptKind}>{session.lastMessage.kind === 'tool' ? 'Tool' : 'Agent'}</span> {session.lastMessage.text}
-              </p>
-            ) : null}
-            {annotation?.tags.length ? (
-              <div className={styles.tags}>
-                {annotation.tags.map((t) => (
-                  <span key={t} className={styles.tag}>
-                    {t}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            {annotation?.note ? <p className={styles.note}>{annotation.note}</p> : null}
-          </div>
-        ) : null}
       </div>
     </div>
   )

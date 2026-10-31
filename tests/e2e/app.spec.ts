@@ -85,7 +85,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     const a = board(page, 'repo-a')
     await expect(row(page, /^main branch, \d+ uncommitted changes/)).toBeVisible()
     await expect(row(page, /^feature\/tracked branch/)).toBeVisible()
-    const svg = a.locator('svg[aria-hidden="true"]').last()
+    const svg = a.locator('svg[data-lanes]')
     await expect(svg.locator('circle').first()).toBeAttached()
     expect(await svg.locator('circle[class*="local"]').count()).toBeGreaterThan(0)
     expect(await svg.locator('circle[class*="pushed"]').count()).toBeGreaterThan(0)
@@ -110,8 +110,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await setOption(page, 'Timeline', 'Calendar, compressed')
     await expect(page.getByText('Calendar, compressed →')).toBeVisible()
     const xs = await board(page, 'repo-a')
-      .locator('svg[aria-hidden="true"]')
-      .last()
+      .locator('svg[data-lanes]')
       .locator('circle[class*="commit"]')
       .evaluateAll((els) => els.map((e) => Number(e.getAttribute('cx'))))
     const sorted = [...new Set(xs)].sort((a, b) => a - b)
@@ -122,7 +121,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('hovering a commit shows its message; the legend explains the marks', async ({ page }) => {
     await pair(page)
-    const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()
+    const svg = board(page, 'repo-a').locator('svg[data-lanes]')
     const node = svg.locator('circle[class*="local"]').first()
     await node.scrollIntoViewIfNeeded()
     const box = (await node.boundingBox())!
@@ -140,7 +139,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('branch connectors are orthogonal with rounded corners', async ({ page }) => {
     await pair(page)
-    const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()
+    const svg = board(page, 'repo-a').locator('svg[data-lanes]')
     const paths = await svg.locator('path[class*="edgeCross"]').evaluateAll((els) => els.map((e) => e.getAttribute('d') ?? ''))
     expect(paths.length).toBeGreaterThan(0)
     // Only axis-aligned straight segments joined by small quadratic corners; no free-form curves.
@@ -155,7 +154,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('connectors leaving one commit run on separate parallel tracks', async ({ page }) => {
     await pair(page)
-    const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()
+    const svg = board(page, 'repo-a').locator('svg[data-lanes]')
     // Every fork from main's commit gets its own vertical track until the tracks run out.
     const xs = await svg.locator('path[class*="edgeCross"]').evaluateAll((els) =>
       els.map((e) => (e.getAttribute('d') ?? '').match(/Q([\d.-]+),/)?.[1]).filter((x): x is string => !!x),
@@ -165,7 +164,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('quiet commits collapse into a group you can hover, inspect and expand', async ({ page }) => {
     await pair(page)
-    const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()
+    const svg = board(page, 'repo-a').locator('svg[data-lanes]')
     const commitsBefore = await svg.locator('circle[class*="commit"]').count()
     await setOption(page, 'Branches', 'Collapse quiet commits')
     const group = svg.locator('g[class*="group"]').first()
@@ -189,32 +188,41 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await setOption(page, 'Branches', 'Collapse quiet commits', false)
   })
 
-  test('agents are one line; details expand on demand or on hover; spawned agents can be hidden', async ({ page }) => {
+  test('agents are one line with details on hover; the chevron shows spawned agents', async ({ page }) => {
     await pair(page)
     const parent = row(page, /^Claude session c3d2e4f6, Claude Code agent/)
     await expect(parent).toContainText('Working')
     await expect(parent).not.toContainText('synthetic answer')
-    const box = (await parent.boundingBox())!
-    expect(box.height).toBeLessThanOrEqual(30)
-    // Hover card shows the details.
+    expect((await parent.boundingBox())!.height).toBeLessThanOrEqual(30)
+    // Hover card shows the details; the dashboard itself never expands an agent.
     await parent.getByText('Claude session c3d2e4f6').hover()
     await expect(page.getByRole('dialog', { name: 'Agent details' })).toContainText('synthetic answer')
-    // The chevron expands one agent.
-    await parent.getByRole('button', { name: /^Expand / }).click()
-    await expect(parent).toContainText('synthetic answer')
-    await expect(parent).toContainText('Running subagents')
-    await parent.getByRole('button', { name: /^Collapse / }).click()
-    await expect(parent).not.toContainText('synthetic answer')
+    await page.mouse.move(5, 5)
+    // Only an agent that spawned others has a chevron; its agents start hidden.
+    await expect(row(page, /^Add rename detection test/).getByRole('button', { name: /spawned agent/ })).toHaveCount(0)
     const child = row(page, /^Map the feature module/)
+    await expect(child).toBeHidden()
+    await parent.getByRole('button', { name: 'Show 2 spawned agents of Claude session c3d2e4f6' }).click()
     await expect(child).toBeVisible()
+    await expect(parent).toHaveAttribute('aria-expanded', 'true')
+    await expect(parent).not.toContainText('synthetic answer')
     // Spawned agents are cards indented under their parent; the tree line runs left of the cards.
     const left = async (r: typeof child) => (await r.locator('[class*="card"]').first().boundingBox())!.x
     expect(await left(child)).toBeGreaterThan((await left(parent)) + 10)
     await expect(child.locator('[class*="guide_"]')).toHaveCount(1)
-    await setOption(page, 'Agents', 'Hide spawned agents')
+    await parent.getByRole('button', { name: 'Hide 2 spawned agents of Claude session c3d2e4f6' }).click()
     await expect(child).toBeHidden()
-    await setOption(page, 'Agents', 'Hide spawned agents', false)
+    // Right and left arrows do the same from the keyboard.
+    await parent.focus()
+    await page.keyboard.press('ArrowRight')
     await expect(child).toBeVisible()
+    await page.keyboard.press('ArrowLeft')
+    await expect(child).toBeHidden()
+    // Turning collapsing off shows every spawned agent.
+    await setOption(page, 'Agents', 'Collapse spawned agents', false)
+    await expect(child).toBeVisible()
+    await setOption(page, 'Agents', 'Collapse spawned agents')
+    await expect(child).toBeHidden()
   })
 
   test('filters by harness, status and last-message time', async ({ page }) => {
@@ -247,11 +255,9 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(row(page, /^main branch/).first()).toBeFocused()
     await page.keyboard.press('ArrowDown')
     const focused = page.locator('[data-nav-row]:focus')
-    await expect(focused).toHaveAttribute('aria-expanded', 'false')
-    await page.keyboard.press('ArrowRight')
-    await expect(focused).toHaveAttribute('aria-expanded', 'true')
-    await page.keyboard.press('ArrowLeft')
-    await expect(focused).toHaveAttribute('aria-expanded', 'false')
+    // An agent without spawned agents has nothing to expand (right/left arrows: see the spawned-agents test).
+    await expect(focused).toHaveAttribute('data-session-id', /.+/)
+    expect(await focused.getAttribute('aria-expanded')).toBeNull()
     await page.keyboard.press('Enter')
     await expect(details(page).getByRole('heading', { level: 2 })).toBeVisible()
     await expect(details(page).getByLabel('Review state')).toBeVisible()
@@ -287,12 +293,13 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await d.getByRole('button', { name: 'Show completed' }).click()
     await expect(d.getByRole('checkbox', { name: 'Verify fixture coverage' })).toBeChecked()
 
-    // Details mode shows notes (with the line break) and tags on the card; the tag filter narrows.
-    await setOption(page, 'Agents', 'Expand agent details')
-    const card = row(page, /^Review ref grouping/)
-    // innerText honours the card's pre-wrap styling, so the line break must survive rendering.
-    expect(await card.locator('p', { hasText: 'Line one' }).evaluate((e) => (e as HTMLElement).innerText)).toBe('Line one\nLine two')
-    await expect(card).toContainText('needs-tests')
+    // The hover card shows notes (with the line break) and tags; the tag filter narrows.
+    await row(page, /^Review ref grouping/).getByText('Review ref grouping', { exact: true }).hover()
+    const hover = page.getByRole('dialog', { name: 'Agent details' })
+    // innerText honours the note's pre-wrap styling, so the line break must survive rendering.
+    expect(await hover.locator('p', { hasText: 'Line one' }).evaluate((e) => (e as HTMLElement).innerText)).toBe('Line one\nLine two')
+    await expect(hover).toContainText('needs-tests')
+    await page.mouse.move(5, 5)
     await dropdown(page, 'Tags').click()
     await page.getByRole('combobox', { name: 'Filter by tags' }).fill('needs')
     await page.getByRole('combobox', { name: 'Filter by tags' }).press('Enter')
@@ -301,7 +308,6 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(row(page, /^Document worktree states/)).toBeHidden()
     await expect(row(page, /^Tighten status parser/)).toBeVisible()
     await page.getByRole('button', { name: 'Clear filters' }).click()
-    await setOption(page, 'Agents', 'Expand agent details', false)
   })
 
   test('the status on a card and in its hover card is a review menu', async ({ page }) => {
@@ -375,10 +381,20 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('agent labels on the timeline and names in the list toggle independently', async ({ page }) => {
     await pair(page)
-    const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()
-    const label = svg.locator('text[data-bar-label^="claude:c3d2e4f6"]').first()
+    const cards = board(page, 'repo-a').getByRole('group', { name: 'Agents on the timeline of repo-a' })
+    const label = cards.locator('[data-bar-label^="claude:c3d2e4f6"]').first()
     await expect(label).toContainText('Claude session c3d2e4f6')
     await expect(label).toContainText('Working')
+    // The card at the end of the work carries the same status menu as the card in the list.
+    const idle = cards.locator('[data-bar-label]', { hasText: 'Document worktree states' })
+    const menu = page.getByRole('menu', { name: 'Review state of Document worktree states' })
+    await idle.getByRole('button', { name: 'Unreviewed: change review state of Document worktree states' }).click()
+    await menu.getByRole('menuitemradio', { name: 'Needs review' }).click()
+    await expect(idle.getByRole('button', { name: /^Needs review: change review state/ })).toBeVisible()
+    await expect(row(page, /^Document worktree states/)).toContainText('Needs review')
+    await idle.getByRole('button', { name: /change review state/ }).click()
+    await menu.getByRole('menuitemradio', { name: 'Unreviewed' }).click()
+    await expect(idle).toContainText('Unreviewed')
     const parent = row(page, /^Claude session c3d2e4f6, Claude Code agent/)
     const before = (await parent.boundingBox())!.width
 
@@ -392,14 +408,14 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     // Names only in the list.
     await setOption(page, 'Agents', 'Agent names in list')
     await setOption(page, 'Agents', 'Agent labels on timeline', false)
-    await expect(svg.locator('text[data-bar-label]')).toHaveCount(0)
+    await expect(board(page, 'repo-a').locator('[data-bar-label]')).toHaveCount(0)
     await expect(parent).toContainText('Claude session c3d2e4f6')
     await setOption(page, 'Agents', 'Agent labels on timeline')
   })
 
   test('the history zooms horizontally', async ({ page }) => {
     await pair(page)
-    const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()
+    const svg = board(page, 'repo-a').locator('svg[data-lanes]')
     const width = async () => Number(await svg.getAttribute('width'))
     const before = await width()
     await page.getByRole('button', { name: 'Zoom in' }).click()
@@ -446,19 +462,18 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   })
 
-  test('settings: turning off message excerpts removes them from cards', async ({ page }) => {
+  test('settings: turning off message excerpts removes them from agent details', async ({ page }) => {
     await pair(page)
-    await setOption(page, 'Agents', 'Expand agent details')
-    await expect(row(page, /^Document worktree states/)).toContainText('synthetic answer')
+    await openCard(page, 'Document worktree states')
+    await expect(details(page)).toContainText('synthetic answer')
     await page.getByRole('button', { name: 'Settings' }).click()
     const settings = page.getByRole('dialog', { name: 'Settings' })
     await settings.getByLabel('Show latest message excerpts on agent cards').uncheck()
     await settings.getByRole('button', { name: 'Save settings' }).click()
-    await expect(row(page, /^Document worktree states/)).not.toContainText('synthetic answer', { timeout: 15_000 })
+    await expect(details(page)).not.toContainText('synthetic answer', { timeout: 15_000 })
     await page.getByRole('button', { name: 'Settings' }).click()
     await settings.getByLabel('Show latest message excerpts on agent cards').check()
     await settings.getByRole('button', { name: 'Save settings' }).click()
-    await setOption(page, 'Agents', 'Expand agent details', false)
   })
 
   test('diagnostics report adapters without transcript text', async ({ page }) => {

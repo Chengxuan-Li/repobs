@@ -81,9 +81,25 @@ describe('layoutRepository', () => {
     ])
   })
 
-  it('can hide spawned agents, idle branches, and show remote-only refs', () => {
+  it('collapses spawned agents under their parent, with per-agent exceptions', () => {
     const s = setup()
-    const hidden = layoutRepository(s.r, { ...s, annotations: new Map() }, { ...DEFAULT_LAYOUT, showSpawned: false, branchMode: 'with_agents' })
+    const collapsed = layoutRepository(s.r, { ...s, annotations: new Map() }, { ...DEFAULT_LAYOUT, collapseSpawned: true })
+    expect(collapsed.rows.find((r) => r.id === 'session:claude:p')).toMatchObject({ childCount: 1, expanded: false, hasChildren: false })
+    expect(collapsed.rows.some((r) => r.id === 'session:claude:p__agent-1')).toBe(false)
+    expect(collapsed.spawnLinks).toEqual([])
+    const opened = layoutRepository(s.r, { ...s, annotations: new Map() }, { ...DEFAULT_LAYOUT, collapseSpawned: true, toggledAgents: new Set(['claude:p']) })
+    expect(opened.rows.find((r) => r.id === 'session:claude:p')).toMatchObject({ childCount: 1, expanded: true, hasChildren: true })
+    expect(opened.rows.some((r) => r.id === 'session:claude:p__agent-1')).toBe(true)
+    // Not collapsing: the toggle hides one parent's agents instead.
+    const shut = layoutRepository(s.r, { ...s, annotations: new Map() }, { ...DEFAULT_LAYOUT, toggledAgents: new Set(['claude:p']) })
+    expect(shut.rows.some((r) => r.id === 'session:claude:p__agent-1')).toBe(false)
+    // An agent without spawned agents is never "expanded".
+    expect(opened.rows.find((r) => r.id === 'session:codex:o')).toMatchObject({ childCount: 0, expanded: false })
+  })
+
+  it('can hide idle branches and show remote-only refs', () => {
+    const s = setup()
+    const hidden = layoutRepository(s.r, { ...s, annotations: new Map() }, { ...DEFAULT_LAYOUT, collapseSpawned: true, branchMode: 'with_agents' })
     expect(hidden.rows.map((r) => r.id)).toEqual(['branch:r|refs/heads/main', 'session:codex:o', 'branch:r|refs/heads/feature', 'session:claude:p'])
     const remote = layoutRepository(s.r, { ...s, annotations: new Map() }, { ...DEFAULT_LAYOUT, showRemoteOnly: true })
     expect(remote.rows.at(-1)).toMatchObject({ kind: 'branch', remoteOnly: true, label: 'origin/feature' })

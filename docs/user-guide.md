@@ -63,26 +63,25 @@ All repositories share one horizontal axis, labelled at the top; scroll sideways
 
 ## Agents
 
-Each Claude Code or Codex session is a **one-line card** under the branch whose worktree it ran in, newest first: an expand chevron, a provider mark (**C** = Claude Code, **X** = Codex), the name (your alias if you set one, else the provider title or a fallback such as *Claude session 1a2b3c4d*) and its **workflow status** — *Needs input*, *Working*, *Needs review*, *Unreviewed*, *Complete* or *Unknown* (see [Status semantics](status-semantics.md)). Its bar on the lanes runs from its first to its last activity, coloured by that status.
+Each Claude Code or Codex session is a **one-line card** under the branch whose worktree it ran in, newest first: a chevron with a count if it spawned other agents, a provider mark (**C** = Claude Code, **X** = Codex), the name (your alias if you set one, else the provider title or a fallback such as *Claude session 1a2b3c4d*) and its **workflow status** — *Needs input*, *Working*, *Needs review*, *Unreviewed*, *Complete* or *Unknown* (see [Status semantics](status-semantics.md)). Its bar on the lanes runs from its first to its last activity, coloured by that status.
 
 **Click the status** to set your review state from a menu (Unreviewed, Needs review, Reviewed, Complete, Flagged); the same menu is in the agent's hover card. A finished agent you have not reviewed shows *Unreviewed*, never a success colour.
 
-Everything else is collapsed:
+Cards never grow on the dashboard; the details are a hover or a click away:
 
-- **Hover** the row or its bar for the observed state and why, last activity, the **latest message excerpt** (the agent's last reply, or the tool it is running with the tool's own description), review state, tags, notes and checklist progress. The row's card opens beside the label column; move onto it to use its review menu.
-- **Expand** one agent with its chevron (or → on the keyboard; ← collapses), or all agents with **Expand agent details**. The expanded block shows the state, the excerpt, tags and full notes (line breaks kept).
+- **Hover** the row or its bar for the observed state and why, last activity, the **latest message excerpt** (the agent's last reply, or the tool it is running with the tool's own description), review state, tags, notes (line breaks kept) and checklist progress. The row's card opens beside the label column; move onto it to use its review menu.
 - **Select** it (click its name, or Enter) to open it in the details panel.
 
 Excerpts are read mechanically from the provider's files, truncated, with obvious secrets redacted, and never stored; Settings → Privacy turns them off.
 
 **Where agent names appear** — two independent toggles in the **Agents** dropdown:
 
-- **Agent labels on timeline** (on by default): each agent's bar ends with its name, status and how long ago it was last active, so you read who worked when right in the history. Near the right edge the label moves to the left of the bar. Hovering a label shows the agent's card.
+- **Agent labels on timeline** (on by default): each agent's bar ends with a card like the one in the list: provider mark, name, how long ago it was last active and its status, which opens the same review menu. You read who worked when right in the history and can review there. Near the right edge the card moves to the left of the bar; click it to select the agent.
 - **Agent names in list** (on by default): the names in the label column. Turn it off to give the history more room: the column narrows and each card keeps its provider mark, spawn-tree position and status menu.
 
 Either, both or neither can be on; with both off, hover a card or bar to see who it is.
 
-Spawned agents (Claude Code subagents, Codex sub-threads) are cards indented one step per spawn level under the agent that started them. The tree lines run in the gutter left of the cards and continue across rows, from the bottom of the parent's card to each child; on the lanes, a thin line links the parent's bar to its children's; **Hide spawned agents** removes them. Long lists show the 12 newest agents per branch and a *Show N more agents* row.
+Spawned agents (Claude Code subagents, Codex sub-threads) start hidden under the agent that started them, whose card shows a chevron and how many it spawned (› 2). Click the chevron, or press → on the focused row (← hides them again), to show them: cards indented one step per spawn level, with tree lines in the gutter left of the cards that continue across rows, from the bottom of the parent's card to each child; on the lanes, a thin line links the parent's bar to its children's. Untick **Agents → Collapse spawned agents** to show every spawned agent (the chevrons then hide them one parent at a time); switching it resets the individual choices. Long lists show the 12 newest agents per branch and a *Show N more agents* row.
 
 ## Your notes
 
@@ -113,7 +112,7 @@ The agent count follows the filters, and **Clear filters** resets them. Filters 
 **View options** (how the history is drawn):
 
 - **Branches**: all branches, checked-out ones, or branches with agents; *Remote-only branches*; *Collapse quiet commits*.
-- **Agents**: *Hide spawned agents*, *Expand agent details*, *Agent names in list*, *Agent labels on timeline*.
+- **Agents**: *Collapse spawned agents*, *Agent names in list*, *Agent labels on timeline*.
 - **Timeline**: the axis mode and how much history to show.
 - **Legend** explains every mark.
 
@@ -125,7 +124,7 @@ Check boxes keep the dropdown open so you can set several; Esc or a click elsewh
 | --- | --- |
 | Tab to the dashboard, then ↓ | Focus the first row |
 | ↑ / ↓, Home / End | Move between branch and agent rows across repositories |
-| → / ← | Expand / collapse the focused agent |
+| → / ← | Show / hide the agents the focused agent spawned |
 | Enter or Space | Select the row (opens it in the details panel) |
 | Esc | Close dialogs, menus and suggestion lists |
 | Ctrl+K | Search commands |

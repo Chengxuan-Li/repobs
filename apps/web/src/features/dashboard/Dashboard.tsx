@@ -137,7 +137,6 @@ export function Dashboard({
     for (const s of snapshot.sessions) if (s.parentSessionId) m.set(s.parentSessionId, (m.get(s.parentSessionId) ?? 0) + 1)
     return m
   }, [snapshot.sessions])
-  const expandedAgents = useMemo(() => new Set(view.expandedAgents), [view.expandedAgents])
   const collapsed = useMemo(() => new Set(view.collapsedRepos), [view.collapsedRepos])
 
   // Interactive cards (commit lists) stay open briefly so the pointer can move onto them.
@@ -160,8 +159,9 @@ export function Dashboard({
     },
     [setView],
   )
+  /** Shows or hides the agents a session spawned. */
   const toggleAgent = useCallback(
-    (id: string) => setView((v) => ({ expandedAgents: v.expandedAgents.includes(id) ? v.expandedAgents.filter((x) => x !== id) : [...v.expandedAgents, id] })),
+    (id: string) => setView((v) => ({ toggledAgents: v.toggledAgents.includes(id) ? v.toggledAgents.filter((x) => x !== id) : [...v.toggledAgents, id] })),
     [setView],
   )
   const toggleCollapsed = useCallback(
@@ -170,8 +170,8 @@ export function Dashboard({
   )
   const expandBranch = useCallback((rowId: string) => setView((v) => ({ expandedBranches: [...v.expandedBranches, rowId] })), [setView])
 
-  // Keyboard: ↑/↓/Home/End move between rows across repositories, → / ← expand or collapse an
-  // agent, Enter/Space selects.
+  // Keyboard: ↑/↓/Home/End move between rows across repositories, → / ← show or hide an agent's
+  // spawned agents, Enter/Space selects.
   const onKeyDown = (e: React.KeyboardEvent) => {
     const target = e.target as HTMLElement
     if (['SELECT', 'INPUT', 'TEXTAREA'].includes(target.tagName)) return
@@ -184,12 +184,13 @@ export function Dashboard({
       el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
     }
     const sessionId = current >= 0 ? rows[current]!.dataset.sessionId : undefined
+    const expanded = current >= 0 ? rows[current]!.getAttribute('aria-expanded') : null
     if (e.key === 'ArrowDown') focus(current + 1)
     else if (e.key === 'ArrowUp') focus(current < 0 ? 0 : current - 1)
     else if (e.key === 'Home') focus(0)
     else if (e.key === 'End') focus(rows.length - 1)
-    else if (e.key === 'ArrowRight' && sessionId && !expandedAgents.has(sessionId)) toggleAgent(sessionId)
-    else if (e.key === 'ArrowLeft' && sessionId && expandedAgents.has(sessionId)) toggleAgent(sessionId)
+    else if (e.key === 'ArrowRight' && sessionId && expanded === 'false') toggleAgent(sessionId)
+    else if (e.key === 'ArrowLeft' && sessionId && expanded === 'true') toggleAgent(sessionId)
     else if ((e.key === 'Enter' || e.key === ' ') && current >= 0) rows[current]!.click()
     else if (e.ctrlKey || e.metaKey || e.altKey) return
     else if (e.key === '+' || e.key === '=') zoomTo(view.zoom * ZOOM_STEP)
@@ -211,7 +212,7 @@ export function Dashboard({
         onScroll={() => setHover(undefined)}
         data-menu-bounds=""
         tabIndex={0}
-        aria-label="Branches and agents. Use the arrow keys to move between rows, right and left arrows to expand or collapse an agent, Enter to open it, plus and minus to zoom the history."
+        aria-label="Branches and agents. Use the arrow keys to move between rows, right and left arrows to show or hide an agent's spawned agents, Enter to open it, plus and minus to zoom the history."
         style={{ ['--axis-height' as string]: `${AXIS_HEIGHT}px`, ['--label-w' as string]: `${labelW}px` }}
       >
         <div className={styles.canvas} style={{ width: labelW + timeline.width }}>
@@ -260,8 +261,6 @@ export function Dashboard({
                 agentNames={view.agentNames}
                 barLabels={view.barLabels}
                 viewportWidth={viewport}
-                expandAll={view.details}
-                expandedAgents={expandedAgents}
                 now={now}
                 collapsed={collapsed.has(repo.id)}
                 selectedId={view.selectedId}
@@ -312,10 +311,10 @@ export function Dashboard({
                         annotation={annotations.get(s.id)}
                         guides={[]}
                         hasChildren={false}
-                        expanded={view.details || expandedAgents.has(s.id)}
+                        childCount={0}
+                        expanded={false}
                         focusable={view.selectedId === `session:${s.id}`}
                         showName={view.agentNames}
-                        now={now}
                         onToggle={() => toggleAgent(s.id)}
                         onReview={(r) => onReview(s.id, r)}
                       />

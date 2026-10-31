@@ -213,9 +213,16 @@
 .row_session:hover .label {
   background: var(--color-bg);
 }
-.expand {
+.expand,
+.expandSpace {
   flex: none;
+  width: 22px;
+}
+.expand {
   display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  height: 18px;
   border: 0;
   background: none;
   padding: 0;
@@ -224,6 +231,11 @@
 }
 .expand:hover {
   color: var(--color-accent);
+}
+.childCount {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1;
 }
 .providerMark {
   flex: none;
@@ -244,52 +256,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.agentMore {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 2px var(--space-2) 6px 21px;
-  cursor: default;
-}
-.moreLine {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.excerpt {
-  margin: 0;
-  font-size: var(--font-size-small);
-  overflow-wrap: anywhere;
-}
-.excerptKind {
-  font-family: var(--label-font);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-tracking);
-  text-transform: var(--label-case);
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-}
-.tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.tag {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-label);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-raised);
-  padding: 0 5px;
-  line-height: 17px;
-}
-.note {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font-size: var(--font-size-small);
-}
-
 /* Lanes (SVG) */
 .baseline {
   stroke: var(--color-border);
@@ -384,28 +350,42 @@
 .bar_danger {
   fill: var(--tone-danger-text);
 }
-/* Agent label at the end of its bar: a halo keeps it readable over lines it crosses. */
-.barLabel {
-  font-size: 11px;
-  fill: var(--color-text-muted);
-  paint-order: stroke;
-  stroke: var(--color-bg);
-  stroke-width: 3px;
-  stroke-linejoin: round;
-  pointer-events: all;
-  cursor: help;
+/* Agent cards at the end of their bars: above the lanes, under the sticky label column. */
+.barCards {
+  position: absolute;
+  top: 0;
+  z-index: 2;
+  pointer-events: none;
 }
-.barLabelName {
-  fill: var(--color-text);
+.barCard {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  max-width: 26rem;
+  padding: 0 3px 0 4px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: default;
 }
-.barLabel_warning {
-  fill: var(--tone-warning-text);
+.barCard:hover {
+  border-color: var(--color-border-interactive);
 }
-.barLabel_info {
-  fill: var(--tone-info-text);
+.barCardSelected,
+.barCardSelected:hover {
+  border-color: var(--color-accent);
+  background: var(--color-selected-bg);
 }
-.barLabel_danger {
-  fill: var(--tone-danger-text);
+.barCard .agentName {
+  flex: 0 1 auto;
+}
+.barCardAge {
+  flex: none;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
 }
 .spawnLink {
   stroke: var(--color-text-muted);

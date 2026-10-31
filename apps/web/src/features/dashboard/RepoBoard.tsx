@@ -14,13 +14,15 @@ import {
 import { Badge, formatAge } from '../../components/primitives'
 import { AgentRow } from './AgentRow'
 import { AgentHover, BranchHover, CommitHover, GroupHover, PendingHover, type ShowHover } from './HoverCard'
-import type { BoardRow, BranchRow, RepoLayout } from './layout'
+import type { BoardRow, BranchRow, RepoLayout, SessionRow } from './layout'
+import { ReviewMenu } from './ReviewMenu'
 import { type RouteInput, routeEdges } from './routing'
 import { PAD, type Timeline } from './timeline'
 import styles from './board.module.css'
 
 // One repository: a sticky label column (branches and one-line agents) and lanes drawn as one SVG
-// on the shared axis. Row positions are measured, so expanded agents can be taller.
+// on the shared axis, with a card per agent at the end of its activity. Row positions are measured
+// and shared by the lanes and the cards.
 
 export const LABEL_W = 360
 /** Label column width when agent names are shown on the timeline only. */
@@ -41,11 +43,9 @@ export interface RepoBoardProps {
   labelWidth: number
   /** Agent names in the label column. */
   agentNames: boolean
-  /** Agent labels at the end of their activity bars. */
+  /** Agent cards at the end of their activity bars. */
   barLabels: boolean
   viewportWidth: number
-  expandAll: boolean
-  expandedAgents: Set<string>
   now: number
   collapsed: boolean
   selectedId?: string
@@ -79,7 +79,7 @@ export const RepoBoard = memo(function RepoBoard(props: RepoBoardProps) {
     const next = { rows, height: el.scrollHeight }
     setGeo((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
   }, [])
-  useLayoutEffect(() => measure(), [measure, layout, props.expandAll, props.expandedAgents, collapsed])
+  useLayoutEffect(() => measure(), [measure, layout, collapsed])
   useLayoutEffect(() => {
     const el = rowsRef.current
     if (!el || typeof ResizeObserver === 'undefined') return
@@ -120,6 +120,7 @@ export const RepoBoard = memo(function RepoBoard(props: RepoBoardProps) {
             width={timeline.width}
             height={geo.height}
             aria-hidden="true"
+            data-lanes=""
             onClick={(e) => {
               // Nodes and bars take pointer events (for hover cards); a click on them selects their row.
               const y = e.clientY - e.currentTarget.getBoundingClientRect().top
@@ -129,6 +130,7 @@ export const RepoBoard = memo(function RepoBoard(props: RepoBoardProps) {
           >
             <Overlay {...props} geo={geo} />
           </svg>
+          {props.barLabels ? <BarCards {...props} geo={geo} /> : null}
         </div>
       )}
     </section>
@@ -165,7 +167,6 @@ function Row(props: { row: BoardRow } & RepoBoardProps) {
     )
   }
   const s = row.session
-  const expanded = props.expandAll || props.expandedAgents.has(s.id)
   const parent = s.parentSessionId ? props.sessionsById.get(s.parentSessionId) : undefined
   // Opens beside the label column, so the pointer can move onto it (to change the review state)
   // without crossing other rows.
@@ -192,7 +193,7 @@ function Row(props: { row: BoardRow } & RepoBoardProps) {
       {...common}
       data-session-id={s.id}
       aria-label={`${row.annotation?.displayAlias || s.title}, ${s.provider === 'claude' ? 'Claude Code' : 'Codex'} agent`}
-      aria-expanded={expanded}
+      aria-expanded={row.childCount ? row.expanded : undefined}
       onClick={() => onSelect(row.id)}
     >
       <div className={styles.label} onMouseEnter={hover} onMouseLeave={hideHover}>
@@ -201,10 +202,10 @@ function Row(props: { row: BoardRow } & RepoBoardProps) {
           annotation={row.annotation}
           guides={row.guides}
           hasChildren={row.hasChildren}
-          expanded={expanded}
+          childCount={row.childCount}
+          expanded={row.expanded}
           focusable={tabbableId === row.id}
           showName={props.agentNames}
-          now={props.now}
           onToggle={() => props.onToggleAgent(s.id)}
           onReview={(r) => props.onReview(s.id, r)}
         />
@@ -405,11 +406,9 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     if (row.kind !== 'session') continue
     const y = center(row.id)
     const s = row.session
-    const start = Date.parse(s.firstSeenAt ?? s.lastActivityAt ?? '')
-    const end = Date.parse(s.lastActivityAt ?? s.firstSeenAt ?? '') || start
-    if (y === undefined || !start || end < timeline.start) continue
-    const x1 = timeline.x(start)
-    const x2 = Math.max(x1 + 4, timeline.x(end))
+    const span = barSpan(s, timeline)
+    if (y === undefined || !span) continue
+    const { x1, x2 } = span
     barStart.set(row.id, x1)
     const status = workflowStatus(s, annotations.get(s.id))
     const tone = WORKFLOW_TONES[status]
@@ -420,22 +419,6 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
         <rect x={x1} y={y - 3} width={x2 - x1} height={6} className={`${styles.bar} ${styles[`bar_${tone}`]}`} />
       </g>,
     )
-    if (props.barLabels) {
-      // Name and age at the end of the work; flipped before the bar when it would run off the axis.
-      const name = clip(row.annotation?.displayAlias || s.title, 48)
-      const age = s.lastActivityAt ? formatAge(s.lastActivityAt, now) : ''
-      const tail = WORKFLOW_LABELS[status] + (age ? ` · ${age === 'now' ? 'now' : `${age} ago`}` : '')
-      const w = (name.length + tail.length + 3) * 6.2
-      const after = x2 + 8 + w <= timeline.width - 4
-      const before = !after && x1 - 8 - w >= 4
-      const lx = after ? x2 + 8 : before ? x1 - 8 : Math.max(4, timeline.width - 4 - w)
-      els.push(
-        <text key={`bl-${row.id}`} x={lx} y={y + 4} textAnchor={after || !before ? 'start' : 'end'} className={styles.barLabel} data-bar-label={s.id} {...hover}>
-          <tspan className={styles.barLabelName}>{name}</tspan>
-          <tspan className={styles[`barLabel_${tone}`]}> · {tail}</tspan>
-        </text>,
-      )
-    }
   }
   for (const link of layout.spawnLinks) {
     const py = center(link.from)
@@ -445,6 +428,69 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     els.push(<path key={`s-${link.to}`} d={`M${cx - 3},${py + 3} V${cy} H${cx}`} className={styles.spawnLink} fill="none" />)
   }
   return <>{els}</>
+}
+
+/** Horizontal extent of an agent's activity bar: first to last activity, at least 4 px. */
+function barSpan(s: AgentSession, timeline: Timeline): { x1: number; x2: number } | undefined {
+  const start = Date.parse(s.firstSeenAt ?? s.lastActivityAt ?? '')
+  const end = Date.parse(s.lastActivityAt ?? s.firstSeenAt ?? '') || start
+  if (!start || end < timeline.start) return undefined
+  const x1 = timeline.x(start)
+  return { x1, x2: Math.max(x1 + 4, timeline.x(end)) }
+}
+
+/**
+ * A card at the end of each agent's work, like the one in the label column: provider, name, how
+ * long ago it was active and its status, which opens the review menu. It sits after the bar, or
+ * before it when it would run off the axis. HTML over the lanes, so the menu works as on the left.
+ */
+function BarCards(props: RepoBoardProps & { geo: Geometry }) {
+  const { layout, geo, timeline } = props
+  if (!timeline.width) return null
+  const cards: React.ReactNode[] = []
+  for (const row of layout.rows) {
+    if (row.kind !== 'session') continue
+    const r = geo.rows[row.id]
+    const span = barSpan(row.session, timeline)
+    if (!r || !span) continue
+    cards.push(<BarCard key={row.id} {...props} row={row} top={r.top + 2} span={span} width={timeline.width} />)
+  }
+  return (
+    <div className={styles.barCards} style={{ left: props.labelWidth, width: timeline.width, height: geo.height }} role="group" aria-label={`Agents on the timeline of ${props.repo.displayName}`}>
+      {cards}
+    </div>
+  )
+}
+
+function BarCard({ row, top, span, width, now, selectedId, onSelect, onReview }: { row: SessionRow; top: number; span: { x1: number; x2: number }; width: number } & RepoBoardProps) {
+  const s = row.session
+  const status = workflowStatus(s, row.annotation)
+  const title = row.annotation?.displayAlias || s.title
+  const name = clip(title, 40)
+  const ageText = s.lastActivityAt ? formatAge(s.lastActivityAt, now) : ''
+  const age = ageText ? (ageText === 'now' ? 'now' : `${ageText} ago`) : ''
+  // Estimated width (the card is laid out by the browser; this only decides the side).
+  const w = 54 + name.length * 7 + age.length * 6 + WORKFLOW_LABELS[status].length * 6.5
+  const after = span.x2 + 8 + w <= width - 4
+  const before = !after && span.x1 - 8 - w >= 4
+  const place = after ? { left: span.x2 + 8 } : before ? { right: width - (span.x1 - 8) } : { right: 4 }
+  return (
+    <div
+      className={`${styles.barCard} ${selectedId === row.id ? styles.barCardSelected : ''} ${s.historical ? styles.historical : ''}`}
+      style={{ top, ...place }}
+      data-bar-label={s.id}
+      onClick={() => onSelect(row.id)}
+    >
+      <span className={styles.providerMark} title={s.provider === 'claude' ? 'Claude Code' : 'Codex'}>
+        {s.provider === 'claude' ? 'C' : 'X'}
+      </span>
+      <span className={styles.agentName} title={title}>
+        {name}
+      </span>
+      {age ? <span className={styles.barCardAge}>{age}</span> : null}
+      <ReviewMenu status={status} review={row.annotation?.review ?? 'unreviewed'} title={title} focusable={false} onReview={(r) => onReview(s.id, r)} />
+    </div>
+  )
 }
 
 function clip(text: string, max: number): string {

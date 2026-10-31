@@ -184,15 +184,9 @@ export function FilterBar({
                 items: [
                   {
                     type: 'check',
-                    label: 'Hide spawned agents',
-                    checked: !view.showSpawned,
-                    onToggle: () => setView((v) => ({ showSpawned: !v.showSpawned })),
-                  },
-                  {
-                    type: 'check',
-                    label: 'Expand agent details',
-                    checked: view.details,
-                    onToggle: () => setView((v) => ({ details: !v.details })),
+                    label: 'Collapse spawned agents',
+                    checked: view.collapseSpawned,
+                    onToggle: () => setView((v) => ({ collapseSpawned: !v.collapseSpawned, toggledAgents: [] })),
                   },
                   {
                     type: 'check',

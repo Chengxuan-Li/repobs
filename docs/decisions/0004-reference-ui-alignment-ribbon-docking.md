@@ -17,7 +17,7 @@ The owner asked for closer alignment with the EnergyAtlas UI reference: panel ti
 5. **Dashboard filter bar as dropdowns** (owner request, 2026-10-31). The filter bar is one line of labelled dropdowns that show their current value (`apps/web/src/components/Dropdown.tsx`), filters on the left and view options on the right, each group wrapping as a whole in narrow panels:
    - *Harness* and *Status* are multiple choice: an *Any* item, then one check box per option; nothing ticked means any, and ticking every option resets to *Any*. The harness filter is now a list (`filters.harnesses`, empty = any) so a further harness is one more option; views saved with the old per-harness switches are read into the list.
    - *Last message* is a single choice; *Tags* opens a small panel with the tag field.
-   - *Branches* (which branches, remote-only, collapse quiet commits), *Agents* (hide spawned, expand details, names in list, labels on timeline) and *Timeline* (axis mode, history range) hold the display toggles; *Legend* stays a button. Sorting repositories moved out of the bar; it is in *Repositories → Sort by*.
+   - *Branches* (which branches, remote-only, collapse quiet commits), *Agents* (collapse spawned agents, names in list, labels on timeline; amended by ADR 0003, eighth review) and *Timeline* (axis mode, history range) hold the display toggles; *Legend* stays a button. Sorting repositories moved out of the bar; it is in *Repositories → Sort by*.
    - Menus use `menuitemcheckbox` / `menuitemradio` with arrow-key navigation; check boxes keep the menu open, a single-choice list closes on pick, Esc returns focus to the button.
 
 ## Consequences

@@ -44,6 +44,10 @@ export interface SessionRow {
   guides: TreeGuide[]
   /** Spawned agents follow directly below (the line leaves the bottom of this card). */
   hasChildren: boolean
+  /** Agents this one spawned that passed the filters, shown or not. */
+  childCount: number
+  /** Whether its spawned agents are shown (the chevron toggles it). */
+  expanded: boolean
   parentRowId?: string
   branchRowId: string
 }
@@ -99,7 +103,10 @@ export interface RepoLayout {
 
 export interface LayoutOptions {
   branchMode: BranchMode
-  showSpawned: boolean
+  /** Spawned agents start hidden under their parent; `toggledAgents` lists the exceptions. */
+  collapseSpawned: boolean
+  /** Session ids whose spawned agents are shown (when collapsing) or hidden (when not). */
+  toggledAgents: Set<string>
   showRemoteOnly: boolean
   /** Max sessions listed per branch before a "show more" row. */
   sessionLimit: number
@@ -113,7 +120,8 @@ export interface LayoutOptions {
 
 export const DEFAULT_LAYOUT: LayoutOptions = {
   branchMode: 'all',
-  showSpawned: true,
+  collapseSpawned: false,
+  toggledAgents: new Set(),
   showRemoteOnly: false,
   sessionLimit: 12,
   expandedBranches: new Set(),
@@ -150,10 +158,7 @@ export function layoutRepository(
   const roots: AgentSession[] = []
   for (const s of ordered) {
     if (s.parentSessionId && byId.has(s.parentSessionId)) {
-      if (!options.showSpawned) continue
       childrenOf.set(s.parentSessionId, [...(childrenOf.get(s.parentSessionId) ?? []), s])
-    } else if (s.parentSessionId && !options.showSpawned) {
-      continue
     } else {
       roots.push(s)
     }
@@ -290,9 +295,23 @@ export function layoutRepository(
     // level, whether that ancestor's line continues further down (more siblings to come).
     const addSession = (s: AgentSession, open: boolean[], last: boolean, parentRowId?: string) => {
       const id = `session:${s.id}`
-      const children = childrenOf.get(s.id) ?? []
+      const spawned = childrenOf.get(s.id) ?? []
+      const expanded = spawned.length > 0 && options.collapseSpawned === options.toggledAgents.has(s.id)
+      const children = expanded ? spawned : []
       const guides: TreeGuide[] = parentRowId ? [...open.map((o): TreeGuide => (o ? 'pipe' : 'none')), last ? 'last' : 'tee'] : []
-      rows.push({ kind: 'session', id, session: s, annotation: input.annotations.get(s.id), depth: guides.length, guides, hasChildren: children.length > 0, parentRowId, branchRowId: row.id })
+      rows.push({
+        kind: 'session',
+        id,
+        session: s,
+        annotation: input.annotations.get(s.id),
+        depth: guides.length,
+        guides,
+        hasChildren: children.length > 0,
+        childCount: spawned.length,
+        expanded,
+        parentRowId,
+        branchRowId: row.id,
+      })
       if (parentRowId) spawnLinks.push({ from: parentRowId, to: id })
       const childOpen = parentRowId ? [...open, !last] : []
       children.forEach((child, i) => addSession(child, childOpen, i === children.length - 1, id))

@@ -2,6 +2,18 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 11 — 2026-10-31: chevron for spawned agents, timeline cards (ADR 0003, eighth review)
+
+| Request | Implementation |
+| --- | --- |
+| The chevron should not expand agent details; only agents with subagents get one, and it shows them | `layout.ts`: `collapseSpawned` + `toggledAgents` options, `childCount` / `expanded` on session rows; `AgentRow.tsx`: chevron with count only when `childCount > 0`, inline details block removed; view state `collapseSpawned` (default on) and `toggledAgents` replace `details`, `showSpawned`, `expandedAgents` (old keys dropped on load) |
+| No agent expansion with info on the dashboard | *Expand agent details* removed from the Agents dropdown and View menu; details stay in the hover card and details panel |
+| Name and status (editable dropdown) at the timeline end, in a card like the left one | `RepoBoard.tsx` `BarCards` / `BarCard`: HTML cards above the lanes with provider mark, name, age and `ReviewMenu`; lanes SVG marked `data-lanes` |
+
+Verification (2026-10-31, this machine): typecheck, lint and build exit 0; `npm test` 16 files / 130 tests passed; `npm run test:e2e` 24 passed, 1 skipped (docs screenshot, regenerated); `npm run docs:build` exit 0. Screenshots checked: a collapsed parent shows "› 2", expanded shows the indented children, timeline cards sit before the bars near the axis end; no console errors.
+
+Unknown: unchanged (narrow-window overlay panels).
+
 ## Checkpoint 10 — 2026-10-31: filter bar as dropdowns (ADR 0004, decision 5)
 
 | Request | Implementation |

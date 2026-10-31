@@ -85,14 +85,15 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
   const layoutOptions: LayoutOptions = useMemo(
     () => ({
       branchMode: view.branchMode,
-      showSpawned: view.showSpawned,
+      collapseSpawned: view.collapseSpawned,
+      toggledAgents: new Set(view.toggledAgents),
       showRemoteOnly: view.showRemoteOnly,
       sessionLimit: 12,
       expandedBranches: new Set(view.expandedBranches),
       collapseQuiet: view.collapseQuiet,
       expandedGroups: new Set(view.expandedGroups),
     }),
-    [view.branchMode, view.showSpawned, view.showRemoteOnly, view.expandedBranches, view.collapseQuiet, view.expandedGroups],
+    [view.branchMode, view.collapseSpawned, view.toggledAgents, view.showRemoteOnly, view.expandedBranches, view.collapseQuiet, view.expandedGroups],
   )
 
   // Layouts are computed once here so the dashboard and the details panel agree (branch relations).
@@ -272,13 +273,14 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     pressed: dock.isPanelVisible(panel),
     run: () => dock.togglePanel(panel),
   })
-  const toggle = (id: string, label: string, key: 'legendOpen' | 'details' | 'agentNames' | 'barLabels' | 'showRemoteOnly' | 'collapseQuiet'): Command => ({
+  const toggle = (id: string, label: string, key: 'legendOpen' | 'agentNames' | 'barLabels' | 'showRemoteOnly' | 'collapseQuiet' | 'collapseSpawned'): Command => ({
     id,
     label,
     group: 'View',
     submenu: 'Dashboard',
     pressed: view[key],
-    run: () => setView((v) => ({ [key]: !v[key], ...(key === 'collapseQuiet' ? { expandedGroups: [] } : {}) })),
+    // Switching a collapse mode resets the exceptions made under the old one.
+    run: () => setView((v) => ({ [key]: !v[key], ...(key === 'collapseQuiet' ? { expandedGroups: [] } : key === 'collapseSpawned' ? { toggledAgents: [] } : {}) })),
   })
   const zoom = (factor: number) => setView((v) => ({ zoom: clamp(Math.round(v.zoom * factor * 100) / 100, MIN_ZOOM, MAX_ZOOM) }))
   const commands: Command[] = [
@@ -303,10 +305,9 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
       run: () => void (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => undefined),
     },
     toggle('view.legend', 'Legend', 'legendOpen'),
-    toggle('view.expand', 'Expand agent details', 'details'),
     toggle('view.agentNames', 'Agent names in list', 'agentNames'),
     toggle('view.barLabels', 'Agent labels on timeline', 'barLabels'),
-    { id: 'view.spawned', label: 'Hide spawned agents', group: 'View', submenu: 'Dashboard', pressed: !view.showSpawned, run: () => setView((v) => ({ showSpawned: !v.showSpawned })) },
+    toggle('view.spawned', 'Collapse spawned agents', 'collapseSpawned'),
     toggle('view.remoteOnly', 'Remote-only branches', 'showRemoteOnly'),
     toggle('view.quiet', 'Collapse quiet commits', 'collapseQuiet'),
     ...(['sequence', 'time', 'compressed'] as const).map((mode) => ({

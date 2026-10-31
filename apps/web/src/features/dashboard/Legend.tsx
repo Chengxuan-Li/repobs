@@ -40,11 +40,11 @@ export function Legend({ axisMode }: { axisMode: AxisMode }) {
         <rect x="1" y="5" width="7" height="6" className={styles.barWorking} />
         <rect x="11" y="5" width="7" height="6" className={styles.barAttention} />
       </Item>
-      <Item label="Agent label at the end of its work: name · status · last activity">
-        <rect x="1" y="6" width="6" height="5" className={styles.barWorking} />
-        <line x1="9" y1="8.5" x2="19" y2="8.5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="1.5 1.5" />
+      <Item label="Agent card at the end of its work: name, last activity, status (click to set your review)">
+        <rect x="1" y="6" width="5" height="5" className={styles.barWorking} />
+        <rect x="8.5" y="3.5" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1" />
       </Item>
-      <Item label="Spawned by the agent above (indented card)">
+      <Item label="Spawned by the agent above (indented card; › n on the parent shows them)">
         <path d="M4,0 V9 H12" className={styles.spawn} fill="none" />
       </Item>
       <Item label="Now">

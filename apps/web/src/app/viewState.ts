@@ -13,13 +13,14 @@ export type RepoSort = 'activity' | 'active' | 'name' | 'manual'
 export interface ViewState {
   selectedId?: string
   filters: DashboardFilters
-  /** Expand every agent row (otherwise rows are one line; expand individually). */
-  details: boolean
   /** Agent names in the label column (off: the column narrows to the spawn tree and status). */
   agentNames: boolean
   /** Agent labels at the end of each activity bar on the timeline. */
   barLabels: boolean
-  expandedAgents: string[]
+  /** Spawned agents start hidden under their parent (its chevron shows them). */
+  collapseSpawned: boolean
+  /** Agents whose spawned agents are shown (when collapsing) or hidden (when not); reset when that switch changes. */
+  toggledAgents: string[]
   axisMode: AxisMode
   /** Horizontal zoom of the shared axis (1 = fit the commits to the viewport where possible). */
   zoom: number
@@ -28,7 +29,6 @@ export interface ViewState {
   /** Collapsed groups the user opened (reset when collapsing is switched on again). */
   expandedGroups: string[]
   legendOpen: boolean
-  showSpawned: boolean
   branchMode: BranchMode
   showRemoteOnly: boolean
   timeRange: TimeRange
@@ -42,16 +42,15 @@ const KEY = 'repobs.view.v2'
 
 export const DEFAULT_VIEW: ViewState = {
   filters: DEFAULT_FILTERS,
-  details: false,
   agentNames: true,
   barLabels: true,
-  expandedAgents: [],
+  collapseSpawned: true,
+  toggledAgents: [],
   axisMode: 'sequence',
   zoom: 1,
   collapseQuiet: false,
   expandedGroups: [],
   legendOpen: false,
-  showSpawned: true,
   branchMode: 'all',
   showRemoteOnly: false,
   timeRange: 'all',
@@ -68,6 +67,8 @@ export function loadView(): ViewState {
     const raw = localStorage.getItem(KEY)
     if (!raw) return DEFAULT_VIEW
     const p = JSON.parse(raw) as Partial<ViewState>
+    // Replaced by spawned-agent collapsing (agents no longer expand to show details).
+    for (const old of ['details', 'showSpawned', 'expandedAgents']) delete (p as Record<string, unknown>)[old]
     const f = { ...DEFAULT_FILTERS, ...(p.filters ?? {}) }
     return {
       ...DEFAULT_VIEW,
@@ -82,7 +83,8 @@ export function loadView(): ViewState {
       hiddenRepos: Array.isArray(p.hiddenRepos) ? p.hiddenRepos : [],
       collapsedRepos: Array.isArray(p.collapsedRepos) ? p.collapsedRepos : [],
       expandedBranches: Array.isArray(p.expandedBranches) ? p.expandedBranches : [],
-      expandedAgents: Array.isArray(p.expandedAgents) ? p.expandedAgents : [],
+      toggledAgents: Array.isArray(p.toggledAgents) ? p.toggledAgents : [],
+      collapseSpawned: p.collapseSpawned !== false,
       axisMode: p.axisMode === 'time' || p.axisMode === 'compressed' ? p.axisMode : 'sequence',
       zoom: clamp(Number(p.zoom) || 1, MIN_ZOOM, MAX_ZOOM),
       collapseQuiet: p.collapseQuiet === true,
