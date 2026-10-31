@@ -14,6 +14,7 @@ import { Badge } from '../../components/primitives'
 import { AgentRow } from './AgentRow'
 import { AgentHover, BranchHover, CommitHover, GroupHover, PendingHover, type ShowHover } from './HoverCard'
 import type { BoardRow, BranchRow, RepoLayout } from './layout'
+import { type RouteInput, routeEdges } from './routing'
 import { PAD, type Timeline } from './timeline'
 import styles from './board.module.css'
 
@@ -157,8 +158,26 @@ function Row(props: { row: BoardRow } & RepoBoardProps) {
   const s = row.session
   const expanded = props.expandAll || props.expandedAgents.has(s.id)
   const parent = s.parentSessionId ? props.sessionsById.get(s.parentSessionId) : undefined
-  const hover = (e: React.MouseEvent) =>
-    showHover(<AgentHover session={s} annotation={row.annotation} now={props.now} parentTitle={parent?.title} children={props.childCount.get(s.id) ?? 0} />, e)
+  // Opens beside the label column, so the pointer can move onto it (to change the review state)
+  // without crossing other rows.
+  const hover = (e: React.MouseEvent<HTMLElement>) => {
+    const box = e.currentTarget.getBoundingClientRect()
+    showHover(
+      <AgentHover
+        session={s}
+        annotation={row.annotation}
+        now={props.now}
+        parentTitle={parent?.title}
+        children={props.childCount.get(s.id) ?? 0}
+        onReview={(r) => {
+          props.onReview(s.id, r)
+          hideHover()
+        }}
+      />,
+      { clientX: box.right - 2, clientY: box.top - 6 },
+      { interactive: true, label: 'Agent details' },
+    )
+  }
   return (
     <div
       {...common}
@@ -167,12 +186,14 @@ function Row(props: { row: BoardRow } & RepoBoardProps) {
       aria-expanded={expanded}
       onClick={() => onSelect(row.id)}
     >
-      <div className={styles.label} onMouseEnter={hover} onMouseMove={hover} onMouseLeave={hideHover}>
+      <div className={styles.label} onMouseEnter={hover} onMouseLeave={hideHover}>
         <AgentRow
           session={s}
           annotation={row.annotation}
-          depth={row.depth}
+          guides={row.guides}
+          hasChildren={row.hasChildren}
           expanded={expanded}
+          focusable={tabbableId === row.id}
           now={props.now}
           onToggle={() => props.onToggleAgent(s.id)}
           onReview={(r) => props.onReview(s.id, r)}
@@ -222,7 +243,7 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
   const center = (id: string) => {
     const r = geo.rows[id]
     if (!r) return undefined
-    return r.top + (id.startsWith('session:') ? 12 : 14)
+    return r.top + (id.startsWith('session:') ? 13 : 14)
   }
   const hoverProps = (content: () => React.ReactNode) => ({
     onMouseEnter: (e: React.MouseEvent) => showHover(content(), e),
@@ -240,9 +261,13 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
 
   // Edges first (under the nodes): straight along a row; between rows, orthogonal with rounded
   // corners — a fork drops from its base commit and runs to the branch, a merge runs along its
-  // branch and turns into the merge commit. Parents off the axis enter from the left edge.
+  // branch and turns into the merge commit. Parents off the axis enter from the left edge. Legs
+  // that would overlap get parallel tracks (routing.ts); pointers of branches without commits of
+  // their own are routed with them.
   const groupsById = new Map(layout.groups.map((g) => [g.id, g]))
   const rowOf = (key: string) => layout.commits.get(key)?.rowId ?? groupsById.get(key)?.rowId
+  const routes: RouteInput[] = []
+  const edgeClass = new Map<string, string>()
   for (const e of layout.edges) {
     const fromRow = rowOf(e.from)
     const toRow = rowOf(e.to)
@@ -251,9 +276,36 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     const y2 = toRow ? center(toRow) : undefined
     if (x2 === undefined || y1 === undefined || y2 === undefined) continue
     const x1 = timeline.commitX(e.from) ?? PAD / 2
+    const key = `e-${e.from}-${e.to}`
+    routes.push({ key, x1, y1, x2, y2, order: e.kind === 'lane' ? 'lane' : e.kind === 'merge' ? 'hv' : 'vh' })
     const incoming = layout.commits.get(e.to)?.incoming
-    const cls = `${styles.edge} ${e.kind !== 'lane' ? styles.edgeCross : ''} ${e.localOnly ? styles.edgeLocal : ''} ${incoming ? styles.edgeIncoming : ''}`
-    els.push(<path key={`e-${e.from}-${e.to}`} d={elbow(x1, y1, x2, y2, e.kind === 'merge' ? 'hv' : 'vh')} className={cls} fill="none" />)
+    edgeClass.set(key, `${styles.edge} ${e.kind !== 'lane' ? styles.edgeCross : ''} ${e.localOnly ? styles.edgeLocal : ''} ${incoming ? styles.edgeIncoming : ''}`)
+  }
+  const heads = new Map(branchRows.filter((r) => r.headOid).map((r) => [r.headOid!, r]))
+  const pointers: Array<{ row: BranchRow; x: number; y: number }> = []
+  for (const row of branchRows) {
+    const y = center(row.id)
+    const hx = row.headOid ? timeline.commitX(row.headOid) : undefined
+    const owner = row.headOid ? layout.commits.get(row.headOid) : undefined
+    const oy = owner && owner.rowId !== row.id ? center(owner.rowId) : undefined
+    if (y === undefined || hx === undefined || oy === undefined) continue
+    // No commits of its own: connect the branch row to the commit it points at on another row.
+    routes.push({ key: `ptr-${row.id}`, x1: hx, y1: oy, x2: hx + 24, y2: y, order: 'vh' })
+    pointers.push({ row, x: hx + 28, y })
+  }
+  const paths = routeEdges(routes)
+  for (const r of routes) {
+    if (r.key.startsWith('ptr-')) continue
+    els.push(<path key={r.key} d={paths.get(r.key)} className={edgeClass.get(r.key)} fill="none" />)
+  }
+  for (const p of pointers) {
+    els.push(
+      <g key={`ptr-${p.row.id}`} {...hoverProps(() => <BranchHover row={p.row} />)}>
+        <path d={paths.get(`ptr-${p.row.id}`)} className={`${styles.edge} ${styles.edgePointer}`} fill="none" />
+        <circle cx={p.x} cy={p.y} r={10} className={styles.hit} />
+        <circle cx={p.x} cy={p.y} r={4} className={styles.pointer} />
+      </g>,
+    )
   }
 
   // Collapsed runs of quiet commits: one pill each; hover lists the commits, click expands.
@@ -270,7 +322,7 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
       <g
         key={`g-${g.id}`}
         className={styles.group}
-        onMouseEnter={(ev) => showHover(<GroupHover group={g} branch={branch?.label} onExpand={() => props.onExpandGroup(g.id)} />, ev, { interactive: true })}
+        onMouseEnter={(ev) => showHover(<GroupHover group={g} branch={branch?.label} onExpand={() => props.onExpandGroup(g.id)} />, ev, { interactive: true, label: 'Commit details' })}
         onMouseLeave={hideHover}
         onClick={(ev) => {
           ev.stopPropagation()
@@ -288,7 +340,6 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
   }
 
   // Commit nodes, with a larger invisible target for hovering.
-  const heads = new Map(branchRows.filter((r) => r.headOid).map((r) => [r.headOid!, r]))
   for (const { commit, rowId, incoming } of layout.commits.values()) {
     if (layout.groupOf.has(commit.oid)) continue
     const x = timeline.commitX(commit.oid)
@@ -312,19 +363,6 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     if (y === undefined) continue
     const hx = row.headOid ? timeline.commitX(row.headOid) : undefined
     const owner = row.headOid ? layout.commits.get(row.headOid) : undefined
-    if (hx !== undefined && owner && owner.rowId !== row.id) {
-      // No commits of its own: connect the branch row to the commit it points at on another row.
-      const oy = center(owner.rowId)
-      if (oy !== undefined) {
-        els.push(
-          <g key={`ptr-${row.id}`} {...hoverProps(() => <BranchHover row={row} />)}>
-            <path d={elbow(hx, oy, hx + 24, y, 'vh')} className={`${styles.edge} ${styles.edgePointer}`} fill="none" />
-            <circle cx={hx + 28} cy={y} r={10} className={styles.hit} />
-            <circle cx={hx + 28} cy={y} r={4} className={styles.pointer} />
-          </g>,
-        )
-      }
-    }
     if (hx !== undefined) {
       els.push(
         <text
@@ -379,19 +417,4 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     els.push(<path key={`s-${link.to}`} d={`M${cx - 3},${py + 3} V${cy} H${cx}`} className={styles.spawnLink} fill="none" />)
   }
   return <>{els}</>
-}
-
-/**
- * Orthogonal connector with rounded corners. 'vh' goes vertical first (a fork leaving its base
- * commit), 'hv' horizontal first (a merge running along its branch, then turning in).
- */
-export function elbow(x1: number, y1: number, x2: number, y2: number, order: 'vh' | 'hv', radius = 6): string {
-  if (Math.abs(y2 - y1) < 0.5) return `M${x1},${y1} H${x2}`
-  if (Math.abs(x2 - x1) < 0.5) return `M${x1},${y1} V${y2}`
-  const dx = Math.sign(x2 - x1)
-  const dy = Math.sign(y2 - y1)
-  const r = Math.min(radius, Math.abs(x2 - x1), Math.abs(y2 - y1))
-  return order === 'vh'
-    ? `M${x1},${y1} V${y2 - dy * r} Q${x1},${y2} ${x1 + dx * r},${y2} H${x2}`
-    : `M${x1},${y1} H${x2 - dx * r} Q${x2},${y1} ${x2},${y1 + dy * r} V${y2}`
 }

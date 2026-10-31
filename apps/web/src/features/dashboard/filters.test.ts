@@ -39,7 +39,7 @@ describe('dashboard filters', () => {
     expect(sessionMatches(waiting, undefined, f, now)).toBe(true)
     expect(sessionMatches(running, undefined, f, now)).toBe(false)
     expect(sessionMatches(old, ann('claude:c', { review: 'needs_review' }), f, now)).toBe(true)
-    expect(sessionMatches(old, undefined, { ...DEFAULT_FILTERS, statuses: ['ready'] }, now)).toBe(true)
+    expect(sessionMatches(old, undefined, { ...DEFAULT_FILTERS, statuses: ['unreviewed'] }, now)).toBe(true)
   })
 
   it('filters by tags (any of) and free text including the latest excerpt', () => {

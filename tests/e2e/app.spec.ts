@@ -120,8 +120,24 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()
     const paths = await svg.locator('path[class*="edgeCross"]').evaluateAll((els) => els.map((e) => e.getAttribute('d') ?? ''))
     expect(paths.length).toBeGreaterThan(0)
-    // Only straight segments (H/V) and a quadratic corner; no free-form curves.
-    for (const d of paths) expect(d).toMatch(/^M[\d.-]+,[\d.-]+ (?:[HV][\d.-]+|V[\d.-]+ Q[\d., -]+ H[\d.-]+|H[\d.-]+ Q[\d., -]+ V[\d.-]+)$/)
+    // Only axis-aligned straight segments joined by small quadratic corners; no free-form curves.
+    for (const d of paths) {
+      expect(d).toMatch(/^M[\d.-]+,[\d.-]+(?: L[\d.-]+,[\d.-]+(?: Q[\d.-]+,[\d.-]+ [\d.-]+,[\d.-]+)?)+$/)
+      const pts = [...d.matchAll(/[MLQ ]([\d.-]+),([\d.-]+)/g)].map((m) => [Number(m[1]), Number(m[2])])
+      const lines = [...d.matchAll(/(?:^M|[L ])([\d.-]+),([\d.-]+) L([\d.-]+),([\d.-]+)/g)]
+      for (const m of lines) expect(m[1] === m[3] || m[2] === m[4]).toBe(true)
+      expect(pts.length).toBeGreaterThan(1)
+    }
+  })
+
+  test('connectors leaving one commit run on separate parallel tracks', async ({ page }) => {
+    await pair(page)
+    const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()
+    // Every fork from main's commit gets its own vertical track until the tracks run out.
+    const xs = await svg.locator('path[class*="edgeCross"]').evaluateAll((els) =>
+      els.map((e) => (e.getAttribute('d') ?? '').match(/Q([\d.-]+),/)?.[1]).filter((x): x is string => !!x),
+    )
+    expect(new Set(xs).size).toBeGreaterThan(1)
   })
 
   test('quiet commits collapse into a group you can hover, inspect and expand', async ({ page }) => {
@@ -159,7 +175,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     expect(box.height).toBeLessThanOrEqual(30)
     // Hover card shows the details.
     await parent.getByText('Claude session c3d2e4f6').hover()
-    await expect(page.getByRole('tooltip')).toContainText('synthetic answer')
+    await expect(page.getByRole('dialog', { name: 'Agent details' })).toContainText('synthetic answer')
     // The chevron expands one agent.
     await parent.getByRole('button', { name: /^Expand / }).click()
     await expect(parent).toContainText('synthetic answer')
@@ -168,6 +184,10 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(parent).not.toContainText('synthetic answer')
     const child = row(page, /^Map the feature module/)
     await expect(child).toBeVisible()
+    // Spawned agents are cards indented under their parent; the tree line runs left of the cards.
+    const left = async (r: typeof child) => (await r.locator('[class*="card"]').first().boundingBox())!.x
+    expect(await left(child)).toBeGreaterThan((await left(parent)) + 10)
+    await expect(child.locator('[class*="guide_"]')).toHaveCount(1)
     await page.getByLabel('Hide spawned agents').check()
     await expect(child).toBeHidden()
     await page.getByLabel('Hide spawned agents').uncheck()
@@ -253,13 +273,42 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await page.getByLabel('Expand agent details').uncheck()
   })
 
-  test('the review dropdown on a card updates the workflow status', async ({ page }) => {
+  test('the status on a card and in its hover card is a review menu', async ({ page }) => {
     await pair(page)
     const card = row(page, /^Document worktree states/)
-    await expect(card).toContainText('Ready')
-    await card.getByRole('button', { name: /^Expand / }).click()
-    await card.getByLabel(/Review state for/).selectOption('complete')
-    await expect(card).not.toContainText('Ready')
+    const status = card.getByRole('button', { name: /change review state/ })
+    await expect(status).toHaveText('Unreviewed') // finished but not reviewed: never shown as a success
+    await status.click()
+    const menu = page.getByRole('menu', { name: 'Review state of Document worktree states' })
+    await expect(menu.getByRole('menuitemradio', { name: 'Unreviewed' })).toHaveAttribute('aria-checked', 'true')
+    await page.keyboard.press('ArrowDown') // keyboard works inside the menu
+    await expect(menu.getByRole('menuitemradio', { name: 'Needs review' })).toBeFocused()
+    await menu.getByRole('menuitemradio', { name: 'Complete' }).click()
+    await expect(menu).toBeHidden()
+    await expect(status).toHaveText('Complete')
+
+    // The same menu from the hover card.
+    await page.mouse.move(5, 5)
+    await card.getByText('Document worktree states', { exact: true }).hover()
+    const hover = page.getByRole('dialog', { name: 'Agent details' })
+    await hover.getByRole('button', { name: /change review state/ }).click()
+    await hover.getByRole('menuitemradio', { name: 'Needs review' }).click()
+    await expect(status).toHaveText('Needs review')
+    await status.click()
+    await page.getByRole('menuitemradio', { name: 'Unreviewed' }).click()
+    await expect(status).toHaveText('Unreviewed')
+  })
+
+  test('the history zooms horizontally', async ({ page }) => {
+    await pair(page)
+    const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()
+    const width = async () => Number(await svg.getAttribute('width'))
+    const before = await width()
+    await page.getByRole('button', { name: 'Zoom in' }).click()
+    await expect(page.getByRole('button', { name: /^Zoom 150%/ })).toBeVisible()
+    expect(await width()).toBeGreaterThan(before * 1.4)
+    await page.getByRole('button', { name: /^Zoom 150%/ }).click()
+    expect(await width()).toBe(before)
   })
 
   test('long agent lists collapse behind "show more"', async ({ page }) => {

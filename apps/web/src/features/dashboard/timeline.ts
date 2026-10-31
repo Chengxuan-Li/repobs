@@ -40,6 +40,11 @@ export interface TimelineInput {
   availableWidth: number
   /** Minimum distance between commits in sequence mode. */
   minSpacing: number
+  /**
+   * Horizontal zoom (default 1). Above 1 the axis widens proportionally; below 1 commits may sit
+   * closer than minSpacing, but the axis never shrinks below the available width.
+   */
+  zoom?: number
 }
 
 export const PAD = 16
@@ -54,7 +59,7 @@ function timeAxis(input: TimelineInput): Timeline {
   const earliest = times.length ? Math.min(...times) : input.now - 7 * DAY
   const start = input.rangeStart ?? Math.min(earliest, input.now - DAY)
   const end = input.now + Math.max(60 * 60_000, (input.now - start) * 0.02)
-  const width = Math.max(input.availableWidth, 200)
+  const width = Math.max(input.availableWidth, 200) * Math.max(1, input.zoom ?? 1)
   const scale = (ms: number) => PAD + ((ms - start) / Math.max(1, end - start)) * (width - 2 * PAD)
   const x = (ms: number) => Math.min(width - PAD, Math.max(PAD, scale(ms)))
   const commitTimes = new Map(input.items.map((i) => [i.key, i.time] as const))
@@ -71,7 +76,9 @@ function sequenceAxis(input: TimelineInput): Timeline {
     .sort((a, b) => a.time - b.time || a.key.localeCompare(b.key))
   // Columns: one per commit, plus a final column for "now" (pending changes, live agents).
   const n = commits.length + 1
-  const spacing = Math.max(input.minSpacing, (input.availableWidth - 2 * PAD) / Math.max(1, n))
+  const fit = (input.availableWidth - 2 * PAD) / Math.max(1, n)
+  const zoom = input.zoom ?? 1
+  const spacing = zoom >= 1 ? Math.max(fit, input.minSpacing) * zoom : Math.max(fit, input.minSpacing * zoom)
   const width = Math.max(input.availableWidth, 2 * PAD + spacing * n)
   const colX = (i: number) => PAD + spacing * (i + 0.5)
   const oidX = new Map(commits.map((c, i) => [c.key, colX(i)]))

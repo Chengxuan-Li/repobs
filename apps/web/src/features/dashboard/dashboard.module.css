@@ -226,6 +226,43 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+.zoom {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  border: 1px solid var(--color-border-interactive);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.zoomButton,
+.zoomLevel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  border: 0;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+}
+.zoomButton {
+  width: 18px;
+}
+.zoomLevel {
+  min-width: 40px;
+  border-left: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+}
+.zoomButton:hover:not(:disabled),
+.zoomLevel:hover {
+  color: var(--color-accent);
+}
+.zoomButton:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
 .tick {
   stroke: var(--color-border-interactive);
 }

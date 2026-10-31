@@ -7,7 +7,7 @@ import type { BranchMode } from './layout'
 import type { AxisMode } from './timeline'
 import styles from './dashboard.module.css'
 
-const STATUSES: WorkflowStatus[] = ['needs_input', 'working', 'needs_review', 'ready', 'complete', 'unknown']
+const STATUSES: WorkflowStatus[] = ['needs_input', 'working', 'needs_review', 'unreviewed', 'complete', 'unknown']
 
 export function FilterBar({
   view,

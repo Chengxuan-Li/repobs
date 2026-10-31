@@ -117,15 +117,16 @@ export function fallbackSessionTitle(provider: 'claude' | 'codex', providerSessi
 /**
  * Workflow status used by dashboard filters and cards: combines what the agent is observed doing
  * with what the human decided. Agent activity that needs a person wins; then running work; then
- * the human review state; otherwise the session is ready for a look (or unknown).
+ * the human review state; a finished session nobody has reviewed yet is "unreviewed" (never shown
+ * as a success: finishing is not a result), otherwise unknown.
  */
-export type WorkflowStatus = 'needs_input' | 'working' | 'needs_review' | 'ready' | 'complete' | 'unknown'
+export type WorkflowStatus = 'needs_input' | 'working' | 'needs_review' | 'unreviewed' | 'complete' | 'unknown'
 
 export const WORKFLOW_LABELS: Record<WorkflowStatus, string> = {
   needs_input: 'Needs input',
   working: 'Working',
   needs_review: 'Needs review',
-  ready: 'Ready',
+  unreviewed: 'Unreviewed',
   complete: 'Complete',
   unknown: 'Unknown',
 }
@@ -134,8 +135,8 @@ export const WORKFLOW_TONES: Record<WorkflowStatus, Tone> = {
   needs_input: 'warning',
   working: 'info',
   needs_review: 'warning',
-  ready: 'success',
-  complete: 'neutral',
+  unreviewed: 'neutral',
+  complete: 'success',
   unknown: 'neutral',
 }
 
@@ -146,6 +147,6 @@ export function workflowStatus(session: AgentSession, annotation?: AnnotationSum
   if (s.kind === 'running' || s.kind === 'running_subagents') return 'working'
   if (annotation?.review === 'needs_review' || annotation?.review === 'flagged') return 'needs_review'
   if (annotation?.review === 'reviewed' || annotation?.review === 'complete') return 'complete'
-  if (s.kind === 'idle_or_turn_finished' || s.kind === 'ended') return 'ready'
+  if (s.kind === 'idle_or_turn_finished' || s.kind === 'ended') return 'unreviewed'
   return 'unknown'
 }

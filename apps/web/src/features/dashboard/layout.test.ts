@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CommitGraph, CommitNode } from '@repobs/contracts'
 import { branch, repo, session, worktree } from '../../testing/fixtures'
-import { DEFAULT_LAYOUT, layoutRepository } from './layout'
+import { DEFAULT_LAYOUT, layoutRepository, type SessionRow } from './layout'
 
 const c = (oid: string, parents: string[], time: number, pushed = true): CommitNode => ({ oid, parents, time, subject: oid, pushed })
 
@@ -61,6 +61,24 @@ describe('layoutRepository', () => {
     expect(feature).toMatchObject({ pendingChanges: 3 })
     expect(l.rows.find((r) => r.id === 'session:claude:p__agent-1')).toMatchObject({ depth: 1, parentRowId: 'session:claude:p' })
     expect(l.spawnLinks).toEqual([{ from: 'session:claude:p', to: 'session:claude:p__agent-1' }])
+  })
+
+  it('draws spawn trees with guides that continue past siblings and their descendants', () => {
+    const s = setup()
+    const at = (m: number) => `2026-10-01T00:0${m}:00Z`
+    const kids = [
+      session('claude:p__agent-1', { worktreeId: 'wt_feat', repoId: 'r', parentSessionId: 'claude:p', firstSeenAt: at(3) }),
+      session('claude:p__agent-2', { worktreeId: 'wt_feat', repoId: 'r', parentSessionId: 'claude:p', firstSeenAt: at(2) }),
+      session('claude:p__agent-1__g', { worktreeId: 'wt_feat', repoId: 'r', parentSessionId: 'claude:p__agent-1', firstSeenAt: at(4) }),
+    ]
+    const l = layoutRepository(s.r, { ...s, sessions: [s.sessions[0]!, ...kids], annotations: new Map() })
+    const tree = l.rows.filter((r): r is SessionRow => r.kind === 'session').map((r) => [r.id.replace('session:claude:', ''), r.guides.join(' '), r.hasChildren])
+    expect(tree).toEqual([
+      ['p', '', true],
+      ['p__agent-1', 'tee', true],
+      ['p__agent-1__g', 'pipe last', false], // the line to agent-2 runs past the grandchild
+      ['p__agent-2', 'last', false],
+    ])
   })
 
   it('can hide spawned agents, idle branches, and show remote-only refs', () => {

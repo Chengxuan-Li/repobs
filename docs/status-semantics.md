@@ -54,7 +54,9 @@ Dashboard cards and the *Status* filter combine the observed state with your rev
 | Working | Running or running subagents |
 | Needs review | You marked it *Needs review* or *Flagged* |
 | Complete | You marked it *Reviewed* or *Complete* |
-| Ready | Idle / turn finished or ended, and not yet reviewed |
+| Unreviewed | Idle / turn finished or ended, and you have not reviewed it (neutral colour: finishing is not a result) |
 | Unknown | Anything else (including stale evidence) |
+
+Clicking the status on a dashboard card (or in its hover card) opens a menu that sets your review state; the observed state is never changed by it.
 
 Agent activity that needs a person wins over your review state, so a session you marked complete shows *Working* again if it starts a new turn.

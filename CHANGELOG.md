@@ -6,6 +6,9 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Changed
 
+- Agents are cards indented by spawn depth, with tree lines in a gutter left of the cards that run across rows; coloured left-edge stripes removed.
+- Finished agents you have not reviewed show *Unreviewed* (neutral) instead of *Ready* (green).
+- Connectors that would overlap are drawn on parallel tracks, metro-map style.
 - Branch connectors are orthogonal (horizontal/vertical segments with rounded corners).
 
 - Commits are spaced in commit order by default on one axis shared by all repositories, scrolling horizontally through all loaded history; calendar time is a toggle (ADR 0003 amendment).
@@ -17,6 +20,8 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
+- The status badge on an agent card, and in its hover card, opens a menu to set your review state.
+- Horizontal zoom of the history axis: −/+ buttons, Ctrl + wheel, or +/−/0 keys.
 - *Collapse quiet commits*: runs of uneventful commits fold into a counted pill; hover to list and inspect them, click to expand.
 - Branch relationships: *from X* (forked from), *→ X* (merged into) and *at X* (no own commits; dashed pointer to the commit it sits on).
 - A legend for every graph mark and colour; richer hover cards for commits, branches, uncommitted changes and agents.
@@ -28,6 +33,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Fixed
 
+- Graph lines no longer show through the gaps between rows of the sticky label column.
 - A new pairing link opened in an already-open tab now re-pairs instead of being ignored.
 - Newly started agents no longer land behind the per-branch "show more" cutoff.
 
@@ -37,6 +43,8 @@ First implementation of the product handoff.
 
 ### Added
 
+- The status badge on an agent card, and in its hover card, opens a menu to set your review state.
+- Horizontal zoom of the history axis: −/+ buttons, Ctrl + wheel, or +/−/0 keys.
 - Loopback Node.js service with launcher pairing, signed session cookies, Host/Origin/CSRF protection and a strict CSP.
 - Read-only Git reader with an allowlist: repository identity by common Git directory, worktrees (locked/prunable/missing), local/remote-tracking/remote-only refs, configured upstreams with ahead/behind and gone detection, working-tree status and operation markers.
 - Claude Code adapter (transcripts, subagents, live-session registry) and Codex adapter (multi-file rollouts, thread index, subagents) with incremental bounded reading and evidence-based status.

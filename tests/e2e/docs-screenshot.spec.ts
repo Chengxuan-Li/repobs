@@ -22,13 +22,14 @@ test('dashboard screenshot for the documentation', async ({ page }) => {
   // Collapse the bulk-session repository so the screenshot shows the interesting one.
   await page.getByRole('button', { name: 'Collapse repo-b' }).click()
   const card = page.getByRole('listitem', { name: /^Review ref grouping/ })
-  await card.getByRole('button', { name: /^Expand / }).click()
-  await card.getByLabel(/Review state for/).selectOption('flagged')
-  await card.getByRole('button', { name: /^Collapse / }).click()
+  await card.getByRole('button', { name: /change review state/ }).click()
+  await page.getByRole('menuitemradio', { name: 'Flagged' }).click()
   await page.getByRole('button', { name: 'Legend' }).click()
   await page.getByRole('listitem', { name: /^Tighten status parser/ }).getByText('Tighten status parser', { exact: true }).click()
   await expect(page.getByRole('complementary', { name: 'Details panel' }).getByLabel('Review state')).toBeVisible()
   await page.mouse.move(0, 0)
+  await expect(page.getByRole('dialog', { name: 'Agent details' })).toBeHidden()
+  await page.getByLabel(/^Branches and agents\. Use the arrow keys/).evaluate((el) => (el.scrollTop = 0))
   // Temporary-folder paths contain the local user name: mask them in the published image.
   await page.screenshot({
     path: path.resolve('docs/assets/repobs-overview.png'),

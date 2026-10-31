@@ -24,6 +24,10 @@ export function Legend({ axisMode }: { axisMode: 'sequence' | 'time' }) {
       <Item label="Branched from / merged into another branch">
         <path d="M2,2 V9 Q2,13 6,13 H18" className={styles.fork} fill="none" />
       </Item>
+      <Item label="Parallel lines: connectors sharing a path are drawn side by side">
+        <path d="M2,2 V8 Q2,12 6,12 H18" className={styles.fork} fill="none" />
+        <path d="M6,2 V4 Q6,8 10,8 H18" className={styles.fork} fill="none" />
+      </Item>
       <Item label="Branch with no commits of its own, pointing at a commit on another branch">
         <path d="M2,2 V8 Q2,12 6,12 H12" className={styles.fork} fill="none" strokeDasharray="2 2" />
         <circle cx="16" cy="12" r="3" className={styles.local} style={{ stroke: 'var(--color-accent)' }} />
@@ -35,7 +39,7 @@ export function Legend({ axisMode }: { axisMode: 'sequence' | 'time' }) {
         <rect x="1" y="5" width="7" height="6" className={styles.barWorking} />
         <rect x="11" y="5" width="7" height="6" className={styles.barAttention} />
       </Item>
-      <Item label="Spawned by the agent above">
+      <Item label="Spawned by the agent above (indented card)">
         <path d="M4,0 V9 H12" className={styles.spawn} fill="none" />
       </Item>
       <Item label="Now">
@@ -45,7 +49,7 @@ export function Legend({ axisMode }: { axisMode: 'sequence' | 'time' }) {
         {axisMode === 'sequence'
           ? 'Axis: commits in order, evenly spaced (dates are labels, not distances). Agent bars sit between the commits made around the same time.'
           : 'Axis: calendar time. Distances are proportional to elapsed time.'}{' '}
-        Status colours: blue = working, amber = needs input or review, green = ready, grey = complete or unknown. Hover any node, bar or row for details.
+        Status colours: blue = working, amber = needs input or review, green = complete (reviewed), grey = unreviewed or unknown. Click an agent's status to set your review state. Hover any node, bar or row for details; Ctrl + wheel or the − / + buttons zoom the history.
       </p>
     </div>
   )

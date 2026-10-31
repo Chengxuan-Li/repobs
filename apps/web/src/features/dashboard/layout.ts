@@ -37,9 +37,18 @@ export interface SessionRow {
   annotation?: AnnotationSummary
   /** 0 for a top-level session, 1+ for spawned agents shown under their parent. */
   depth: number
+  /**
+   * Tree guides drawn left of the agent card, one per level 1..depth: 'pipe' continues an
+   * ancestor's line past this row, 'tee' / 'last' connect this row to its parent, 'none' is blank.
+   */
+  guides: TreeGuide[]
+  /** Spawned agents follow directly below (the line leaves the bottom of this card). */
+  hasChildren: boolean
   parentRowId?: string
   branchRowId: string
 }
+
+export type TreeGuide = 'pipe' | 'tee' | 'last' | 'none'
 
 export interface MoreRow {
   kind: 'more'
@@ -280,13 +289,18 @@ export function layoutRepository(
     rows.push(row)
     const expanded = options.expandedBranches.has(row.id)
     const visible = expanded ? sessions : sessions.slice(0, options.sessionLimit)
-    const addSession = (s: AgentSession, depth: number, parentRowId?: string) => {
+    // Depth-first, so a parent's spawned agents sit directly below it; `open` says, per ancestor
+    // level, whether that ancestor's line continues further down (more siblings to come).
+    const addSession = (s: AgentSession, open: boolean[], last: boolean, parentRowId?: string) => {
       const id = `session:${s.id}`
-      rows.push({ kind: 'session', id, session: s, annotation: input.annotations.get(s.id), depth, parentRowId, branchRowId: row.id })
+      const children = childrenOf.get(s.id) ?? []
+      const guides: TreeGuide[] = parentRowId ? [...open.map((o): TreeGuide => (o ? 'pipe' : 'none')), last ? 'last' : 'tee'] : []
+      rows.push({ kind: 'session', id, session: s, annotation: input.annotations.get(s.id), depth: guides.length, guides, hasChildren: children.length > 0, parentRowId, branchRowId: row.id })
       if (parentRowId) spawnLinks.push({ from: parentRowId, to: id })
-      for (const child of childrenOf.get(s.id) ?? []) addSession(child, depth + 1, id)
+      const childOpen = parentRowId ? [...open, !last] : []
+      children.forEach((child, i) => addSession(child, childOpen, i === children.length - 1, id))
     }
-    for (const s of visible) addSession(s, 0)
+    for (const s of visible) addSession(s, [], true)
     if (visible.length < sessions.length) rows.push({ kind: 'more', id: `more:${row.id}`, branchRowId: row.id, hidden: sessions.length - visible.length })
   }
   const { groups, groupOf } = options.collapseQuiet

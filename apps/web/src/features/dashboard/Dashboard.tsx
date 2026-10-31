@@ -1,7 +1,7 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Minus, Plus } from 'lucide-react'
 import { type AgentSession, type AnnotationSummary, type ReviewState, type Snapshot, workflowStatus } from '@repobs/contracts'
-import { RANGE_MS, type ViewState } from '../../app/viewState'
-import { clamp } from '../../app/viewState'
+import { clamp, MAX_ZOOM, MIN_ZOOM, RANGE_MS, type ViewState } from '../../app/viewState'
 import { AgentRow } from './AgentRow'
 import { FilterBar } from './FilterBar'
 import { AgentHover, HoverCard, type HoverState, type ShowHover } from './HoverCard'
@@ -14,6 +14,7 @@ import boardStyles from './board.module.css'
 import styles from './dashboard.module.css'
 
 const AXIS_HEIGHT = 24
+const ZOOM_STEP = 1.5
 
 export function Dashboard({
   snapshot,
@@ -73,9 +74,49 @@ export function Dashboard({
         now,
         availableWidth: Math.max(240, viewport - LABEL_W),
         minSpacing: 22,
+        zoom: view.zoom,
       }),
-    [view.axisMode, view.timeRange, layouts, visibleIds, filtered, now, viewport],
+    [view.axisMode, view.timeRange, view.zoom, layouts, visibleIds, filtered, now, viewport],
   )
+
+  // Horizontal zoom keeps the point under the pointer (or the middle of the lanes) in place.
+  const zoomState = useRef({ zoom: view.zoom, width: timeline.width })
+  useLayoutEffect(() => {
+    zoomState.current = { zoom: view.zoom, width: timeline.width }
+  })
+  const anchor = useRef<{ frac: number; px: number }>(undefined)
+  const zoomTo = useCallback(
+    (zoom: number, px?: number) => {
+      const el = scrollRef.current
+      const next = clamp(Math.round(zoom * 100) / 100, MIN_ZOOM, MAX_ZOOM)
+      if (next === zoomState.current.zoom) return
+      if (el) {
+        const at = px ?? LABEL_W + (el.clientWidth - LABEL_W) / 2
+        anchor.current = { frac: (el.scrollLeft + at - LABEL_W) / zoomState.current.width, px: at }
+      }
+      setView({ zoom: next })
+    },
+    [setView],
+  )
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    const a = anchor.current
+    if (!el || !a) return
+    anchor.current = undefined
+    el.scrollLeft = a.frac * timeline.width + LABEL_W - a.px
+  }, [timeline.width])
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    // Ctrl/⌘ + wheel zooms the axis instead of the page (needs a non-passive listener).
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      zoomTo(zoomState.current.zoom * Math.exp(-e.deltaY * 0.002), e.clientX - el.getBoundingClientRect().left)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [zoomTo])
 
   // Start scrolled to the newest end of history; later the user's scroll position is kept.
   const scrolledFor = useRef('')
@@ -102,7 +143,7 @@ export function Dashboard({
   const showHover: ShowHover = useCallback((content, e, options) => {
     clearTimeout(hideTimer.current)
     interactiveOpen.current = !!options?.interactive
-    setHover({ content, x: e.clientX, y: e.clientY, interactive: options?.interactive })
+    setHover({ content, x: e.clientX, y: e.clientY, interactive: options?.interactive, label: options?.label })
   }, [])
   const hideHover = useCallback(() => {
     clearTimeout(hideTimer.current)
@@ -147,6 +188,10 @@ export function Dashboard({
     else if (e.key === 'ArrowRight' && sessionId && !expandedAgents.has(sessionId)) toggleAgent(sessionId)
     else if (e.key === 'ArrowLeft' && sessionId && expandedAgents.has(sessionId)) toggleAgent(sessionId)
     else if ((e.key === 'Enter' || e.key === ' ') && current >= 0) rows[current]!.click()
+    else if (e.ctrlKey || e.metaKey || e.altKey) return
+    else if (e.key === '+' || e.key === '=') zoomTo(view.zoom * ZOOM_STEP)
+    else if (e.key === '-') zoomTo(view.zoom / ZOOM_STEP)
+    else if (e.key === '0') zoomTo(1)
     else return
     e.preventDefault()
   }
@@ -161,16 +206,29 @@ export function Dashboard({
         className={styles.scroller}
         onKeyDown={onKeyDown}
         onScroll={() => setHover(undefined)}
+        data-menu-bounds=""
         tabIndex={0}
-        aria-label="Branches and agents. Use the arrow keys to move between rows, right and left arrows to expand or collapse an agent, Enter to open it."
+        aria-label="Branches and agents. Use the arrow keys to move between rows, right and left arrows to expand or collapse an agent, Enter to open it, plus and minus to zoom the history."
         style={{ ['--axis-height' as string]: `${AXIS_HEIGHT}px` }}
       >
         <div className={styles.canvas} style={{ width: LABEL_W + timeline.width }}>
-          <div className={styles.axis} style={{ height: AXIS_HEIGHT }} aria-hidden="true">
+          <div className={styles.axis} style={{ height: AXIS_HEIGHT }}>
             <div className={styles.axisLabel} style={{ width: LABEL_W }}>
-              {view.axisMode === 'sequence' ? 'Commits in order →' : 'Calendar time →'}
+              <span aria-hidden="true">{view.axisMode === 'sequence' ? 'Commits in order →' : 'Calendar time →'}</span>
+              <span className={styles.spacer} />
+              <div className={styles.zoom} role="group" aria-label="Zoom history" onKeyDown={(e) => e.stopPropagation()}>
+                <button type="button" className={styles.zoomButton} aria-label="Zoom out" title="Zoom out (−, or Ctrl + wheel)" disabled={view.zoom <= MIN_ZOOM} onClick={() => zoomTo(view.zoom / ZOOM_STEP)}>
+                  <Minus size={11} />
+                </button>
+                <button type="button" className={styles.zoomLevel} title="Reset zoom (0)" aria-label={`Zoom ${Math.round(view.zoom * 100)}%, reset`} onClick={() => zoomTo(1)}>
+                  {Math.round(view.zoom * 100)}%
+                </button>
+                <button type="button" className={styles.zoomButton} aria-label="Zoom in" title="Zoom in (+, or Ctrl + wheel)" disabled={view.zoom >= MAX_ZOOM} onClick={() => zoomTo(view.zoom * ZOOM_STEP)}>
+                  <Plus size={11} />
+                </button>
+              </div>
             </div>
-            <svg width={timeline.width} height={AXIS_HEIGHT}>
+            <svg width={timeline.width} height={AXIS_HEIGHT} aria-hidden="true">
               {timeline.ticks.map((t, i) => (
                 <g key={`${t.label}-${i}`} transform={`translate(${t.x},0)`}>
                   <line y1={17} y2={AXIS_HEIGHT} className={styles.tick} />
@@ -234,7 +292,7 @@ export function Dashboard({
                     data-session-id={s.id}
                     data-row-id={`session:${s.id}`}
                     tabIndex={-1}
-                    className={boardStyles.row}
+                    className={`${boardStyles.row} ${boardStyles.row_session} ${view.selectedId === `session:${s.id}` ? boardStyles.selected : ''}`}
                     aria-label={`${annotations.get(s.id)?.displayAlias || s.title}, ${s.provider === 'claude' ? 'Claude Code' : 'Codex'} agent`}
                     onClick={() => onSelect(`session:${s.id}`)}
                   >
@@ -246,8 +304,10 @@ export function Dashboard({
                       <AgentRow
                         session={s}
                         annotation={annotations.get(s.id)}
-                        depth={0}
+                        guides={[]}
+                        hasChildren={false}
                         expanded={view.details || expandedAgents.has(s.id)}
+                        focusable={view.selectedId === `session:${s.id}`}
                         now={now}
                         onToggle={() => toggleAgent(s.id)}
                         onReview={(r) => onReview(s.id, r)}

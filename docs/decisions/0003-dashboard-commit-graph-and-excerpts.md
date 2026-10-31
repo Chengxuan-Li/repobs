@@ -31,3 +31,11 @@
 
 - **Orthogonal connectors.** Lines between branches use horizontal and vertical segments with rounded corners instead of free-form curves.
 - **Collapsible quiet commits (optional, off by default).** Runs of two or more commits along one branch with no head, fork, merge, first-own-commit or nearby agent activity fold into one counted node that takes a single axis column; hovering lists the commits (each inspectable), clicking expands the run.
+
+## Amendment (owner feedback, 2026-10-30, fourth review)
+
+- **Agents are cards indented by spawn depth.** Spawn-tree lines are drawn in a gutter left of the cards and pass through row boundaries (per-row guide segments computed in the layout), so a parent connects to every child. No coloured left-edge status stripes; status is the badge.
+- **Finished, unreviewed agents are "Unreviewed"** (neutral), replacing "Ready" (success green), which contradicted an unreviewed review state.
+- **The status badge is the review control.** It opens a review-state menu on the dashboard row and in the agent's hover card; the hover card opens beside the label column so the pointer can reach it.
+- **Metro-style connector tracks.** Overlapping collinear connector legs get parallel tracks 4 px apart (`routing.ts`): lanes keep the centre; a leg that turns later sits closer to the centre and others step outwards on the side they turn to, so a bundle leaving one commit does not cross itself; when a side is full (4 tracks) the other side is used.
+- **Horizontal zoom** (25%–1600%) of the shared axis, by buttons, Ctrl + wheel (anchored at the pointer) or +/−/0 keys; stored with the per-browser view.

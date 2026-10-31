@@ -21,6 +21,8 @@ export interface ViewState {
   details: boolean
   expandedAgents: string[]
   axisMode: AxisMode
+  /** Horizontal zoom of the shared axis (1 = fit the commits to the viewport where possible). */
+  zoom: number
   /** Collapse runs of commits that change nothing in the topology. */
   collapseQuiet: boolean
   /** Collapsed groups the user opened (reset when collapsing is switched on again). */
@@ -47,6 +49,7 @@ export const DEFAULT_VIEW: ViewState = {
   details: false,
   expandedAgents: [],
   axisMode: 'sequence',
+  zoom: 1,
   collapseQuiet: false,
   expandedGroups: [],
   legendOpen: false,
@@ -60,7 +63,7 @@ export const DEFAULT_VIEW: ViewState = {
   expandedBranches: [],
 }
 
-const STATUSES: WorkflowStatus[] = ['needs_input', 'working', 'needs_review', 'ready', 'complete', 'unknown']
+const STATUSES: WorkflowStatus[] = ['needs_input', 'working', 'needs_review', 'unreviewed', 'complete', 'unknown']
 
 export function loadView(): ViewState {
   try {
@@ -73,12 +76,18 @@ export function loadView(): ViewState {
       ...p,
       leftWidth: clamp(Number(p.leftWidth) || DEFAULT_VIEW.leftWidth, 180, 420),
       rightWidth: clamp(Number(p.rightWidth) || DEFAULT_VIEW.rightWidth, 280, 560),
-      filters: { ...f, statuses: (f.statuses ?? []).filter((s) => STATUSES.includes(s)), tags: Array.isArray(f.tags) ? f.tags : [] },
+      filters: {
+        ...f,
+        // 'ready' was renamed 'unreviewed'.
+        statuses: (f.statuses ?? []).map((s) => ((s as string) === 'ready' ? 'unreviewed' : s)).filter((s) => STATUSES.includes(s)),
+        tags: Array.isArray(f.tags) ? f.tags : [],
+      },
       hiddenRepos: Array.isArray(p.hiddenRepos) ? p.hiddenRepos : [],
       collapsedRepos: Array.isArray(p.collapsedRepos) ? p.collapsedRepos : [],
       expandedBranches: Array.isArray(p.expandedBranches) ? p.expandedBranches : [],
       expandedAgents: Array.isArray(p.expandedAgents) ? p.expandedAgents : [],
       axisMode: p.axisMode === 'time' ? 'time' : 'sequence',
+      zoom: clamp(Number(p.zoom) || 1, MIN_ZOOM, MAX_ZOOM),
       collapseQuiet: p.collapseQuiet === true,
       expandedGroups: Array.isArray(p.expandedGroups) ? p.expandedGroups : [],
       // Views saved before the commit-order axis existed defaulted to a 7-day window.
@@ -88,6 +97,9 @@ export function loadView(): ViewState {
     return DEFAULT_VIEW
   }
 }
+
+export const MIN_ZOOM = 0.25
+export const MAX_ZOOM = 16
 
 export function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n))

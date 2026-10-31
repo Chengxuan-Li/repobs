@@ -57,4 +57,16 @@ describe('shared timeline', () => {
     expect(t.commitX('a1')).toBeUndefined()
     expect(t.width).toBe(1000)
   })
+
+  it('zoom widens both axes proportionally and never shrinks below the viewport', () => {
+    const many = graph('m', Array.from({ length: 200 }, (_, i) => c(`m${i}`, 200 - i)))
+    const base = { mode: 'sequence' as const, items: itemsOf([many]), activity: [], rangeStart: null, now, availableWidth: 500, minSpacing: 20 }
+    const gap = (t: ReturnType<typeof buildTimeline>) => t.commitX('m1')! - t.commitX('m0')!
+    expect(gap(buildTimeline({ ...base, zoom: 2 }))).toBeCloseTo(2 * gap(buildTimeline(base)))
+    expect(gap(buildTimeline({ ...base, zoom: 0.5 }))).toBeCloseTo(10)
+    const few = buildTimeline({ ...base, items: itemsOf(graphs), zoom: 0.25 })
+    expect(few.width).toBe(500)
+    const time = buildTimeline({ ...base, mode: 'time', zoom: 3 })
+    expect(time.width).toBe(1500)
+  })
 })

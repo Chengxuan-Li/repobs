@@ -20,18 +20,19 @@ Only the panels scroll; the page itself never does. Panel widths, filters, toggl
 COMMITS IN ORDER →       Oct 25        Oct 26        Oct 27   now
 repo-a
 main                     ●─────────────────────────────────◇    branch row: commits in order
- › C Tighten status parser          Needs input           ▮    one line per agent
- › X Review ref grouping            Needs review          ▮
+ [› C Tighten status parser   Needs input ⌄]              ▮    one card per agent
+ [› X Review ref grouping     Needs review ⌄]             ▮
 feature/tracked from main   ╰──○                                forked from main; ○ = not pushed
- › C Claude session c3d2e4f6        Working               ▬
-   └ › C Map the feature module     Needs input           ▮    spawned by the agent above
+ [› C Claude session c3d2e4f6 Working ⌄]                  ▬
+  ├ [› C Map the feature module  Needs input ⌄]           ▮    spawned agents: indented cards
+  └ [› C Draft the test plan     Unreviewed ⌄]            ▮
 unicode-branch at main   ┊○                                     no commits of its own: points at a main commit
 ```
 
 Click **Legend** in the filter bar for the meaning of every mark.
 
 - **One row per branch.** Local branches come first (the primary checkout's branch at the top, then other checked-out branches, then the rest by newest commit), then detached worktrees, *Unassigned sessions*, and — if *Remote-only branches* is ticked — remote refs without a local branch. The *Branches* menu shows all, only checked-out ones, or only branches with agents.
-- **Relationships are spelled out.** The label says *from main* when a branch's first own commit was made on top of `main`, *→ main* when it was merged into `main`, and *at main* when it has no commits of its own and points at a commit on `main`. On the lanes, connectors are straight lines with rounded corners: a fork drops vertically from its base commit and turns into the branch row, a merge runs along its branch and turns into the merge commit, and "at" branches get a dashed pointer to the commit they sit on.
+- **Relationships are spelled out.** The label says *from main* when a branch's first own commit was made on top of `main`, *→ main* when it was merged into `main`, and *at main* when it has no commits of its own and points at a commit on `main`. On the lanes, connectors are straight lines with rounded corners: a fork drops vertically from its base commit and turns into the branch row, a merge runs along its branch and turns into the merge commit, and "at" branches get a dashed pointer to the commit they sit on. Like lines on a metro map, connectors that would share a path — several branches leaving one commit, a merge running along its branch's own lane — are drawn on parallel tracks a few pixels apart, so each stays distinguishable.
 - **Commits are nodes, parent links are edges.** A commit sits on the row of the first branch that reaches it along first parents; commits reached only through merges of deleted branches are drawn on the merging row.
 - **Node styles:** filled = on a remote-tracking ref (pushed); hollow amber with dashed edges = only local, not pushed; grey dashed = on the upstream but not pulled yet; hollow blue = a branch pointer; the dashed **diamond** after a head = uncommitted or untracked changes in that branch's worktree (red when conflicted). A small square above a head marks an open pull request (when the GitHub integration is on).
 - **Hover** any commit for its subject, id, date, branch and push state; any branch label or pointer for its upstream, relations and worktree; any diamond for the change counts; any agent row or bar for the agent's details.
@@ -47,20 +48,23 @@ All repositories share one horizontal axis, labelled at the top; scroll sideways
 - **Axis → Commit order** (default): commits from every visible repository are evenly spaced in the order they were made; dates are labels, not distances. Agent bars sit between the commits made around the same time.
 - **Axis → Calendar time**: distances are proportional to elapsed time.
 - **History** limits how far back the axis goes (24 hours … 1 year, or everything loaded — the newest 400 commits per repository).
+- **Zoom** stretches or compresses the axis horizontally: the **−** / **+** buttons at the left of the axis, **Ctrl + mouse wheel** over the dashboard (zooms around the pointer), or **+**, **−** and **0** (reset) while the dashboard has focus. The percentage button resets to 100%. Zooming out below 100% only packs commits closer when history is wider than the window.
 
 ## Agents
 
-Each Claude Code or Codex session is **one line** under the branch whose worktree it ran in, newest first: an expand chevron, a provider mark (**C** = Claude Code, **X** = Codex), the name (your alias if you set one, else the provider title or a fallback such as *Claude session 1a2b3c4d*) and its **workflow status** — *Needs input*, *Working*, *Needs review*, *Ready*, *Complete* or *Unknown* (see [Status semantics](status-semantics.md)). Its bar on the lanes runs from its first to its last activity, coloured by that status.
+Each Claude Code or Codex session is a **one-line card** under the branch whose worktree it ran in, newest first: an expand chevron, a provider mark (**C** = Claude Code, **X** = Codex), the name (your alias if you set one, else the provider title or a fallback such as *Claude session 1a2b3c4d*) and its **workflow status** — *Needs input*, *Working*, *Needs review*, *Unreviewed*, *Complete* or *Unknown* (see [Status semantics](status-semantics.md)). Its bar on the lanes runs from its first to its last activity, coloured by that status.
+
+**Click the status** to set your review state from a menu (Unreviewed, Needs review, Reviewed, Complete, Flagged); the same menu is in the agent's hover card. A finished agent you have not reviewed shows *Unreviewed*, never a success colour.
 
 Everything else is collapsed:
 
-- **Hover** the row or its bar for the observed state and why, last activity, the **latest message excerpt** (the agent's last reply, or the tool it is running with the tool's own description), review state, tags, notes and checklist progress.
-- **Expand** one agent with its chevron (or → on the keyboard; ← collapses), or all agents with **Expand agent details**. The expanded block shows the state, the excerpt, a review dropdown, tags and full notes (line breaks kept).
+- **Hover** the row or its bar for the observed state and why, last activity, the **latest message excerpt** (the agent's last reply, or the tool it is running with the tool's own description), review state, tags, notes and checklist progress. The row's card opens beside the label column; move onto it to use its review menu.
+- **Expand** one agent with its chevron (or → on the keyboard; ← collapses), or all agents with **Expand agent details**. The expanded block shows the state, the excerpt, tags and full notes (line breaks kept).
 - **Select** it (click its name, or Enter) to open it in the details panel.
 
 Excerpts are read mechanically from the provider's files, truncated, with obvious secrets redacted, and never stored; Settings → Privacy turns them off.
 
-Spawned agents (Claude Code subagents, Codex sub-threads) are indented under the agent that started them with a tree connector, and linked to it on the lanes; **Hide spawned agents** removes them. Long lists show the 12 newest agents per branch and a *Show N more agents* row.
+Spawned agents (Claude Code subagents, Codex sub-threads) are cards indented one step per spawn level under the agent that started them. The tree lines run in the gutter left of the cards and continue across rows, from the bottom of the parent's card to each child; on the lanes, a thin line links the parent's bar to its children's; **Hide spawned agents** removes them. Long lists show the 12 newest agents per branch and a *Show N more agents* row.
 
 ## Your notes
 

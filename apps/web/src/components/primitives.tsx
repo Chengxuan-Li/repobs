@@ -16,6 +16,11 @@ import styles from './primitives.module.css'
 // Small shared components (StatusIndicator, Badge, EmptyState, InlineAlert, Dialog). Every
 // colored status also carries text, so color is never the only signal.
 
+/** Class names of a badge, for controls that should look like one (e.g. a status menu button). */
+export function badgeClassName(tone: Tone): string {
+  return `${styles.badge} ${styles[tone]}`
+}
+
 export function Badge({ tone = 'neutral', children, title }: { tone?: Tone; children: ReactNode; title?: string }) {
   return (
     <span className={`${styles.badge} ${styles[tone]}`} title={title}>

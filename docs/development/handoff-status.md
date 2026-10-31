@@ -2,6 +2,22 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 5 — 2026-10-30: fourth review (ADR 0003 amendment)
+
+| Request | Implementation |
+| --- | --- |
+| Subagent topology lines poorly designed; indent cards by level; drop coloured left edges | Agent rows are cards offset by spawn depth (`AgentRow.tsx`); tree guides (`pipe`/`tee`/`last` plus a stub under parents) are computed per row in `layout.ts` and drawn in the gutter, continuous across rows; the status stripe and the selected-row inset stripe are gone |
+| "Unreviewed" sessions shown as "Ready" | Workflow status `ready` renamed `unreviewed` (neutral tone; `complete` is now success); saved status filters migrate |
+| Change review state from the dashboard and the popup | `ReviewMenu.tsx`: the status badge opens a keyboard-operable review menu on rows and in the (now interactive) agent hover card |
+| Overlapping/intersecting connectors indistinguishable | `routing.ts` assigns parallel tracks to overlapping collinear legs (metro style); unit-tested |
+| Horizontal zoom | `zoom` in view state and `buildTimeline`; buttons on the axis, Ctrl + wheel anchored at the pointer, +/−/0 keys |
+
+Also fixed: lanes scrolled under the sticky label column showed through the 1 px row borders. The demo gives the feature-branch agent a second subagent.
+
+Verification (2026-10-30, this machine): typecheck, lint and build exit 0; `npm test` 14 files / 123 tests passed; `npm run test:integration` 6 files / 73 tests passed; `npm run test:e2e` 22 passed, 1 skipped (the docs screenshot, regenerated separately with `REPOBS_DOCS_SCREENSHOT=1`); `npm run docs:build` exit 0. Backend unchanged except the shared `WorkflowStatus` contract.
+
+Unknown: with many branches leaving one commit (more than 9) tracks are reused, so some lines still overlap; not seen on real data yet.
+
 ## Checkpoint 4 — 2026-10-30: third review
 
 | Request | Implementation |

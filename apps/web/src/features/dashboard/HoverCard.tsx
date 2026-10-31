@@ -8,6 +8,7 @@ import {
   DETAIL_LABELS,
   type PullRequest,
   REVIEW_LABELS,
+  type ReviewState,
   stateLabel,
   WORKFLOW_LABELS,
   WORKFLOW_TONES,
@@ -15,6 +16,7 @@ import {
 } from '@repobs/contracts'
 import { Badge, formatAge } from '../../components/primitives'
 import type { BranchRow } from './layout'
+import { ReviewMenu } from './ReviewMenu'
 import styles from './hover.module.css'
 
 // Floating detail card shown while hovering graph nodes, agent rows, bars and branch labels.
@@ -24,11 +26,13 @@ export interface HoverState {
   content: ReactNode
   x: number
   y: number
-  /** The pointer may move onto the card (lists you can hover or click). */
+  /** The pointer may move onto the card (lists you can hover or click, the review menu). */
   interactive?: boolean
+  /** Accessible name of an interactive card. */
+  label?: string
 }
 
-export type ShowHover = (content: ReactNode, e: { clientX: number; clientY: number }, options?: { interactive?: boolean }) => void
+export type ShowHover = (content: ReactNode, e: { clientX: number; clientY: number }, options?: { interactive?: boolean; label?: string }) => void
 
 export function HoverCard({ state, onEnter, onLeave }: { state?: HoverState; onEnter: () => void; onLeave: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -49,7 +53,7 @@ export function HoverCard({ state, onEnter, onLeave }: { state?: HoverState; onE
       className={`${styles.card} ${state.interactive ? styles.interactive : ''}`}
       style={pos}
       role={state.interactive ? 'dialog' : 'tooltip'}
-      aria-label={state.interactive ? 'Commit details' : undefined}
+      aria-label={state.interactive ? (state.label ?? 'Details') : undefined}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
     >
@@ -95,14 +99,34 @@ export function CommitHover({ commit, branch, incoming, isHead, pullRequests }: 
   )
 }
 
-export function AgentHover({ session, annotation, now, parentTitle, children }: { session: AgentSession; annotation?: AnnotationSummary; now: number; parentTitle?: string; children: number }) {
+export function AgentHover({
+  session,
+  annotation,
+  now,
+  parentTitle,
+  children,
+  onReview,
+}: {
+  session: AgentSession
+  annotation?: AnnotationSummary
+  now: number
+  parentTitle?: string
+  children: number
+  /** Show the status as the review menu (interactive cards only). */
+  onReview?: (review: ReviewState) => void
+}) {
   const status = workflowStatus(session, annotation)
   const total = (annotation?.checklistOpen ?? 0) + (annotation?.checklistDone ?? 0)
+  const title = annotation?.displayAlias || session.title
   return (
     <>
-      <div className={styles.title}>{annotation?.displayAlias || session.title}</div>
+      <div className={styles.title}>{title}</div>
       <div className={styles.row}>
-        <Badge tone={WORKFLOW_TONES[status]}>{WORKFLOW_LABELS[status]}</Badge>
+        {onReview ? (
+          <ReviewMenu status={status} review={annotation?.review ?? 'unreviewed'} title={title} onReview={onReview} />
+        ) : (
+          <Badge tone={WORKFLOW_TONES[status]}>{WORKFLOW_LABELS[status]}</Badge>
+        )}
         <span className="small">{stateLabel(session.state)}</span>
         <span className="small muted">({CONFIDENCE_LABELS[session.state.confidence].toLowerCase()})</span>
       </div>
@@ -135,12 +159,8 @@ export function AgentHover({ session, annotation, now, parentTitle, children }: 
             <dd>{DETAIL_LABELS[session.state.detail]}</dd>
           </>
         ) : null}
-        {annotation && annotation.review !== 'unreviewed' ? (
-          <>
-            <dt>Review</dt>
-            <dd>{REVIEW_LABELS[annotation.review]}</dd>
-          </>
-        ) : null}
+        <dt>Review</dt>
+        <dd>{REVIEW_LABELS[annotation?.review ?? 'unreviewed']}</dd>
         {total ? (
           <>
             <dt>Checklist</dt>

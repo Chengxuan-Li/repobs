@@ -76,19 +76,25 @@
   flex: none;
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
+  /* Cover the row's bottom border too, so lanes scrolled under the column never show through. */
+  margin-bottom: -1px;
+  border-bottom: 1px solid var(--color-border);
   min-width: 0;
 }
 .row:hover .label {
   background: var(--color-hover-bg);
 }
+/* An open review menu must paint above the (sticky) labels of the rows below. */
+.label:has([data-open]) {
+  z-index: 5;
+}
 .row:focus-visible .label {
   outline: 2px solid var(--color-focus);
   outline-offset: -2px;
 }
-.selected .label,
-.selected:hover .label {
+.row_branch.selected .label,
+.row_branch.selected:hover .label {
   background: var(--color-selected-bg);
-  box-shadow: inset 2px 0 0 var(--color-accent);
 }
 .row_branch .label {
   background: var(--color-surface-raised);
@@ -137,16 +143,27 @@
   font-family: var(--font-mono);
 }
 
-/* One-line agents */
+/* One-line agents: a card per agent, indented by spawn depth. Spawn lines live in the gutter to
+   the left of the cards and run through row boundaries, so a parent connects to all its children. */
+.row_session .label {
+  background: var(--color-bg);
+}
 .agent {
-  border-left: 3px solid transparent;
+  position: relative;
+  padding: 2px var(--space-2) 2px 0;
 }
-.agent[data-status='needs_input'],
-.agent[data-status='needs_review'] {
-  border-left-color: var(--tone-warning-text);
+.card {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  min-width: 0;
 }
-.agent[data-status='working'] {
-  border-left-color: var(--tone-info-text);
+.row:hover .card {
+  border-color: var(--color-border-interactive);
+}
+.selected .card,
+.selected:hover .card {
+  border-color: var(--color-accent);
+  background: var(--color-selected-bg);
 }
 .historical .agentName {
   color: var(--color-text-muted);
@@ -155,27 +172,45 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  height: 24px;
-  padding: 0 var(--space-2) 0 12px;
+  height: 20px;
+  padding: 0 3px 0 4px;
   white-space: nowrap;
   min-width: 0;
 }
-.treeIndent,
-.treeElbow {
-  flex: none;
-  width: 12px;
-  align-self: stretch;
-  position: relative;
+.guide,
+.guideStub {
+  position: absolute;
+  pointer-events: none;
+  border-color: var(--color-text-muted);
 }
-.treeElbow::before {
+.guide_pipe,
+.guide_tee {
+  top: 0;
+  bottom: -1px;
+  border-left: 1px solid;
+}
+.guide_tee::after {
   content: '';
   position: absolute;
-  left: 4px;
-  top: -1px;
+  left: 0;
+  right: 0;
+  top: 12px;
+  border-top: 1px solid var(--color-text-muted);
+}
+.guide_last {
+  top: 0;
   height: 13px;
-  width: 7px;
-  border-left: 1px solid var(--color-text-muted);
-  border-bottom: 1px solid var(--color-text-muted);
+  border-left: 1px solid;
+  border-bottom: 1px solid;
+  border-bottom-left-radius: 5px;
+}
+.guideStub {
+  bottom: -1px;
+  height: 3px;
+  border-left: 1px solid;
+}
+.row_session:hover .label {
+  background: var(--color-bg);
 }
 .expand {
   flex: none;
@@ -212,7 +247,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 2px var(--space-2) 6px;
+  padding: 2px var(--space-2) 6px 21px;
   cursor: default;
 }
 .moreLine {
@@ -220,16 +255,6 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-}
-.reviewSelect {
-  margin-left: auto;
-}
-.reviewSelect select {
-  height: 20px;
-  border: 1px solid var(--color-border-interactive);
-  border-radius: 0;
-  background: var(--color-surface);
-  font-size: var(--font-size-label);
 }
 .excerpt {
   margin: 0;
