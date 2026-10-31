@@ -27,9 +27,9 @@ Development: `npm run dev` (backend from sources with watch + Vite dev UI on `ht
 ## What you get
 
 - Registered repositories (identified by their common Git directory), local branches with configured upstreams and ahead/behind, remote-only refs, detached HEADs, all worktrees with staged/unstaged/untracked/conflicted counts, merge/rebase/cherry-pick/revert/bisect markers, locked/prunable/missing states.
-- A commit graph per repository: one row per branch, commits placed by time, fork/merge edges, pushed vs local-only commits, a marker for uncommitted changes.
-- Claude Code and Codex sessions discovered from their local files — including sessions started outside repobs, many per worktree, and the sub-agents they spawned — with observed state, confidence (direct / inferred / unknown), source and evidence time, and an optional redacted excerpt of the latest message. Missing data is shown as unknown, never idle.
-- Filters by harness, time of the last message, workflow status and tags; repositories sorted by activity.
+- A commit graph per repository: one row per branch on an axis shared by all repositories (commit order, calendar time or compressed calendar; zoom, and drag to pan), fork/merge edges on parallel tracks, pushed vs local-only commits, uncommitted-change markers, and quiet commits folded into counted groups on request.
+- Claude Code and Codex sessions discovered from their local files — including sessions started outside repobs, many per worktree, and the sub-agents they spawned (collapsible under their parent) — as cards with observed state, confidence (direct / inferred / unknown), source and evidence time, and an optional redacted excerpt of the latest message. Missing data is shown as unknown, never idle.
+- Several named views, each with its own filters (harness, status, last-message time, tags, text), display options and repositories; a dockable layout with repositories and details panels; File → Export / Open for your annotations and views.
 - Your own review layer: review-state dropdown, autocompleting tags, alias, multi-line autosaved notes and checklists (completed checklists collapse without being deleted), export/import as JSON. Stored only in `%LOCALAPPDATA%\repobs`.
 - Live updates over server-sent events, from file watchers plus self-healing polling.
 - Optional, off-by-default, read-only GitHub pull request overlay via the GitHub CLI.

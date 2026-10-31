@@ -2,6 +2,17 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 14 — 2026-10-31: release preparation, v0.2.0
+
+- Version 0.2.0 in all package manifests, the lockfile's workspace entries and `APP_VERSION` (reported by `/health`).
+- `CHANGELOG.md`: the Unreleased entries consolidated into `[0.2.0] — 2026-10-31` describing the shipped state (superseded intermediate entries removed); three entries that had landed in the 0.1.0 section moved back.
+- Docs refreshed for the shipped UI: README feature list, index, getting started (File → Diagnostics, View 0), limitations (docking, per-browser views), architecture (workbench, views, routing, timeline cards, panning), testing coverage list, privacy (File → Export holds no excerpts).
+- Dead CSS removed (classes no component uses: `orphanRow`, `segmented`/`segment`/`segmentOn`, settings `suggestion`/`code`).
+
+Verification (2026-10-31, this machine) — see the release commit message for the final run: `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:integration`, `npm run build`, `npm run test:e2e`, `npm run docs:build`.
+
+Not done (owner decisions): tagging `v0.2.0` and pushing; whether `v0.1.0` gets a retroactive tag; a public clone URL for the README and getting-started placeholders; a dependency audit (`npm audit` contacts the npm registry).
+
 ## Checkpoint 13 — 2026-10-31: drag to pan; repositories panel header
 
 | Request | Implementation |

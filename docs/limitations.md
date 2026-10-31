@@ -12,6 +12,7 @@
 - **Session association** uses the session's working directory. A session whose directory no longer exists, or that matches no current worktree, is listed as *unassigned* rather than guessed; the branch a provider recorded during a session is historical and not used for association.
 - **Sessions outside registered repositories** are counted in Diagnostics but not listed.
 - **Watchers.** On Windows, repobs watches each worktree recursively (one OS handle per worktree) plus the Git directories and provider folders; polling recovers missed events. Turn off *Watch working files* in Settings for very large worktrees.
-- **Docking.** The workbench has a fixed layout (dashboard plus two optional, resizable side panels); drag-and-drop docking is not implemented.
+- **Docking.** Panels and views dock within the browser window; floating and pop-out windows are not available. On narrow windows (below about 1,100 px) the side panels stay docked rather than turning into overlays, so the dashboard gets narrow.
+- **Views are per browser.** Views, their settings and the arrangement are stored in the browser (localStorage), not on the server; use File → Export / Open to move them to another browser.
 - **Pull requests** require the GitHub CLI and are limited to open PRs (100 per repository) on github.com remotes.
 - **Packaging.** Runs from a source checkout with Node.js; there is no packaged executable or installer yet.

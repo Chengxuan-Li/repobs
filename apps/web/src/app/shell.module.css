@@ -58,16 +58,6 @@
 .orphans {
   border-bottom: 1px solid var(--color-border);
 }
-.orphanRow {
-  border-bottom: 1px solid var(--color-border);
-  max-width: 420px;
-  border-right: 1px solid var(--color-border);
-  outline: none;
-}
-.orphanRow:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: -2px;
-}
 
 .statusbar {
   display: flex;

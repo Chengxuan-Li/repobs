@@ -17,7 +17,7 @@ The view updates by itself when Git or agent data changes on disk.
 
 ## What repobs is not
 
-repobs is **not** an agent launcher, an IDE, a terminal or a Git client. It never runs `git fetch`, checkout, commit, reset or any other mutating command, never edits agent histories or configuration, never installs hooks, and never calls a model API. Removing a repository from the dashboard deletes nothing on disk.
+repobs is **not** an agent launcher, an IDE, a terminal or a Git client. It never runs `git fetch`, checkout, commit, reset or any other mutating command, never edits agent histories or configuration, never installs hooks, and never calls a model API. Removing a repository from repobs deletes nothing on disk.
 
 ## Privacy in one paragraph
 

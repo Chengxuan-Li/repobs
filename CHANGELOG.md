@@ -4,47 +4,33 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
-### Changed
+## [0.2.0] — 2026-10-31
 
-- The ribbon has File and View menus; only the side-panel and theme icon buttons remain. Other commands are in Search commands (Ctrl+K). Side panels keep a minimum width so their entries stay on one line (ADR 0005).
-- Agent cards on the dashboard no longer expand to show details (hover or select an agent instead). The chevron appears only on agents that spawned others and shows or hides them; spawned agents start collapsed (*Agents → Collapse spawned agents*).
-- The agent label at the end of each timeline bar is now a card like the list card, with the status dropdown to set your review state.
-- The dashboard filter bar is a line of dropdowns showing their current values: Harness and Status are multiple choice, Last message and Tags filter, and Branches, Agents and Timeline hold the display options; repository sorting moved to the repositories panel (ADR 0004, ADR 0005).
-- Labels and panel titles use the interface sans in sentence case instead of mono uppercase; buttons and fields follow the reference control style (ADR 0004).
-- Agents are cards indented by spawn depth, with tree lines in a gutter left of the cards that run across rows; coloured left-edge stripes removed.
-- Finished agents you have not reviewed show *Unreviewed* (neutral) instead of *Ready* (green).
-- Connectors that would overlap are drawn on parallel tracks, metro-map style.
-- Branch connectors are orthogonal (horizontal/vertical segments with rounded corners).
-
-- Commits are spaced in commit order by default on one axis shared by all repositories, scrolling horizontally through all loaded history; calendar time is a toggle (ADR 0003 amendment).
-- Agents are one line (name or alias + status); details appear on hover, by expanding a row (chevron or →/←) or all rows, and in the details panel.
-- Spawned-agent tree connectors stay inside the label column and line up with their rows.
-
-- Workbench redesigned around one primary dashboard with optional repositories and details side panels (ADR 0003); the page no longer scrolls, only panels do.
-- Review state is a dropdown; tags autocomplete from existing tags; notes keep line breaks.
+A redesigned workbench: a commit graph with agents on a shared timeline, several named views, dockable panels and the reference UI's look (ADR 0003, 0004, 0005).
 
 ### Added
 
-- Drag with the mouse on a view to pan its history and rows like a map; plain clicks still select.
-- Views: open several dashboards (View → Open new view), each named *View n* with the smallest free number, renamable by double-clicking its tab, with its own filters, display options and repositories; the repositories panel's ticks follow the current view (ADR 0005).
-- File → Export / Open: annotations and views (names, settings, arrangement) in one JSON file. View → Refresh rescans now.
-- Ribbon menus (Repositories, View, Tools) with shortcuts, a command palette (Ctrl+K) and icon buttons for the layout; dockable panels (drag, split, collapse, close, maximize, reset) with the arrangement remembered per browser (ADR 0004).
-- Agent labels on the timeline (name · status · last activity at the end of each bar) and a toggle to hide agent names in the list, which narrows the label column; each can be switched on or off independently.
-- Axis mode *Calendar, compressed*: calendar-proportional gaps with a minimum spacing between commits, so bursts of commits never collide; zoom scales only the time gaps.
-- The status badge on an agent card, and in its hover card, opens a menu to set your review state.
-- Horizontal zoom of the history axis: −/+ buttons, Ctrl + wheel, or +/−/0 keys.
-- *Collapse quiet commits*: runs of commits without branching, merging or branch heads (including bursts made by an agent) fold into a counted pill; hover to list and inspect them, click to expand.
-- Branch relationships: *from X* (forked from), *→ X* (merged into) and *at X* (no own commits; dashed pointer to the commit it sits on).
-- A legend for every graph mark and colour; richer hover cards for commits, branches, uncommitted changes and agents.
-- Commit graph per repository on a timeline: one row per branch, fork/merge edges, pushed vs local-only vs not-pulled commits, uncommitted-changes markers (read-only `git log`, at most 400 commits).
-- Agent cards under their branch with workflow status, observed state, activity bars and an optional, truncated, redacted latest-message excerpt (in memory only; Settings → Privacy).
-- Spawned agents (Claude Code subagents, Codex sub-threads) as linked child sessions, with a toggle to hide them.
-- Filters by harness, last-message time, workflow status, tags and text; repository sorting; details toggle showing alias, tags, full notes and checklist progress on cards.
+- **Commit graph per repository** on a timeline: one row per branch, fork and merge edges drawn orthogonally with rounded corners and on parallel tracks where they would overlap (metro style), pushed / local-only / not-pulled commits, uncommitted-change markers and branch relations (*from X*, *→ X*, *at X*); read-only `git log`, at most 400 commits.
+- **One axis shared by all repositories**: commit order (default), calendar time, or *calendar, compressed* (time-proportional gaps with a minimum spacing); horizontal zoom (−/+ buttons, Ctrl + wheel, +/−/0); drag with the mouse to pan like a map.
+- **Collapse quiet commits**: runs without branching, merging or branch heads fold into a counted pill; hover to list them, click to expand.
+- **Agents as one-line cards** under their branch, with workflow status, activity bars, an optional truncated and redacted latest-message excerpt (in memory only; Settings → Privacy) in the hover card and details panel, and a card at the end of each activity bar. The status badge on either card opens a menu to set your review state.
+- **Spawned agents** (Claude Code subagents, Codex sub-threads) as cards indented under their parent with tree lines; a chevron with their count shows or hides them, and they start collapsed.
+- **Views**: several dashboards as tabs, named *View n* (smallest free number), renamable and closable, each with its own filters, display options, axis and repositories; the repositories panel lists every repository and its ticks follow the current view.
+- **Filter bar of dropdowns**: search, Harness and Status (multiple choice), Last message, Tags; Repositories, Branches, Agents and Timeline display options; a legend for every mark.
+- **Ribbon**: File (Export, Open, Settings, Diagnostics) and View (Panels, Open new view, Styling, Full screen, Refresh) menus, a command palette (Ctrl+K) and buttons for the side panels and theme.
+- **Dockable layout**: panels and views can be dragged, split, collapsed, closed, maximized and reset; the arrangement is remembered per browser; side panels keep a minimum width.
+- **File → Export / Open**: annotations and views (names, settings, arrangement) in one JSON file, without transcript content.
 - Bulk registration from a sortable checklist of repositories found in session folders (`POST /api/v1/repositories/batch`).
+
+### Changed
+
+- The workbench is one dockable layout around the views; the page never scrolls, only panels do. The overview, tree and per-entity views of 0.1.0 are replaced by the dashboard, the repositories panel and the details panel.
+- Labels and panel titles use the interface sans in sentence case; buttons and fields follow the reference control style.
+- Finished agents you have not reviewed show *Unreviewed* (neutral) instead of *Ready*.
+- Review state is a dropdown; tags autocomplete from existing tags; notes keep line breaks.
 
 ### Fixed
 
-- The repositories panel's *Add* button was cut off at the panel's default width; *Sort* is now a compact icon button.
 - Graph lines no longer show through the gaps between rows of the sticky label column.
 - A new pairing link opened in an already-open tab now re-pairs instead of being ignored.
 - Newly started agents no longer land behind the per-branch "show more" cutoff.
@@ -55,9 +41,6 @@ First implementation of the product handoff.
 
 ### Added
 
-- Axis mode *Calendar, compressed*: calendar-proportional gaps with a minimum spacing between commits, so bursts of commits never collide; zoom scales only the time gaps.
-- The status badge on an agent card, and in its hover card, opens a menu to set your review state.
-- Horizontal zoom of the history axis: −/+ buttons, Ctrl + wheel, or +/−/0 keys.
 - Loopback Node.js service with launcher pairing, signed session cookies, Host/Origin/CSRF protection and a strict CSP.
 - Read-only Git reader with an allowlist: repository identity by common Git directory, worktrees (locked/prunable/missing), local/remote-tracking/remote-only refs, configured upstreams with ahead/behind and gone detection, working-tree status and operation markers.
 - Claude Code adapter (transcripts, subagents, live-session registry) and Codex adapter (multi-file rollouts, thread index, subagents) with incremental bounded reading and evidence-based status.
