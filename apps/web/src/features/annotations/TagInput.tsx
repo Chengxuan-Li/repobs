@@ -77,7 +77,9 @@ export function TagInput({
               add(exact ?? (suggestions.length && text.trim() ? suggestions[active]! : text))
             } else if (e.key === 'Backspace' && !text && value.length) {
               onChange(value.slice(0, -1))
-            } else if (e.key === 'Escape') {
+            } else if (e.key === 'Escape' && open && suggestions.length) {
+              // Close the suggestions only, not a menu or dialog the field sits in.
+              e.stopPropagation()
               setOpen(false)
             }
           }}

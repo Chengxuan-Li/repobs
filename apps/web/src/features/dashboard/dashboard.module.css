@@ -11,8 +11,20 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px var(--space-3);
+  justify-content: space-between;
+  gap: 6px var(--space-4);
   min-width: 0;
+}
+/* Filters and view options each wrap as a whole before wrapping inside. */
+.filterGroup {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.filterGroup:first-child {
+  flex: 1 1 auto;
 }
 .search {
   display: flex;
@@ -20,9 +32,13 @@
   gap: 6px;
   height: 26px;
   padding: 0 var(--space-2);
-  border: 1px solid var(--color-border-interactive);
-  flex: 0 1 280px;
-  min-width: 160px;
+  border: var(--field-edge);
+  border-bottom: var(--field-edge-bottom);
+  background: var(--field-bg);
+  /* A small basis so the filters stay on one line; grows into spare room. */
+  flex: 1 1 160px;
+  max-width: 320px;
+  min-width: 140px;
   color: var(--color-text-muted);
 }
 .search input {
@@ -37,56 +53,6 @@
 .search:focus-within {
   outline: 2px solid var(--color-focus);
   outline-offset: -1px;
-}
-.chips {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  border: 0;
-  margin: 0;
-  padding: 0;
-}
-.chips legend {
-  float: left;
-  margin-right: 6px;
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--font-size-small);
-  white-space: nowrap;
-}
-.chipButton {
-  height: 22px;
-  padding: 0 7px;
-  border: 1px solid var(--color-border-interactive);
-  background: var(--color-surface);
-  font-size: var(--font-size-small);
-  cursor: pointer;
-}
-.chipButton:hover {
-  color: var(--color-accent);
-}
-.on,
-.on:hover {
-  background: var(--color-text);
-  border-color: var(--color-text);
-  color: var(--color-bg);
-}
-.inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-.inline select {
-  height: 24px;
-}
-.tagFilter {
-  flex: 0 1 260px;
-  min-width: 180px;
 }
 .spacer {
   flex: 1;

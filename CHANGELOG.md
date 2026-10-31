@@ -6,6 +6,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Changed
 
+- The dashboard filter bar is a line of dropdowns showing their current values: Harness and Status are multiple choice, Last message and Tags filter, and Branches, Agents and Timeline hold the display options; repository sorting is in Repositories → Sort by (ADR 0004).
 - Labels and panel titles use the interface sans in sentence case instead of mono uppercase; buttons and fields follow the reference control style (ADR 0004).
 - Agents are cards indented by spawn depth, with tree lines in a gutter left of the cards that run across rows; coloured left-edge stripes removed.
 - Finished agents you have not reviewed show *Unreviewed* (neutral) instead of *Ready* (green).

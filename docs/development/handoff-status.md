@@ -2,6 +2,17 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 10 — 2026-10-31: filter bar as dropdowns (ADR 0004, decision 5)
+
+| Request | Implementation |
+| --- | --- |
+| Filter controls are all over the place; collapse them into a few dropdowns | `components/Dropdown.tsx` (menu of check/radio sections, or a panel); `FilterBar.tsx` regrouped into Harness, Status, Last message, Tags (filters) and Branches, Agents, Timeline, Legend (view options), each group wrapping as a whole |
+| Harness should be a multi-select dropdown | `filters.harnesses: Provider[]` (empty = any) with `PROVIDER_LABELS` in contracts; old stored `claude`/`codex` switches migrated in `loadView` |
+
+Verification (2026-10-31, this machine): typecheck, lint and build exit 0; `npm test` 16 files / 129 tests passed (new `viewState.test.ts`); `npm run test:e2e` 24 passed, 1 skipped (docs screenshot, regenerated). Screenshots of every open dropdown checked at 1500 px wide with both side panels open: filters on one line, view options on the next; no console errors.
+
+Unknown: unchanged (narrow-window overlay panels).
+
 ## Checkpoint 9 — 2026-10-30: reference UI alignment (ADR 0004)
 
 | Request | Implementation |

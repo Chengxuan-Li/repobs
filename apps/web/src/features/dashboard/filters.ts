@@ -1,11 +1,11 @@
-import { type AgentSession, type AnnotationSummary, type WorkflowStatus, workflowStatus } from '@repobs/contracts'
+import { type AgentSession, type AnnotationSummary, type Provider, type WorkflowStatus, workflowStatus } from '@repobs/contracts'
 
 // Dashboard filters (ADR 0003). Applied to sessions only; branches and commits are always shown
 // according to the branch mode.
 
 export interface DashboardFilters {
-  claude: boolean
-  codex: boolean
+  /** Agent harnesses to show. Empty = every harness. */
+  harnesses: Provider[]
   /** Only sessions whose last message is newer than this many days (null = any time). */
   lastMessageDays: number | null
   /** Empty = every status. */
@@ -15,7 +15,7 @@ export interface DashboardFilters {
   query: string
 }
 
-export const DEFAULT_FILTERS: DashboardFilters = { claude: true, codex: true, lastMessageDays: null, statuses: [], tags: [], query: '' }
+export const DEFAULT_FILTERS: DashboardFilters = { harnesses: [], lastMessageDays: null, statuses: [], tags: [], query: '' }
 
 export const LAST_MESSAGE_OPTIONS: Array<{ label: string; days: number | null }> = [
   { label: 'Any time', days: null },
@@ -28,12 +28,11 @@ export const LAST_MESSAGE_OPTIONS: Array<{ label: string; days: number | null }>
 ]
 
 export function filtersActive(f: DashboardFilters): boolean {
-  return !f.claude || !f.codex || f.lastMessageDays !== null || f.statuses.length > 0 || f.tags.length > 0 || f.query.trim() !== ''
+  return f.harnesses.length > 0 || f.lastMessageDays !== null || f.statuses.length > 0 || f.tags.length > 0 || f.query.trim() !== ''
 }
 
 export function sessionMatches(s: AgentSession, a: AnnotationSummary | undefined, f: DashboardFilters, now: number): boolean {
-  if (s.provider === 'claude' && !f.claude) return false
-  if (s.provider === 'codex' && !f.codex) return false
+  if (f.harnesses.length && !f.harnesses.includes(s.provider)) return false
   if (f.lastMessageDays !== null) {
     const last = Date.parse(s.lastActivityAt ?? '')
     if (!last || now - last > f.lastMessageDays * 86_400_000) return false

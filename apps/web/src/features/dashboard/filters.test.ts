@@ -23,7 +23,7 @@ describe('dashboard filters', () => {
   const old = session('claude:c', { lastActivityAt: daysAgo(30), lastMessage: { kind: 'assistant', text: 'Refactored the parser' } })
 
   it('filters by harness', () => {
-    const f = { ...DEFAULT_FILTERS, codex: false }
+    const f = { ...DEFAULT_FILTERS, harnesses: ['claude' as const] }
     expect([running, waiting, old].filter((s) => sessionMatches(s, undefined, f, now)).map((s) => s.id)).toEqual(['claude:a', 'claude:c'])
     expect(filtersActive(f)).toBe(true)
     expect(filtersActive(DEFAULT_FILTERS)).toBe(false)

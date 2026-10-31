@@ -19,6 +19,18 @@ const row = (page: Page, name: string | RegExp) => page.getByRole('listitem', { 
 const details = (page: Page) => page.getByRole('complementary', { name: 'Details panel' })
 /** Click a card by its title (the row centre can be the card's own review dropdown). */
 const openCard = (page: Page, title: string) => row(page, new RegExp('^' + title)).getByText(title, { exact: true }).click()
+const filterBar = (page: Page) => page.getByRole('region', { name: 'Filters and view options' })
+const dropdown = (page: Page, name: string) => filterBar(page).getByRole('button', { name: new RegExp(`^${name}(:|$)`) })
+
+/** Opens a filter-bar dropdown, sets one of its options, and closes it again. */
+async function setOption(page: Page, menuName: string, option: string, checked = true) {
+  await dropdown(page, menuName).click()
+  const menu = page.getByRole('menu', { name: menuName })
+  const item = menu.getByRole('menuitemcheckbox', { name: option, exact: true }).or(menu.getByRole('menuitemradio', { name: option, exact: true }))
+  if ((await item.getAttribute('aria-checked')) !== String(checked)) await item.click()
+  if (await menu.isVisible()) await page.keyboard.press('Escape')
+  await expect(menu).toBeHidden()
+}
 
 test.describe.serial('repobs dashboard (synthetic data)', () => {
   test('an unpaired browser gets instructions, not data', async ({ page }) => {
@@ -92,10 +104,10 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     // Every repository uses the same width (one shared axis).
     const widths = await page.getByRole('region', { name: /repository$/ }).evaluateAll((els) => els.map((e) => (e as HTMLElement).style.width))
     expect(new Set(widths).size).toBe(1)
-    await page.getByLabel('Axis').selectOption('time')
+    await setOption(page, 'Timeline', 'Calendar time')
     await expect(page.getByText('Calendar time →')).toBeVisible()
     // Compressed calendar: no two commits on the axis closer than the minimum spacing.
-    await page.getByLabel('Axis').selectOption('compressed')
+    await setOption(page, 'Timeline', 'Calendar, compressed')
     await expect(page.getByText('Calendar, compressed →')).toBeVisible()
     const xs = await board(page, 'repo-a')
       .locator('svg[aria-hidden="true"]')
@@ -105,7 +117,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     const sorted = [...new Set(xs)].sort((a, b) => a - b)
     expect(sorted.length).toBeGreaterThan(5)
     for (let i = 1; i < sorted.length; i++) expect(sorted[i]! - sorted[i - 1]!).toBeGreaterThanOrEqual(21.9)
-    await page.getByLabel('Axis').selectOption('sequence')
+    await setOption(page, 'Timeline', 'Commit order')
   })
 
   test('hovering a commit shows its message; the legend explains the marks', async ({ page }) => {
@@ -155,7 +167,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await pair(page)
     const svg = board(page, 'repo-a').locator('svg[aria-hidden="true"]').last()
     const commitsBefore = await svg.locator('circle[class*="commit"]').count()
-    await page.getByLabel('Collapse quiet commits').check()
+    await setOption(page, 'Branches', 'Collapse quiet commits')
     const group = svg.locator('g[class*="group"]').first()
     await expect(group).toContainText('8')
     expect(await svg.locator('circle[class*="commit"]').count()).toBe(commitsBefore - 8)
@@ -169,12 +181,12 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(svg.locator('g[class*="group"]')).toHaveCount(0)
     expect(await svg.locator('circle[class*="commit"]').count()).toBe(commitsBefore)
     // Switching collapsing on again re-collapses everything.
-    await page.getByLabel('Collapse quiet commits').uncheck()
-    await page.getByLabel('Collapse quiet commits').check()
+    await setOption(page, 'Branches', 'Collapse quiet commits', false)
+    await setOption(page, 'Branches', 'Collapse quiet commits')
     await expect(svg.locator('g[class*="group"]')).toHaveCount(1)
     await svg.locator('g[class*="group"]').first().click()
     await expect(svg.locator('g[class*="group"]')).toHaveCount(0)
-    await page.getByLabel('Collapse quiet commits').uncheck()
+    await setOption(page, 'Branches', 'Collapse quiet commits', false)
   })
 
   test('agents are one line; details expand on demand or on hover; spawned agents can be hidden', async ({ page }) => {
@@ -199,24 +211,29 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     const left = async (r: typeof child) => (await r.locator('[class*="card"]').first().boundingBox())!.x
     expect(await left(child)).toBeGreaterThan((await left(parent)) + 10)
     await expect(child.locator('[class*="guide_"]')).toHaveCount(1)
-    await page.getByLabel('Hide spawned agents').check()
+    await setOption(page, 'Agents', 'Hide spawned agents')
     await expect(child).toBeHidden()
-    await page.getByLabel('Hide spawned agents').uncheck()
+    await setOption(page, 'Agents', 'Hide spawned agents', false)
     await expect(child).toBeVisible()
   })
 
   test('filters by harness, status and last-message time', async ({ page }) => {
     await pair(page)
     await expect(row(page, /^Add rename detection test/)).toBeVisible()
-    await page.getByLabel('Codex', { exact: true }).uncheck()
+    // Harness is a multiple choice: one harness narrows, both is the same as any.
+    await setOption(page, 'Harness', 'Claude Code')
+    await expect(dropdown(page, 'Harness')).toHaveAccessibleName('Harness: Claude Code')
     await expect(row(page, /^Add rename detection test/)).toBeHidden()
     await expect(row(page, /^Tighten status parser/)).toBeVisible()
-    await page.getByLabel('Codex', { exact: true }).check()
-    await page.getByRole('button', { name: 'Needs input', exact: true }).click()
+    await setOption(page, 'Harness', 'Codex')
+    await expect(dropdown(page, 'Harness')).toHaveAccessibleName('Harness: Any')
+    await expect(row(page, /^Add rename detection test/)).toBeVisible()
+    await setOption(page, 'Status', 'Needs input')
+    await expect(dropdown(page, 'Status')).toHaveAccessibleName('Status: Needs input')
     await expect(row(page, /^Add rename detection test/)).toBeVisible()
     await expect(row(page, /^Document worktree states/)).toBeHidden()
-    await page.getByRole('button', { name: 'Needs input', exact: true }).click()
-    await page.getByLabel('Last message').selectOption({ label: 'Last 24 hours' })
+    await setOption(page, 'Status', 'Any status')
+    await setOption(page, 'Last message', 'Last 24 hours')
     await expect(row(page, /^Resolve merge plan/)).toBeHidden()
     await expect(row(page, /^Document worktree states/)).toBeVisible()
     await page.getByRole('button', { name: 'Clear filters' }).click()
@@ -271,17 +288,20 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(d.getByRole('checkbox', { name: 'Verify fixture coverage' })).toBeChecked()
 
     // Details mode shows notes (with the line break) and tags on the card; the tag filter narrows.
-    await page.getByLabel('Expand agent details').check()
+    await setOption(page, 'Agents', 'Expand agent details')
     const card = row(page, /^Review ref grouping/)
     // innerText honours the card's pre-wrap styling, so the line break must survive rendering.
     expect(await card.locator('p', { hasText: 'Line one' }).evaluate((e) => (e as HTMLElement).innerText)).toBe('Line one\nLine two')
     await expect(card).toContainText('needs-tests')
+    await dropdown(page, 'Tags').click()
     await page.getByRole('combobox', { name: 'Filter by tags' }).fill('needs')
     await page.getByRole('combobox', { name: 'Filter by tags' }).press('Enter')
+    await dropdown(page, 'Tags').click()
+    await expect(page.getByRole('dialog', { name: 'Tags' })).toBeHidden()
     await expect(row(page, /^Document worktree states/)).toBeHidden()
     await expect(row(page, /^Tighten status parser/)).toBeVisible()
     await page.getByRole('button', { name: 'Clear filters' }).click()
-    await page.getByLabel('Expand agent details').uncheck()
+    await setOption(page, 'Agents', 'Expand agent details', false)
   })
 
   test('the status on a card and in its hover card is a review menu', async ({ page }) => {
@@ -350,7 +370,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(repos).toBeHidden()
     await page.getByRole('button', { name: 'Maximize dashboard' }).click()
     await expect(repos).toBeVisible()
-    await page.getByLabel('Axis').selectOption('sequence')
+    await setOption(page, 'Timeline', 'Commit order')
   })
 
   test('agent labels on the timeline and names in the list toggle independently', async ({ page }) => {
@@ -363,18 +383,18 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     const before = (await parent.boundingBox())!.width
 
     // Names only on the timeline: the column narrows, cards keep their status menu and stay named for assistive tech.
-    await page.getByLabel('Agent names in list').uncheck()
+    await setOption(page, 'Agents', 'Agent names in list', false)
     await expect(parent).not.toContainText('Claude session c3d2e4f6')
     await expect(parent.getByRole('button', { name: /change review state/ })).toBeVisible()
     expect((await parent.locator('[class*="label"]').first().boundingBox())!.width).toBeLessThan(before)
     await expect(label).toBeVisible()
 
     // Names only in the list.
-    await page.getByLabel('Agent names in list').check()
-    await page.getByLabel('Agent labels on timeline').uncheck()
+    await setOption(page, 'Agents', 'Agent names in list')
+    await setOption(page, 'Agents', 'Agent labels on timeline', false)
     await expect(svg.locator('text[data-bar-label]')).toHaveCount(0)
     await expect(parent).toContainText('Claude session c3d2e4f6')
-    await page.getByLabel('Agent labels on timeline').check()
+    await setOption(page, 'Agents', 'Agent labels on timeline')
   })
 
   test('the history zooms horizontally', async ({ page }) => {
@@ -428,7 +448,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('settings: turning off message excerpts removes them from cards', async ({ page }) => {
     await pair(page)
-    await page.getByLabel('Expand agent details').check()
+    await setOption(page, 'Agents', 'Expand agent details')
     await expect(row(page, /^Document worktree states/)).toContainText('synthetic answer')
     await page.getByRole('button', { name: 'Settings' }).click()
     const settings = page.getByRole('dialog', { name: 'Settings' })
@@ -438,7 +458,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await page.getByRole('button', { name: 'Settings' }).click()
     await settings.getByLabel('Show latest message excerpts on agent cards').check()
     await settings.getByRole('button', { name: 'Save settings' }).click()
-    await page.getByLabel('Expand agent details').uncheck()
+    await setOption(page, 'Agents', 'Expand agent details', false)
   })
 
   test('diagnostics report adapters without transcript text', async ({ page }) => {

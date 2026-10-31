@@ -49,16 +49,16 @@ Click **Legend** in the filter bar for the meaning of every mark.
 
 ### Collapsing quiet commits
 
-Tick **Collapse quiet commits** to fold runs of commits that are quiet in the Git sense — no branch head, no fork or merge, not the first commit of a branch — into one pill. A burst of commits an agent made on one branch counts as quiet, as long as nothing branches off or merges in between showing how many commits it hides. Hover a pill to list its commits (newest first); move onto the list and hover a commit for its subject, id, date and push state. Click the pill, or **Show these commits on the graph**, to expand that run. Unticking the box shows everything; ticking it again re-collapses all runs.
+Tick **Collapse quiet commits** to fold runs of commits that are quiet in the Git sense — no branch head, no fork or merge, not the first commit of a branch — into one pill showing how many commits it hides. A burst of commits an agent made on one branch counts as quiet, as long as nothing branches off or merges in between. Hover a pill to list its commits (newest first); move onto the list and hover a commit for its subject, id, date and push state. Click the pill, or **Show these commits on the graph**, to expand that run. Unticking the box shows everything; ticking it again re-collapses all runs.
 
 ### The shared axis
 
 All repositories share one horizontal axis, labelled at the top; scroll sideways to go back through history (the view opens at the newest end).
 
-- **Axis → Commit order** (default): commits from every visible repository are evenly spaced in the order they were made; dates are labels, not distances. Agent bars sit between the commits made around the same time.
-- **Axis → Calendar time**: distances are proportional to elapsed time. Commits made close together can overlap.
-- **Axis → Calendar, compressed**: gaps follow elapsed time, but commits made close together are pushed apart to a minimum spacing, so a burst of commits stays readable. Distances are only proportional between well-separated commits; date labels mark where days and months start. Zooming stretches or shrinks the time gaps, never below that minimum spacing.
-- **History** limits how far back the axis goes (24 hours … 1 year, or everything loaded — the newest 400 commits per repository).
+- **Timeline → Commit order** (default): commits from every visible repository are evenly spaced in the order they were made; dates are labels, not distances. Agent bars sit between the commits made around the same time.
+- **Timeline → Calendar time**: distances are proportional to elapsed time. Commits made close together can overlap.
+- **Timeline → Calendar, compressed**: gaps follow elapsed time, but commits made close together are pushed apart to a minimum spacing, so a burst of commits stays readable. Distances are only proportional between well-separated commits; date labels mark where days and months start. Zooming stretches or shrinks the time gaps, never below that minimum spacing.
+- **Timeline → History** limits how far back the axis goes (24 hours … 1 year, or everything loaded — the newest 400 commits per repository).
 - **Zoom** stretches or compresses the axis horizontally: the **−** / **+** buttons at the left of the axis, **Ctrl + mouse wheel** over the dashboard (zooms around the pointer), or **+**, **−** and **0** (reset) while the dashboard has focus. The percentage button resets to 100%. Zooming out below 100% only packs commits closer when history is wider than the window.
 
 ## Agents
@@ -75,7 +75,7 @@ Everything else is collapsed:
 
 Excerpts are read mechanically from the provider's files, truncated, with obvious secrets redacted, and never stored; Settings → Privacy turns them off.
 
-**Where agent names appear** — two independent toggles in the filter bar:
+**Where agent names appear** — two independent toggles in the **Agents** dropdown:
 
 - **Agent labels on timeline** (on by default): each agent's bar ends with its name, status and how long ago it was last active, so you read who worked when right in the history. Near the right edge the label moves to the left of the bar. Hovering a label shows the agent's card.
 - **Agent names in list** (on by default): the names in the label column. Turn it off to give the history more room: the column narrows and each card keeps its provider mark, spawn-tree position and status menu.
@@ -96,16 +96,28 @@ Select an agent (click its name, or use the keyboard) to open it in the details 
 
 Everything saves automatically to the local repobs database. Notes belong to the agent session: they survive restarts, removal of the repository from the dashboard, deletion of the worktree and disappearance of the provider's file. **Clear annotations…** deletes a session's notes after confirmation; Settings → Annotations exports or imports them as JSON.
 
-## Filters
+## Filters and view options
+
+The bar above the dashboard has the filters on the left and the view options on the right; each dropdown shows its current value, and a filter that narrows the list shows its value in the accent colour.
+
+**Filters** (which agents are shown):
 
 - **Search**: titles, aliases, tags, session ids and the latest message excerpt.
-- **Harness**: Claude Code / Codex.
+- **Harness**: *Any harness*, or tick one or more of Claude Code and Codex. Ticking every harness is the same as *Any*.
+- **Status**: *Any status*, or tick any combination of the workflow statuses.
 - **Last message**: any time, or within 24 hours, 2, 3, 7, 14 or 40 days.
-- **Status**: any combination of the workflow statuses.
-- **Tags**: any of the chosen tags (with the same autocomplete).
-- **Sort repos** by last activity, active agents, name or manual order.
+- **Tags**: type to pick tags (with the same autocomplete as the notes); agents with any of them are shown.
 
-**Clear filters** resets them. Filters apply to agents; branches stay visible according to the *Branches* menu.
+The agent count follows the filters, and **Clear filters** resets them. Filters apply to agents; branches stay visible according to the *Branches* dropdown.
+
+**View options** (how the history is drawn):
+
+- **Branches**: all branches, checked-out ones, or branches with agents; *Remote-only branches*; *Collapse quiet commits*.
+- **Agents**: *Hide spawned agents*, *Expand agent details*, *Agent names in list*, *Agent labels on timeline*.
+- **Timeline**: the axis mode and how much history to show.
+- **Legend** explains every mark.
+
+Check boxes keep the dropdown open so you can set several; Esc or a click elsewhere closes it. The same toggles are in the ribbon's **View** menu, and **Repositories → Sort by** orders the repositories.
 
 ## Keyboard
 

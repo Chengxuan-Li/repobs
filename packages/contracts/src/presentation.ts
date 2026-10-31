@@ -3,6 +3,7 @@ import type {
   AnnotationSummary,
   ObservedAgentState,
   ObservedStateKind,
+  Provider,
   ReviewState,
   StateDetail,
   Worktree,
@@ -12,6 +13,9 @@ import type {
 // docs/status-semantics.md explains each label.
 
 export type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral'
+
+/** Display names of the agent harnesses repobs observes. */
+export const PROVIDER_LABELS: Record<Provider, string> = { claude: 'Claude Code', codex: 'Codex' }
 
 export const STATE_LABELS: Record<ObservedStateKind, string> = {
   running: 'Running',

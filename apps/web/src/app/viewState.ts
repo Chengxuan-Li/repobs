@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { type WorkflowStatus } from '@repobs/contracts'
+import { type Provider, type WorkflowStatus } from '@repobs/contracts'
 import { DEFAULT_FILTERS, type DashboardFilters } from '../features/dashboard/filters'
 import type { BranchMode } from '../features/dashboard/layout'
 import type { AxisMode } from '../features/dashboard/timeline'
@@ -77,6 +77,7 @@ export function loadView(): ViewState {
         // 'ready' was renamed 'unreviewed'.
         statuses: (f.statuses ?? []).map((s) => ((s as string) === 'ready' ? 'unreviewed' : s)).filter((s) => STATUSES.includes(s)),
         tags: Array.isArray(f.tags) ? f.tags : [],
+        harnesses: storedHarnesses(p.filters),
       },
       hiddenRepos: Array.isArray(p.hiddenRepos) ? p.hiddenRepos : [],
       collapsedRepos: Array.isArray(p.collapsedRepos) ? p.collapsedRepos : [],
@@ -94,6 +95,17 @@ export function loadView(): ViewState {
   } catch {
     return DEFAULT_VIEW
   }
+}
+
+const HARNESSES: Provider[] = ['claude', 'codex']
+
+/** The harness filter; views saved before it was a list had one switch per harness. */
+function storedHarnesses(f: unknown): Provider[] {
+  const o = (f ?? {}) as { harnesses?: unknown; claude?: unknown; codex?: unknown }
+  const list = o.harnesses
+  if (Array.isArray(list)) return HARNESSES.filter((h) => list.includes(h))
+  const on = HARNESSES.filter((h) => o[h] !== false)
+  return on.length === HARNESSES.length ? [] : on
 }
 
 export const MIN_ZOOM = 0.25
