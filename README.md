@@ -8,6 +8,10 @@ It only reads. It never changes your repositories or agent files, needs no API k
 
 *Synthetic demo data: one repository's branches on the timeline, with each agent's status, review state and checklist pill.*
 
+[![A frame from the repobs film: four agents waiting for input, picked out of hundreds](docs/assets/repobs-film-poster.jpg)](docs/assets/repobs-film.mp4)
+
+*▶ [The 25-second film](docs/assets/repobs-film.mp4): an animated illustration with invented repositories, branches and agents. The screenshot above is the real application.*
+
 ## Quick start (Windows)
 
 You need Node.js 24 LTS (24.11+) and Git for Windows.

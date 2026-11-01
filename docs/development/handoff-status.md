@@ -2,6 +2,16 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 24 — 2026-11-01: product film in the README and on the landing page
+
+| Request | Implementation |
+| --- | --- |
+| Put the product film into the README and the docs site | The film is made in a separate local repository (`D:epobs-video`, Remotion; not part of this repository's build). Copied here: `docs/assets/repobs-film.mp4` (1920×1080, 60 fps, 24.8 s, H.264 CRF 27, AAC 160 kb/s, 6.9 MB, from the CRF 16 master) and `docs/assets/repobs-film-poster.jpg` (the frame at 7.9 s) |
+| Landing page | *What repobs shows* holds a `<video class="ui-film">` with controls, the poster and no autoplay, above the screenshot; its caption says it is animated, with invented names, and that the screenshot is the real application. Recorded in `design/docs-ui-spec.md` section 0.7; one rule in `site.css` |
+| README | The poster links to the MP4 (GitHub does not play videos embedded from repository paths in a README; it plays the file on its page), after the real screenshot |
+
+Verification (2026-11-01, this machine): `npm run docs:build` passes (strict); in the browser pane (built site served locally): the film fills the column at 16:9 (975×548 px at a 1024 px window, 343 px on a 375 px phone) with no horizontal overflow; it plays (1920×1080, 24.8 s, no media error; checked muted, as autoplay with sound is blocked); dark and light themes take the matching frame token; no console errors. Not checked: the published Pages site and GitHub's README rendering (not pushed).
+
 ## Checkpoint 23 — 2026-11-01: documentation site in the shape of the EnergyAtlas sites (ADR 0007 amended)
 
 | Request | Implementation |
