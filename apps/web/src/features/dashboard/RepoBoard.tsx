@@ -15,6 +15,7 @@ import { Badge, formatAge } from '../../components/primitives'
 import { AgentRow } from './AgentRow'
 import { AgentHover, BranchHover, CommitHover, GroupHover, PendingHover, type ShowHover } from './HoverCard'
 import type { BoardRow, BranchRow, RepoLayout, SessionRow } from './layout'
+import { ChecklistPill } from './ChecklistPill'
 import { ReviewMenu } from './ReviewMenu'
 import { type RouteInput, routeEdges } from './routing'
 import { PAD, type Timeline } from './timeline'
@@ -61,6 +62,10 @@ export interface RepoBoardProps {
   onToggleCollapsed: () => void
   onSelect: (id: string) => void
   onReview: (sessionId: string, review: ReviewState) => void
+  /** Resolves to whether the change was saved. */
+  onChecklist: (sessionId: string, itemId: string, done: boolean) => Promise<boolean>
+  /** Hides an agent from this view. */
+  onHide: (sessionId: string) => void
   onExpandBranch: (branchRowId: string) => void
   onToggleAgent: (sessionId: string) => void
   onExpandGroup: (groupId: string) => void
@@ -167,27 +172,9 @@ function Row(props: { row: BoardRow } & RepoBoardProps) {
     )
   }
   const s = row.session
-  const parent = s.parentSessionId ? props.sessionsById.get(s.parentSessionId) : undefined
   // Opens beside the label column, so the pointer can move onto it (to change the review state)
   // without crossing other rows.
-  const hover = (e: React.MouseEvent<HTMLElement>) => {
-    const box = e.currentTarget.getBoundingClientRect()
-    showHover(
-      <AgentHover
-        session={s}
-        annotation={row.annotation}
-        now={props.now}
-        parentTitle={parent?.title}
-        children={props.childCount.get(s.id) ?? 0}
-        onReview={(r) => {
-          props.onReview(s.id, r)
-          hideHover()
-        }}
-      />,
-      { clientX: box.right - 2, clientY: box.top - 6 },
-      { interactive: true, label: 'Agent details' },
-    )
-  }
+  const hover = (e: React.MouseEvent<HTMLElement>) => showHover(<AgentDetailsHover {...props} row={row} />, e, { interactive: true, label: 'Agent details', placement: 'right' })
   return (
     <div
       {...common}
@@ -208,9 +195,34 @@ function Row(props: { row: BoardRow } & RepoBoardProps) {
           showName={props.agentNames}
           onToggle={() => props.onToggleAgent(s.id)}
           onReview={(r) => props.onReview(s.id, r)}
+          onChecklist={(item, done) => props.onChecklist(s.id, item, done)}
+          onHide={() => props.onHide(s.id)}
+          onPopover={hideHover}
         />
       </div>
     </div>
+  )
+}
+
+/** The agent details card with its review menu, the same from the label column and the timeline card. */
+function AgentDetailsHover({ row, now, sessionsById, childCount, hideHover, onReview, onHide }: { row: SessionRow } & RepoBoardProps) {
+  const s = row.session
+  return (
+    <AgentHover
+      session={s}
+      annotation={row.annotation}
+      now={now}
+      parentTitle={s.parentSessionId ? sessionsById.get(s.parentSessionId)?.title : undefined}
+      children={childCount.get(s.id) ?? 0}
+      onReview={(r) => {
+        onReview(s.id, r)
+        hideHover()
+      }}
+      onHide={() => {
+        hideHover()
+        onHide(s.id)
+      }}
+    />
   )
 }
 
@@ -258,7 +270,6 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
   }
   const hoverProps = (content: () => React.ReactNode) => ({
     onMouseEnter: (e: React.MouseEvent) => showHover(content(), e),
-    onMouseMove: (e: React.MouseEvent) => showHover(content(), e),
     onMouseLeave: hideHover,
   })
   const els: React.ReactNode[] = []
@@ -462,7 +473,8 @@ function BarCards(props: RepoBoardProps & { geo: Geometry }) {
   )
 }
 
-function BarCard({ row, top, span, width, now, selectedId, onSelect, onReview }: { row: SessionRow; top: number; span: { x1: number; x2: number }; width: number } & RepoBoardProps) {
+function BarCard(props: { row: SessionRow; top: number; span: { x1: number; x2: number }; width: number } & RepoBoardProps) {
+  const { row, top, span, width, now, selectedId, onSelect, onReview, onChecklist, onHide, showHover, hideHover } = props
   const s = row.session
   const status = workflowStatus(s, row.annotation)
   const title = row.annotation?.displayAlias || s.title
@@ -470,7 +482,7 @@ function BarCard({ row, top, span, width, now, selectedId, onSelect, onReview }:
   const ageText = s.lastActivityAt ? formatAge(s.lastActivityAt, now) : ''
   const age = ageText ? (ageText === 'now' ? 'now' : `${ageText} ago`) : ''
   // Estimated width (the card is laid out by the browser; this only decides the side).
-  const w = 54 + name.length * 7 + age.length * 6 + WORKFLOW_LABELS[status].length * 6.5
+  const w = 54 + name.length * 7 + age.length * 6 + WORKFLOW_LABELS[status].length * 6.5 + (row.annotation?.checklist.length ? 52 : 0)
   const after = span.x2 + 8 + w <= width - 4
   const before = !after && span.x1 - 8 - w >= 4
   const place = after ? { left: span.x2 + 8 } : before ? { right: width - (span.x1 - 8) } : { right: 4 }
@@ -480,6 +492,9 @@ function BarCard({ row, top, span, width, now, selectedId, onSelect, onReview }:
       style={{ top, ...place }}
       data-bar-label={s.id}
       onClick={() => onSelect(row.id)}
+      // The same agent details as the label column, below the card so the pointer can move onto it.
+      onMouseEnter={(e) => showHover(<AgentDetailsHover {...props} />, e, { interactive: true, label: 'Agent details' })}
+      onMouseLeave={hideHover}
     >
       <span className={styles.providerMark} title={s.provider === 'claude' ? 'Claude Code' : 'Codex'}>
         {s.provider === 'claude' ? 'C' : 'X'}
@@ -488,7 +503,10 @@ function BarCard({ row, top, span, width, now, selectedId, onSelect, onReview }:
         {name}
       </span>
       {age ? <span className={styles.barCardAge}>{age}</span> : null}
-      <ReviewMenu status={status} review={row.annotation?.review ?? 'unreviewed'} title={title} focusable={false} onReview={(r) => onReview(s.id, r)} />
+      <ReviewMenu status={status} review={row.annotation?.review ?? 'unreviewed'} title={title} focusable={false} onReview={(r) => onReview(s.id, r)} onHide={() => onHide(s.id)} />
+      {row.annotation?.checklist.length ? (
+        <ChecklistPill items={row.annotation.checklist} title={title} focusable={false} onToggle={(item, done) => onChecklist(s.id, item, done)} onOpen={hideHover} />
+      ) : null}
     </div>
   )
 }

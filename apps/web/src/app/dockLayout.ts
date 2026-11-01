@@ -2,12 +2,12 @@ import { useCallback, useMemo, useState } from 'react'
 import { type Action, Actions, BorderNode, DockLocation, type IJsonModel, type IJsonTabNode, Model, TabNode, TabSetNode } from 'flexlayout-react'
 
 // Dockable workbench layout (FlexLayout): views (dashboard tabs) in the centre, any number of them,
-// each named and renamable; the repositories and details panels start in the left and right side
-// bars and can be dragged into the centre, split beside a view, moved to the other side, collapsed
-// or closed and docked back. The arrangement is a per-browser convenience, stored with the view
+// each named and renamable; the repositories panel starts in the left side bar, the details and
+// automation panels in the right one; panels can be dragged into the centre, split beside a view,
+// moved to the other side, collapsed or closed and docked back. The arrangement is a per-browser convenience, stored with the view
 // settings (viewState.ts).
 
-export type PanelId = 'repositories' | 'details'
+export type PanelId = 'repositories' | 'details' | 'automation'
 export type TabComponent = 'dashboard' | PanelId
 
 /** The tab id of a dashboard from before views existed; kept so its stored settings still apply. */
@@ -19,6 +19,7 @@ const STORAGE_KEY = 'repobs.layout.v1'
 export const PANELS: Record<PanelId, { id: string; name: string; home: 'left' | 'right'; size: number; minWidth: number }> = {
   repositories: { id: 'tab:repositories', name: 'Repositories', home: 'left', size: 300, minWidth: 280 },
   details: { id: 'tab:details', name: 'Details', home: 'right', size: 380, minWidth: 320 },
+  automation: { id: 'tab:automation', name: 'Automation', home: 'right', size: 380, minWidth: 340 },
 }
 const SIDE_MIN = Math.min(...Object.values(PANELS).map((p) => p.minWidth))
 
@@ -50,7 +51,7 @@ export function defaultLayout(views: Array<{ id: string; name: string }> = [{ id
     },
     borders: [
       { type: 'border', location: 'left', size: PANELS.repositories.size, selected: 0, children: [panelTab('repositories')] },
-      { type: 'border', location: 'right', size: PANELS.details.size, selected: 0, children: [panelTab('details')] },
+      { type: 'border', location: 'right', size: PANELS.details.size, selected: 0, children: [panelTab('details'), panelTab('automation')] },
     ],
     layout: {
       type: 'row',

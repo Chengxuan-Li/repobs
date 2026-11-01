@@ -158,8 +158,8 @@
   font-size: var(--font-size-small);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  border-left: 2px solid var(--color-border);
-  padding-left: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface-raised);
 }
 .link {
   border: 0;
@@ -274,4 +274,41 @@
 }
 .orphans {
   border-bottom: 1px solid var(--color-border);
+}
+
+/* The Hidden filter's panel: review states to hide, and agents hidden by hand. */
+.hiddenGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0 0 8px;
+  padding: 0;
+  border: 0;
+  min-width: 220px;
+}
+.hiddenCheck {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-small);
+}
+.hiddenList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 200px;
+  overflow: auto;
+}
+.hiddenList li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-small);
+}
+.hiddenName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

@@ -68,6 +68,7 @@ export function ViewPanel({
   onActivate,
   onSelect,
   onReview,
+  onChecklist,
   onAdd,
 }: {
   name: string
@@ -83,6 +84,8 @@ export function ViewPanel({
   onActivate: () => void
   onSelect: (id: string) => void
   onReview: (sessionId: string, review: ReviewState) => void
+  /** Resolves to whether the change was saved. */
+  onChecklist: (sessionId: string, itemId: string, done: boolean) => Promise<boolean>
   onAdd: () => void
 }) {
   const { filtered, repos, layouts } = useViewData(snapshot, view, annotations, summaries, now)
@@ -117,6 +120,7 @@ export function ViewPanel({
           now={now}
           onSelect={onSelect}
           onReview={onReview}
+          onChecklist={onChecklist}
         />
       )}
     </main>

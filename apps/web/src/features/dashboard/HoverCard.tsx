@@ -14,44 +14,62 @@ import {
   WORKFLOW_TONES,
   workflowStatus,
 } from '@repobs/contracts'
+import { type Box, boxOf, type Placement, placeFloating, WIDE_ANCHOR } from '../../components/placement'
 import { Badge, formatAge } from '../../components/primitives'
 import type { BranchRow } from './layout'
 import { ReviewMenu } from './ReviewMenu'
 import styles from './hover.module.css'
 
 // Floating detail card shown while hovering graph nodes, agent rows, bars and branch labels.
-// Everything here is also reachable without a mouse through the details panel.
+// Everything here is also reachable without a mouse through the details panel. The card is placed
+// beside the element that opened it and stays there while the pointer moves inside that element.
 
 export interface HoverState {
   content: ReactNode
-  x: number
-  y: number
+  /** The element that opened the card, as a box in window coordinates. */
+  anchor: Box
+  /** Below a wide element: the card's left edge, where the pointer entered it. */
+  x?: number
+  placement: Placement
   /** The pointer may move onto the card (lists you can hover or click, the review menu). */
   interactive?: boolean
   /** Accessible name of an interactive card. */
   label?: string
 }
 
-export type ShowHover = (content: ReactNode, e: { clientX: number; clientY: number }, options?: { interactive?: boolean; label?: string }) => void
+export interface HoverOptions {
+  interactive?: boolean
+  label?: string
+  /** Default below the element. */
+  placement?: Placement
+}
+
+export type ShowHover = (content: ReactNode, e: { currentTarget: Element; clientX: number }, options?: HoverOptions) => void
+
+/** Hover state for a card opened by the element of a pointer event (its box, and the entry point on wide elements). */
+export function hoverAt(content: ReactNode, e: { currentTarget: Element; clientX: number }, options: HoverOptions = {}): HoverState {
+  const anchor = boxOf(e.currentTarget)
+  const placement = options.placement ?? 'below'
+  const wide = placement === 'below' && anchor.right - anchor.left > WIDE_ANCHOR
+  return { content, anchor, x: wide ? e.clientX - 12 : undefined, placement, interactive: options.interactive, label: options.label }
+}
 
 export function HoverCard({ state, onEnter, onLeave }: { state?: HoverState; onEnter: () => void; onLeave: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState({ left: 0, top: 0 })
+  const [pos, setPos] = useState<{ left: number; top: number }>()
   useLayoutEffect(() => {
     if (!state || !ref.current) return
-    const { offsetWidth: w, offsetHeight: h } = ref.current
-    // Interactive cards open right next to the pointer so it can move onto them.
-    const gap = state.interactive ? 6 : 16
-    const left = state.x + gap + w > window.innerWidth ? Math.max(8, state.x - gap - w) : state.x + gap
-    const top = state.y + gap + h > window.innerHeight ? Math.max(8, state.y - gap - h) : state.y + gap
-    setPos({ left, top })
+    const size = { width: ref.current.offsetWidth, height: ref.current.offsetHeight }
+    // Interactive cards sit close to their element so the pointer can move onto them.
+    setPos(placeFloating(state.anchor, size, { width: window.innerWidth, height: window.innerHeight }, { placement: state.placement, gap: state.interactive ? 2 : 6, x: state.x }))
   }, [state])
   if (!state) return null
   return (
     <div
       ref={ref}
       className={`${styles.card} ${state.interactive ? styles.interactive : ''}`}
-      style={pos}
+      // Hidden until measured, so it never shows at a stale position.
+      style={pos ?? { left: 0, top: 0, visibility: 'hidden' }}
       role={state.interactive ? 'dialog' : 'tooltip'}
       aria-label={state.interactive ? (state.label ?? 'Details') : undefined}
       onMouseEnter={onEnter}
@@ -106,6 +124,7 @@ export function AgentHover({
   parentTitle,
   children,
   onReview,
+  onHide,
 }: {
   session: AgentSession
   annotation?: AnnotationSummary
@@ -114,6 +133,7 @@ export function AgentHover({
   children: number
   /** Show the status as the review menu (interactive cards only). */
   onReview?: (review: ReviewState) => void
+  onHide?: () => void
 }) {
   const status = workflowStatus(session, annotation)
   const total = (annotation?.checklistOpen ?? 0) + (annotation?.checklistDone ?? 0)
@@ -123,7 +143,7 @@ export function AgentHover({
       <div className={styles.title}>{title}</div>
       <div className={styles.row}>
         {onReview ? (
-          <ReviewMenu status={status} review={annotation?.review ?? 'unreviewed'} title={title} onReview={onReview} />
+          <ReviewMenu status={status} review={annotation?.review ?? 'unreviewed'} title={title} onReview={onReview} onHide={onHide} />
         ) : (
           <Badge tone={WORKFLOW_TONES[status]}>{WORKFLOW_LABELS[status]}</Badge>
         )}

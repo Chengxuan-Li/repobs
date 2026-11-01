@@ -38,8 +38,8 @@
 }
 .excerpt {
   margin: 0;
-  border-left: 2px solid var(--color-border);
-  padding-left: 6px;
+  padding: 4px 6px;
+  background: var(--color-surface-raised);
   overflow-wrap: anywhere;
 }
 .kind {

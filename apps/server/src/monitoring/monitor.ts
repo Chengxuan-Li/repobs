@@ -2,7 +2,11 @@ import { EventEmitter } from 'node:events'
 import path from 'node:path'
 import {
   type AgentSession,
+  type AnnotationInput,
   type AnnotationSummary,
+  type AutomationPreview,
+  type AutomationRule,
+  type AutomationRuleStatus,
   type BranchRef,
   type CommitGraph,
   type ErrorInfo,
@@ -11,11 +15,13 @@ import {
   type PullRequestStatus,
   type Repository,
   type RepositorySuggestion,
+  type SessionAnnotation,
   type Settings,
   type Snapshot,
   type SnapshotDiff,
   type Worktree,
 } from '@repobs/contracts'
+import { type AgentFacts, annotationChanged, applyActions, ruleMatches, toInput } from '../automation/engine.ts'
 import type { GitRunner } from '../git/exec.ts'
 import { GitError } from '../git/exec.ts'
 import { fetchPullRequests, type GhOptions } from '../git/pulls.ts'
@@ -424,8 +430,17 @@ export class Monitor extends EventEmitter {
 
   private currentSessions: AgentSession[] = []
 
+  /** Recomputes the agents; then applies automation rules, and recomputes once more when they changed an annotation. */
   private rebuildSessions() {
     if (this.stopped) return
+    this.computeSessions()
+    if (this.applyAutomation()) {
+      this.annotations = this.store.annotationSummaries()
+      this.computeSessions()
+    }
+  }
+
+  private computeSessions() {
     const repositories = [...this.repos.values()].map((r) => this.repositoryView(r))
     const worktrees = [...this.repos.values()].flatMap((r) => r.worktrees)
     const activeProviders = new Set(this.adapters.filter((a) => a.status().enabled && a.status().available).map((a) => a.provider))
@@ -449,6 +464,79 @@ export class Monitor extends EventEmitter {
     if (this.persisted.get(rec.id) === fp) return
     this.store.upsertSessionRecord(rec)
     this.persisted.set(rec.id, fp)
+  }
+
+  // Automation rules (ADR 0008) --------------------------------------------------------------
+
+  private factsFor(session: AgentSession, annotation?: SessionAnnotation | AnnotationInput): AgentFacts {
+    const repo = session.repoId ? this.repos.get(session.repoId) : undefined
+    const branchRef = repo?.worktrees.find((w) => w.id === session.worktreeId)?.branchFullRef
+    return { session, annotation, repositoryName: repo?.stored.displayName, branch: branchRef?.replace(/^refs\/heads\//, '') ?? session.recordedBranch }
+  }
+
+  /**
+   * Applies each enabled rule, in order, to every current agent it matches and has not been
+   * applied to at its current revision. Changes go to the annotation store, like your own edits.
+   * Returns whether any annotation changed.
+   */
+  private applyAutomation(): boolean {
+    let rules: AutomationRule[]
+    try {
+      rules = this.store.listRules().filter((r) => r.enabled)
+    } catch (err) {
+      this.log('error', `Automation rules could not be read: ${(err as Error).message}`)
+      return false
+    }
+    if (!rules.length || !this.currentSessions.length) return false
+    const applied = this.store.appliedRevisions()
+    const annotations = new Map(this.store.listAnnotations().map((a) => [a.sessionId, a]))
+    const now = Date.now()
+    const at = new Date(now).toISOString()
+    let changed = false
+    for (const session of this.currentSessions) {
+      let current: SessionAnnotation | undefined = annotations.get(session.id)
+      for (const rule of rules) {
+        if ((applied.get(`${rule.id}|${session.id}`) ?? 0) >= rule.revision) continue
+        if (!ruleMatches(rule, this.factsFor(session, current), now)) continue
+        try {
+          const before = toInput(current)
+          const after = applyActions(before, rule.actions)
+          if (annotationChanged(before, after)) {
+            current = this.store.putAnnotation(session.id, after, at)
+            changed = true
+          }
+          this.store.recordApplied(rule.id, session.id, rule.revision, at)
+        } catch (err) {
+          this.log('error', `Automation rule "${rule.name}" failed for ${session.id}: ${(err as Error).message}`)
+        }
+      }
+    }
+    return changed
+  }
+
+  /** Applies rules now (after a rule was created, edited or switched on) and publishes any change. */
+  automationChanged(): void {
+    if (this.applyAutomation()) {
+      this.annotations = this.store.annotationSummaries()
+      this.computeSessions()
+    }
+    this.publish()
+  }
+
+  /** Agents a rule's conditions match now, with a few examples. */
+  previewRule(rule: Pick<AutomationRule, 'match' | 'conditions'>): AutomationPreview {
+    const annotations = new Map(this.store.listAnnotations().map((a) => [a.sessionId, a]))
+    const now = Date.now()
+    const matching = this.currentSessions.filter((s) => ruleMatches(rule, this.factsFor(s, annotations.get(s.id)), now))
+    return {
+      matching: matching.length,
+      examples: matching.slice(0, 10).map((s) => ({ sessionId: s.id, title: annotations.get(s.id)?.displayAlias || s.title })),
+    }
+  }
+
+  ruleStatuses(): AutomationRuleStatus[] {
+    const counts = this.store.ruleApplicationCounts()
+    return this.store.listRules().map((r) => ({ ...r, matching: this.previewRule(r).matching, applied: counts.get(r.id)?.applied ?? 0, lastAppliedAt: counts.get(r.id)?.lastAppliedAt }))
   }
 
   annotationsChanged(): void {

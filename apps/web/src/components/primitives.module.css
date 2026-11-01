@@ -149,3 +149,17 @@
   border-top: 1px solid var(--color-border);
   background: var(--color-surface-raised);
 }
+
+/* Review state colour beside its name. */
+.dot {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  border: 1px solid currentColor;
+}
+.hollow {
+  background: transparent;
+}

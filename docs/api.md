@@ -29,6 +29,12 @@ All endpoints live under `/api/v1` on the loopback address and are private unles
 | DELETE | `/sessions/{id}/annotation` | session+csrf | — | — | Explicitly delete a session annotation. |
 | GET | `/annotations/export` | session | — | [AnnotationExport](#annotationexport) | Download all annotations as sanitized JSON (no transcripts). |
 | POST | `/annotations/import` | session+csrf | [AnnotationExport](#annotationexport) | — | Merge an export; newer annotations win. |
+| GET | `/sessions/{id}/automation` | session | — | [AutomationApplication[]](#automationapplication) | Automation rules that were applied to this session, newest first. |
+| GET | `/automation/rules` | session | — | [AutomationRuleStatus[]](#automationrulestatus) | Automation rules with the agents each matches now and was applied to. |
+| POST | `/automation/rules` | session+csrf | [AutomationRuleInput](#automationruleinput) | [AutomationRule](#automationrule) | Create a rule. An enabled rule applies at once to the agents it matches (once per agent and revision). |
+| PUT | `/automation/rules/{id}` | session+csrf | [AutomationRuleInput](#automationruleinput) | [AutomationRule](#automationrule) | Edit a rule; changed conditions or actions start a new revision, which applies afresh. |
+| DELETE | `/automation/rules/{id}` | session+csrf | — | — | Delete a rule. Annotations it changed stay as they are. |
+| POST | `/automation/preview` | session+csrf | [AutomationRuleInput](#automationruleinput) | [AutomationPreview](#automationpreview) | Agents a rule would match now; changes nothing. |
 | GET | `/settings` | session | — | [Settings](#settings) | App settings. |
 | PATCH | `/settings` | session+csrf | [SettingsPatch](#settingspatch) | [Settings](#settings) | Change settings (deep partial). |
 | POST | `/rescan` | session+csrf | — | — | Troubleshooting only: full rescan. Normal operation never needs it. |
@@ -286,7 +292,8 @@ JSON Schema generated from the shared zod contracts.
               "needs_review",
               "reviewed",
               "complete",
-              "flagged"
+              "flagged",
+              "outdated"
             ]
           },
           "tags": {
@@ -395,7 +402,8 @@ JSON Schema generated from the shared zod contracts.
         "needs_review",
         "reviewed",
         "complete",
-        "flagged"
+        "flagged",
+        "outdated"
       ]
     },
     "tags": {
@@ -482,6 +490,1399 @@ JSON Schema generated from the shared zod contracts.
   "required": [
     "csrfToken",
     "expiresAt"
+  ],
+  "additionalProperties": false
+}
+```
+
+### AutomationApplication
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "ruleId": {
+      "type": "string"
+    },
+    "ruleName": {
+      "type": "string"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
+    "appliedAt": {
+      "type": "string",
+      "maxLength": 64
+    }
+  },
+  "required": [
+    "ruleId",
+    "ruleName",
+    "revision",
+    "appliedAt"
+  ],
+  "additionalProperties": false
+}
+```
+
+### AutomationPreview
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "matching": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
+    "examples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "title"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "matching",
+    "examples"
+  ],
+  "additionalProperties": false
+}
+```
+
+### AutomationRule
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "match": {
+      "type": "string",
+      "enum": [
+        "all",
+        "any"
+      ]
+    },
+    "conditions": {
+      "minItems": 1,
+      "maxItems": 12,
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "last_activity"
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "older_than",
+                  "within"
+                ]
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10000
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "hours",
+                  "days"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "op",
+              "amount",
+              "unit"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "text"
+              },
+              "field": {
+                "type": "string",
+                "enum": [
+                  "title",
+                  "alias",
+                  "note",
+                  "tags",
+                  "repository",
+                  "branch",
+                  "agent_type",
+                  "last_message"
+                ]
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "contains",
+                  "not_contains",
+                  "equals"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "kind",
+              "field",
+              "op",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "review"
+              },
+              "states": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "unreviewed",
+                    "needs_review",
+                    "reviewed",
+                    "complete",
+                    "flagged",
+                    "outdated"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "states"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "tag"
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "has",
+                  "lacks"
+                ]
+              },
+              "tag": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              }
+            },
+            "required": [
+              "kind",
+              "op",
+              "tag"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "provider"
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "claude",
+                  "codex"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "provider"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "activity"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "live",
+                  "finished"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "state"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "checklist"
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "all_done",
+                  "has_open",
+                  "empty"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "op"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "spawned"
+              },
+              "value": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "actions": {
+      "minItems": 1,
+      "maxItems": 12,
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "set_review"
+              },
+              "review": {
+                "type": "string",
+                "enum": [
+                  "unreviewed",
+                  "needs_review",
+                  "reviewed",
+                  "complete",
+                  "flagged",
+                  "outdated"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "review"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "add_tag"
+              },
+              "tag": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              }
+            },
+            "required": [
+              "kind",
+              "tag"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "remove_tag"
+              },
+              "tag": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              }
+            },
+            "required": [
+              "kind",
+              "tag"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "set_alias"
+              },
+              "alias": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              }
+            },
+            "required": [
+              "kind",
+              "alias"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "append_note"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "kind",
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "add_checklist_item"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "kind",
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "complete_checklist"
+              },
+              "match": {
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "remove_done_items"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "order": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
+    "createdAt": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "updatedAt": {
+      "type": "string",
+      "maxLength": 64
+    }
+  },
+  "required": [
+    "name",
+    "enabled",
+    "match",
+    "conditions",
+    "actions",
+    "id",
+    "revision",
+    "order",
+    "createdAt",
+    "updatedAt"
+  ],
+  "additionalProperties": false
+}
+```
+
+### AutomationRuleInput
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "match": {
+      "type": "string",
+      "enum": [
+        "all",
+        "any"
+      ]
+    },
+    "conditions": {
+      "minItems": 1,
+      "maxItems": 12,
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "last_activity"
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "older_than",
+                  "within"
+                ]
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10000
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "hours",
+                  "days"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "op",
+              "amount",
+              "unit"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "text"
+              },
+              "field": {
+                "type": "string",
+                "enum": [
+                  "title",
+                  "alias",
+                  "note",
+                  "tags",
+                  "repository",
+                  "branch",
+                  "agent_type",
+                  "last_message"
+                ]
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "contains",
+                  "not_contains",
+                  "equals"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "kind",
+              "field",
+              "op",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "review"
+              },
+              "states": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "unreviewed",
+                    "needs_review",
+                    "reviewed",
+                    "complete",
+                    "flagged",
+                    "outdated"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "states"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "tag"
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "has",
+                  "lacks"
+                ]
+              },
+              "tag": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              }
+            },
+            "required": [
+              "kind",
+              "op",
+              "tag"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "provider"
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "claude",
+                  "codex"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "provider"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "activity"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "live",
+                  "finished"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "state"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "checklist"
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "all_done",
+                  "has_open",
+                  "empty"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "op"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "spawned"
+              },
+              "value": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "actions": {
+      "minItems": 1,
+      "maxItems": 12,
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "set_review"
+              },
+              "review": {
+                "type": "string",
+                "enum": [
+                  "unreviewed",
+                  "needs_review",
+                  "reviewed",
+                  "complete",
+                  "flagged",
+                  "outdated"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "review"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "add_tag"
+              },
+              "tag": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              }
+            },
+            "required": [
+              "kind",
+              "tag"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "remove_tag"
+              },
+              "tag": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              }
+            },
+            "required": [
+              "kind",
+              "tag"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "set_alias"
+              },
+              "alias": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              }
+            },
+            "required": [
+              "kind",
+              "alias"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "append_note"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "kind",
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "add_checklist_item"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "kind",
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "complete_checklist"
+              },
+              "match": {
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "remove_done_items"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "name",
+    "enabled",
+    "match",
+    "conditions",
+    "actions"
+  ],
+  "additionalProperties": false
+}
+```
+
+### AutomationRuleStatus
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "match": {
+      "type": "string",
+      "enum": [
+        "all",
+        "any"
+      ]
+    },
+    "conditions": {
+      "minItems": 1,
+      "maxItems": 12,
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "last_activity"
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "older_than",
+                  "within"
+                ]
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10000
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "hours",
+                  "days"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "op",
+              "amount",
+              "unit"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "text"
+              },
+              "field": {
+                "type": "string",
+                "enum": [
+                  "title",
+                  "alias",
+                  "note",
+                  "tags",
+                  "repository",
+                  "branch",
+                  "agent_type",
+                  "last_message"
+                ]
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "contains",
+                  "not_contains",
+                  "equals"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "kind",
+              "field",
+              "op",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "review"
+              },
+              "states": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "unreviewed",
+                    "needs_review",
+                    "reviewed",
+                    "complete",
+                    "flagged",
+                    "outdated"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "states"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "tag"
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "has",
+                  "lacks"
+                ]
+              },
+              "tag": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              }
+            },
+            "required": [
+              "kind",
+              "op",
+              "tag"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "provider"
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "claude",
+                  "codex"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "provider"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "activity"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "live",
+                  "finished"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "state"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "checklist"
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "all_done",
+                  "has_open",
+                  "empty"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "op"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "spawned"
+              },
+              "value": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "actions": {
+      "minItems": 1,
+      "maxItems": 12,
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "set_review"
+              },
+              "review": {
+                "type": "string",
+                "enum": [
+                  "unreviewed",
+                  "needs_review",
+                  "reviewed",
+                  "complete",
+                  "flagged",
+                  "outdated"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "review"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "add_tag"
+              },
+              "tag": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              }
+            },
+            "required": [
+              "kind",
+              "tag"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "remove_tag"
+              },
+              "tag": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              }
+            },
+            "required": [
+              "kind",
+              "tag"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "set_alias"
+              },
+              "alias": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              }
+            },
+            "required": [
+              "kind",
+              "alias"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "append_note"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "kind",
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "add_checklist_item"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "kind",
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "complete_checklist"
+              },
+              "match": {
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "remove_done_items"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "order": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
+    "createdAt": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "updatedAt": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "matching": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
+    "applied": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
+    "lastAppliedAt": {
+      "type": "string",
+      "maxLength": 64
+    }
+  },
+  "required": [
+    "name",
+    "enabled",
+    "match",
+    "conditions",
+    "actions",
+    "id",
+    "revision",
+    "order",
+    "createdAt",
+    "updatedAt",
+    "matching",
+    "applied"
   ],
   "additionalProperties": false
 }
@@ -1142,7 +2543,8 @@ JSON Schema generated from the shared zod contracts.
         "needs_review",
         "reviewed",
         "complete",
-        "flagged"
+        "flagged",
+        "outdated"
       ]
     },
     "tags": {
@@ -2080,7 +3482,8 @@ JSON Schema generated from the shared zod contracts.
               "needs_review",
               "reviewed",
               "complete",
-              "flagged"
+              "flagged",
+              "outdated"
             ]
           },
           "tags": {
@@ -2105,6 +3508,29 @@ JSON Schema generated from the shared zod contracts.
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
           },
+          "checklist": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "done": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "text",
+                "done"
+              ],
+              "additionalProperties": false
+            }
+          },
           "updatedAt": {
             "type": "string",
             "maxLength": 64
@@ -2118,6 +3544,7 @@ JSON Schema generated from the shared zod contracts.
           "note",
           "checklistOpen",
           "checklistDone",
+          "checklist",
           "updatedAt"
         ],
         "additionalProperties": false
@@ -2942,7 +4369,8 @@ JSON Schema generated from the shared zod contracts.
                   "needs_review",
                   "reviewed",
                   "complete",
-                  "flagged"
+                  "flagged",
+                  "outdated"
                 ]
               },
               "tags": {
@@ -2967,6 +4395,29 @@ JSON Schema generated from the shared zod contracts.
                 "minimum": -9007199254740991,
                 "maximum": 9007199254740991
               },
+              "checklist": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "done": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "text",
+                    "done"
+                  ],
+                  "additionalProperties": false
+                }
+              },
               "updatedAt": {
                 "type": "string",
                 "maxLength": 64
@@ -2980,6 +4431,7 @@ JSON Schema generated from the shared zod contracts.
               "note",
               "checklistOpen",
               "checklistDone",
+              "checklist",
               "updatedAt"
             ],
             "additionalProperties": false

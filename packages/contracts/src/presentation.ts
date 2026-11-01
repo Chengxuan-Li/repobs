@@ -71,6 +71,7 @@ export const REVIEW_LABELS: Record<ReviewState, string> = {
   reviewed: 'Reviewed',
   complete: 'Complete',
   flagged: 'Flagged',
+  outdated: 'Outdated',
 }
 
 export const REVIEW_TONES: Record<ReviewState, Tone> = {
@@ -79,6 +80,7 @@ export const REVIEW_TONES: Record<ReviewState, Tone> = {
   reviewed: 'info',
   complete: 'success',
   flagged: 'danger',
+  outdated: 'neutral',
 }
 
 export function stateLabel(state: ObservedAgentState): string {
@@ -121,27 +123,41 @@ export function fallbackSessionTitle(provider: 'claude' | 'codex', providerSessi
 /**
  * Workflow status used by dashboard filters and cards: combines what the agent is observed doing
  * with what the human decided. Agent activity that needs a person wins; then running work; then
- * the human review state; a finished session nobody has reviewed yet is "unreviewed" (never shown
- * as a success: finishing is not a result), otherwise unknown.
+ * your review state, each review state as itself; a finished session nobody has reviewed yet is
+ * "unreviewed" (never shown as a success: finishing is not a result), otherwise unknown.
  */
-export type WorkflowStatus = 'needs_input' | 'working' | 'needs_review' | 'unreviewed' | 'complete' | 'unknown'
+export type WorkflowStatus = 'needs_input' | 'working' | 'flagged' | 'needs_review' | 'unreviewed' | 'reviewed' | 'complete' | 'outdated' | 'unknown'
+
+/** Every workflow status, in the order filters and legends list them. */
+export const WORKFLOW_STATUSES: WorkflowStatus[] = ['needs_input', 'working', 'flagged', 'needs_review', 'unreviewed', 'reviewed', 'complete', 'outdated', 'unknown']
 
 export const WORKFLOW_LABELS: Record<WorkflowStatus, string> = {
   needs_input: 'Needs input',
   working: 'Working',
+  flagged: 'Flagged',
   needs_review: 'Needs review',
   unreviewed: 'Unreviewed',
+  reviewed: 'Reviewed',
   complete: 'Complete',
+  outdated: 'Outdated',
   unknown: 'Unknown',
 }
 
 export const WORKFLOW_TONES: Record<WorkflowStatus, Tone> = {
   needs_input: 'warning',
   working: 'info',
+  flagged: 'danger',
   needs_review: 'warning',
   unreviewed: 'neutral',
+  reviewed: 'info',
   complete: 'success',
+  outdated: 'neutral',
   unknown: 'neutral',
+}
+
+/** Statuses counted as needing your attention (status bar, repository counts). */
+export function statusNeedsAttention(status: WorkflowStatus): boolean {
+  return status === 'needs_input' || status === 'needs_review' || status === 'flagged'
 }
 
 export function workflowStatus(session: AgentSession, annotation?: AnnotationSummary): WorkflowStatus {
@@ -149,8 +165,8 @@ export function workflowStatus(session: AgentSession, annotation?: AnnotationSum
   if (s.kind === 'waiting_approval' || s.kind === 'waiting_user' || s.kind === 'error') return 'needs_input'
   if (s.possiblyAwaitingApproval && !session.historical) return 'needs_input'
   if (s.kind === 'running' || s.kind === 'running_subagents') return 'working'
-  if (annotation?.review === 'needs_review' || annotation?.review === 'flagged') return 'needs_review'
-  if (annotation?.review === 'reviewed' || annotation?.review === 'complete') return 'complete'
+  const review = annotation?.review
+  if (review && review !== 'unreviewed') return review
   if (s.kind === 'idle_or_turn_finished' || s.kind === 'ended') return 'unreviewed'
   return 'unknown'
 }

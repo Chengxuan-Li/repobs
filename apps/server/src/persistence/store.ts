@@ -3,6 +3,9 @@ import type { DatabaseSync } from 'node:sqlite'
 import {
   type AnnotationInput,
   type AnnotationSummary,
+  type AutomationApplication,
+  AutomationRule,
+  type AutomationRuleInput,
   DEFAULT_SETTINGS,
   mergeSettings,
   type ReviewState,
@@ -234,6 +237,80 @@ export class AppStore {
     }))
   }
 
+  // Automation rules (ADR 0008) --------------------------------------------------------------
+
+  listRules(): AutomationRule[] {
+    return (this.db.prepare('SELECT rule_json FROM automation_rules ORDER BY sort_order, id').all() as Row[]).flatMap((r) => {
+      const parsed = AutomationRule.safeParse(JSON.parse(String(r.rule_json)))
+      return parsed.success ? [parsed.data] : []
+    })
+  }
+
+  getRule(id: string): AutomationRule | undefined {
+    return this.listRules().find((r) => r.id === id)
+  }
+
+  /** Creates a rule, or updates one; the revision increases when its conditions or actions change. */
+  saveRule(input: AutomationRuleInput, id?: string, now = new Date().toISOString()): AutomationRule {
+    const existing = id ? this.getRule(id) : undefined
+    const max = this.db.prepare('SELECT COALESCE(MAX(sort_order), -1) AS m FROM automation_rules').get() as { m: number }
+    const changed = !existing || JSON.stringify([existing.match, existing.conditions, existing.actions]) !== JSON.stringify([input.match, input.conditions, input.actions])
+    const rule = AutomationRule.parse({
+      ...input,
+      id: existing?.id ?? randomUUID(),
+      revision: existing ? existing.revision + (changed ? 1 : 0) : 1,
+      order: existing?.order ?? max.m + 1,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    })
+    this.db
+      .prepare('INSERT INTO automation_rules (id, rule_json, sort_order) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET rule_json = excluded.rule_json, sort_order = excluded.sort_order')
+      .run(rule.id, JSON.stringify(rule), rule.order)
+    return rule
+  }
+
+  deleteRule(id: string): boolean {
+    this.db.prepare('DELETE FROM automation_applied WHERE rule_id = ?').run(id)
+    return this.db.prepare('DELETE FROM automation_rules WHERE id = ?').run(id).changes > 0
+  }
+
+  /** The revision of each rule last applied to each agent, keyed `ruleId|sessionId`. */
+  appliedRevisions(): Map<string, number> {
+    const rows = this.db.prepare('SELECT rule_id, session_id, revision FROM automation_applied').all() as Row[]
+    return new Map(rows.map((r) => [`${String(r.rule_id)}|${String(r.session_id)}`, Number(r.revision)]))
+  }
+
+  recordApplied(ruleId: string, sessionId: string, revision: number, at: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO automation_applied (rule_id, session_id, revision, applied_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(rule_id, session_id) DO UPDATE SET revision = excluded.revision, applied_at = excluded.applied_at`,
+      )
+      .run(ruleId, sessionId, revision, at)
+  }
+
+  /** Per rule: agents its current revision was applied to, and when it last applied. */
+  ruleApplicationCounts(): Map<string, { applied: number; lastAppliedAt?: string }> {
+    const rows = this.db
+      .prepare(
+        `SELECT a.rule_id AS rule_id, COUNT(*) AS n, MAX(a.applied_at) AS last FROM automation_applied a
+         JOIN automation_rules r ON r.id = a.rule_id
+         WHERE a.revision = json_extract(r.rule_json, '$.revision') GROUP BY a.rule_id`,
+      )
+      .all() as Row[]
+    return new Map(rows.map((r) => [String(r.rule_id), { applied: Number(r.n), lastAppliedAt: str(r.last) }]))
+  }
+
+  /** Rules that were applied to one agent, newest first. */
+  applicationsFor(sessionId: string): AutomationApplication[] {
+    const names = new Map(this.listRules().map((r) => [r.id, r.name]))
+    const rows = this.db.prepare('SELECT rule_id, revision, applied_at FROM automation_applied WHERE session_id = ? ORDER BY applied_at DESC').all(sessionId) as Row[]
+    return rows.flatMap((r) => {
+      const name = names.get(String(r.rule_id))
+      return name ? [{ ruleId: String(r.rule_id), ruleName: name, revision: Number(r.revision), appliedAt: String(r.applied_at) }] : []
+    })
+  }
+
   // Settings -------------------------------------------------------------------------------
 
   getSettings(): Settings {
@@ -264,6 +341,7 @@ export function summarizeAnnotation(a: SessionAnnotation): AnnotationSummary {
     note: a.note,
     checklistOpen: a.checklist.filter((i) => !i.done).length,
     checklistDone: a.checklist.filter((i) => i.done).length,
+    checklist: a.checklist.map((i) => ({ id: i.id, text: i.text, done: i.done })),
     updatedAt: a.updatedAt,
   }
 }

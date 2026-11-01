@@ -1,7 +1,8 @@
-import { type AgentSession, type AnnotationSummary, type Provider, type WorkflowStatus, workflowStatus } from '@repobs/contracts'
+import { type AgentSession, type AnnotationSummary, type Provider, type ReviewState, type WorkflowStatus, workflowStatus } from '@repobs/contracts'
 
 // Dashboard filters (ADR 0003). Applied to sessions only; branches and commits are always shown
-// according to the branch mode.
+// according to the branch mode. Filters only decide what a view shows: they never change an
+// agent's annotation (automation rules do that, ADR 0008).
 
 export interface DashboardFilters {
   /** Agent harnesses to show. Empty = every harness. */
@@ -13,9 +14,13 @@ export interface DashboardFilters {
   /** Any-of match. Empty = no tag filter. */
   tags: string[]
   query: string
+  /** Agents hidden by hand in this view. */
+  hiddenAgents: string[]
+  /** Agents with these review states are hidden (an agent you never reviewed counts as unreviewed). */
+  hiddenReviews: ReviewState[]
 }
 
-export const DEFAULT_FILTERS: DashboardFilters = { harnesses: [], lastMessageDays: null, statuses: [], tags: [], query: '' }
+export const DEFAULT_FILTERS: DashboardFilters = { harnesses: [], lastMessageDays: null, statuses: [], tags: [], query: '', hiddenAgents: [], hiddenReviews: [] }
 
 export const LAST_MESSAGE_OPTIONS: Array<{ label: string; days: number | null }> = [
   { label: 'Any time', days: null },
@@ -28,10 +33,20 @@ export const LAST_MESSAGE_OPTIONS: Array<{ label: string; days: number | null }>
 ]
 
 export function filtersActive(f: DashboardFilters): boolean {
-  return f.harnesses.length > 0 || f.lastMessageDays !== null || f.statuses.length > 0 || f.tags.length > 0 || f.query.trim() !== ''
+  return (
+    f.harnesses.length > 0 ||
+    f.lastMessageDays !== null ||
+    f.statuses.length > 0 ||
+    f.tags.length > 0 ||
+    f.query.trim() !== '' ||
+    f.hiddenAgents.length > 0 ||
+    f.hiddenReviews.length > 0
+  )
 }
 
 export function sessionMatches(s: AgentSession, a: AnnotationSummary | undefined, f: DashboardFilters, now: number): boolean {
+  if (f.hiddenAgents.includes(s.id)) return false
+  if (f.hiddenReviews.includes(a?.review ?? 'unreviewed')) return false
   if (f.harnesses.length && !f.harnesses.includes(s.provider)) return false
   if (f.lastMessageDays !== null) {
     const last = Date.parse(s.lastActivityAt ?? '')

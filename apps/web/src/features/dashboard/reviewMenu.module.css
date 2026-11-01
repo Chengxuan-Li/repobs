@@ -47,6 +47,11 @@
   font-size: var(--label-size);
   color: var(--color-text-muted);
 }
+.divided {
+  margin-top: 3px;
+  padding-top: 5px;
+  border-top: 1px solid var(--color-border);
+}
 .item {
   display: flex;
   align-items: center;

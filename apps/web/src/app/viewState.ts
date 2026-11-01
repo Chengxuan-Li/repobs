@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { type Provider, type WorkflowStatus } from '@repobs/contracts'
+import { type Provider, REVIEW_LABELS, type ReviewState, WORKFLOW_STATUSES, type WorkflowStatus } from '@repobs/contracts'
 import { DEFAULT_FILTERS, type DashboardFilters } from '../features/dashboard/filters'
 import type { BranchMode } from '../features/dashboard/layout'
 import type { AxisMode } from '../features/dashboard/timeline'
@@ -72,7 +72,7 @@ export const DEFAULT_VIEW: ViewState = {
   expandedBranches: [],
 }
 
-const STATUSES: WorkflowStatus[] = ['needs_input', 'working', 'needs_review', 'unreviewed', 'complete', 'unknown']
+const STATUSES: WorkflowStatus[] = WORKFLOW_STATUSES
 const SORTS: RepoSort[] = ['activity', 'active', 'name', 'manual']
 const RANGES: TimeRange[] = ['1d', '7d', '30d', '90d', '365d', 'all']
 const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
@@ -92,6 +92,8 @@ export function normalizeView(raw: unknown): ViewState {
         .filter((s): s is WorkflowStatus => STATUSES.includes(s as WorkflowStatus)),
       tags: strings(f.tags),
       harnesses: storedHarnesses(p.filters),
+      hiddenAgents: strings(f.hiddenAgents),
+      hiddenReviews: strings(f.hiddenReviews).filter((r): r is ReviewState => r in REVIEW_LABELS),
     },
     agentNames: p.agentNames !== false,
     barLabels: p.barLabels !== false,

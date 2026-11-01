@@ -1,7 +1,8 @@
 import { Search } from 'lucide-react'
-import { PROVIDER_LABELS, type Provider, WORKFLOW_LABELS, type WorkflowStatus } from '@repobs/contracts'
+import { PROVIDER_LABELS, type Provider, REVIEW_LABELS, type ReviewState, WORKFLOW_LABELS, WORKFLOW_STATUSES, type WorkflowStatus } from '@repobs/contracts'
 import type { TimeRange, ViewPatch, ViewState } from '../../app/viewState'
 import { Dropdown, type DropdownSection } from '../../components/Dropdown'
+import { ReviewDot } from '../../components/primitives'
 import { TagInput } from '../annotations/TagInput'
 import { DEFAULT_FILTERS, filtersActive, LAST_MESSAGE_OPTIONS } from './filters'
 import type { BranchMode } from './layout'
@@ -12,7 +13,8 @@ import styles from './dashboard.module.css'
 // drawn); each group is a dropdown so the bar stays one line.
 
 const HARNESSES = Object.keys(PROVIDER_LABELS) as Provider[]
-const STATUSES: WorkflowStatus[] = ['needs_input', 'working', 'needs_review', 'unreviewed', 'complete', 'unknown']
+const STATUSES: WorkflowStatus[] = WORKFLOW_STATUSES
+const REVIEWS = Object.keys(REVIEW_LABELS) as ReviewState[]
 const BRANCH_MODES: Array<[BranchMode, string]> = [
   ['all', 'All branches'],
   ['checked_out', 'Checked out'],
@@ -70,11 +72,17 @@ function multiSelect<T extends string>(heading: string, options: T[], labels: Re
   ]
 }
 
+function hiddenSummary(byHand: number, reviews: ReviewState[]): string {
+  const parts = [...reviews.map((r) => REVIEW_LABELS[r]), ...(byHand ? [`${byHand} by hand`] : [])]
+  return parts.length <= 2 ? parts.join(', ') : `${parts.length} rules`
+}
+
 export function FilterBar({
   view,
   setView,
   knownTags,
   repositories,
+  agentTitle,
   shown,
   total,
 }: {
@@ -83,6 +91,8 @@ export function FilterBar({
   knownTags: string[]
   /** Every registered repository; the view shows those it does not hide. */
   repositories: Array<{ id: string; name: string }>
+  /** Name of an agent hidden by hand (its alias or title). */
+  agentTitle: (sessionId: string) => string
   shown: number
   total: number
 }) {
@@ -134,6 +144,49 @@ export function FilterBar({
           <Dropdown label="Tags" value={summary(f.tags)} active={f.tags.length > 0}>
             <TagInput value={f.tags} known={knownTags} onChange={(tags) => setFilters({ tags })} label="Filter by tags" placeholder="Filter by tag…" />
             <p className="small muted">Agents with any of these tags.</p>
+          </Dropdown>
+          <Dropdown
+            label="Hidden"
+            value={f.hiddenAgents.length + f.hiddenReviews.length ? hiddenSummary(f.hiddenAgents.length, f.hiddenReviews) : 'None'}
+            active={f.hiddenAgents.length + f.hiddenReviews.length > 0}
+          >
+            <fieldset className={styles.hiddenGroup}>
+              <legend className="label">Hide agents marked</legend>
+              {REVIEWS.map((r) => (
+                <label key={r} className={styles.hiddenCheck}>
+                  <input
+                    type="checkbox"
+                    checked={f.hiddenReviews.includes(r)}
+                    onChange={(e) => setFilters({ hiddenReviews: e.target.checked ? REVIEWS.filter((x) => x === r || f.hiddenReviews.includes(x)) : f.hiddenReviews.filter((x) => x !== r) })}
+                  />
+                  <ReviewDot review={r} />
+                  {REVIEW_LABELS[r]}
+                </label>
+              ))}
+            </fieldset>
+            <div className={styles.hiddenGroup}>
+              <span className="label">Hidden by hand</span>
+              {f.hiddenAgents.length ? (
+                <>
+                  <ul className={styles.hiddenList} aria-label="Agents hidden by hand">
+                    {f.hiddenAgents.map((id) => (
+                      <li key={id}>
+                        <span className={styles.hiddenName}>{agentTitle(id)}</span>
+                        <button type="button" className="btn btn-quiet" onClick={() => setFilters({ hiddenAgents: f.hiddenAgents.filter((x) => x !== id) })}>
+                          Show
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <button type="button" className="btn" onClick={() => setFilters({ hiddenAgents: [] })}>
+                    Show all {f.hiddenAgents.length}
+                  </button>
+                </>
+              ) : (
+                <p className="small muted">None. Use “Hide from this view” in an agent’s status menu.</p>
+              )}
+            </div>
+            <p className="small muted">Hiding changes this view only; the agents and your notes stay as they are.</p>
           </Dropdown>
           <span className="small muted" aria-live="polite">
             {shown === total ? `${total} agents` : `${shown} of ${total} agents`}

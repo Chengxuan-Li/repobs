@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type IJsonModel, Layout, Model, TabNode } from 'flexlayout-react'
 import 'flexlayout-react/style/light.css'
-import { Moon, PanelLeft, PanelRight, Sun, SunMoon } from 'lucide-react'
+import { Moon, PanelLeft, PanelRight, Sun, SunMoon, Zap } from 'lucide-react'
 import {
   type AgentSession,
   AnnotationExport,
+  type AnnotationInput,
   type AnnotationSummary,
   isLiveKind,
   type Repository,
   type ReviewState,
+  type SessionAnnotation,
   type Settings,
   type Snapshot,
   type ThemePreference,
+  statusNeedsAttention,
   workflowStatus,
 } from '@repobs/contracts'
 import { Dialog, InlineAlert, useNow } from '../components/primitives'
@@ -19,6 +22,7 @@ import { BranchDetails, SessionDetails } from '../features/dashboard/DetailsPane
 import { knownTags as collectTags } from '../features/dashboard/filters'
 import { type BranchRow, type RepoLayout, repositoryLastActivity } from '../features/dashboard/layout'
 import { RepoListPanel, type RepoSummary } from '../features/dashboard/RepoListPanel'
+import { AutomationPanel } from '../features/automation/AutomationPanel'
 import { AddRepositoryDialog } from '../features/settings/AddRepositoryDialog'
 import { DiagnosticsPanel } from '../features/settings/DiagnosticsPanel'
 import { SettingsPanel } from '../features/settings/SettingsPanel'
@@ -85,7 +89,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
         lastActivity: repositoryLastActivity(snapshot.commitGraphs.find((g) => g.repoId === repo.id), sessions),
         agents: sessions.length,
         active: sessions.filter((s) => isLiveKind(s.state.kind)).length,
-        attention: sessions.filter((s) => ['needs_input', 'needs_review'].includes(workflowStatus(s, annotations.get(s.id)))).length,
+        attention: sessions.filter((s) => statusNeedsAttention(workflowStatus(s, annotations.get(s.id)))).length,
       }
     })
     const by: Record<RepoSort, (a: RepoSummary, b: RepoSummary) => number> = {
@@ -110,24 +114,25 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     [setShared, showPanel],
   )
 
-  const setReview = useCallback(async (sessionId: string, review: ReviewState) => {
+  /** Changes one part of an agent's annotation from the dashboard (the rest is read back first); resolves to whether it was saved. */
+  const updateAnnotation = useCallback(async (sessionId: string, change: (a: AnnotationInput) => AnnotationInput, failure: string) => {
     try {
-      const current = await api<{ annotation: { displayAlias?: string; tags: string[]; note: string; checklist: unknown[] } | null }>(
-        'GET',
-        `/sessions/${encodeURIComponent(sessionId)}/annotation`,
-      )
-      const a = current.annotation
-      await api('PUT', `/sessions/${encodeURIComponent(sessionId)}/annotation`, {
-        displayAlias: a?.displayAlias,
-        review,
-        tags: a?.tags ?? [],
-        note: a?.note ?? '',
-        checklist: a?.checklist ?? [],
-      })
+      const path = `/sessions/${encodeURIComponent(sessionId)}/annotation`
+      const { annotation: a } = await api<{ annotation: SessionAnnotation | null }>('GET', path)
+      const current: AnnotationInput = { displayAlias: a?.displayAlias, review: a?.review ?? 'unreviewed', tags: a?.tags ?? [], note: a?.note ?? '', checklist: a?.checklist ?? [] }
+      await api('PUT', path, change(current))
+      return true
     } catch (e) {
-      setNotice(e instanceof ApiError ? e.message : 'Could not update the review state')
+      setNotice(e instanceof ApiError ? e.message : failure)
+      return false
     }
   }, [])
+  const setReview = useCallback((sessionId: string, review: ReviewState) => updateAnnotation(sessionId, (a) => ({ ...a, review }), 'Could not update the review state'), [updateAnnotation])
+  const setChecklistItem = useCallback(
+    (sessionId: string, itemId: string, done: boolean) =>
+      updateAnnotation(sessionId, (a) => ({ ...a, checklist: a.checklist.map((i) => (i.id === itemId ? { ...i, done } : i)) }), 'Could not update the checklist'),
+    [updateAnnotation],
+  )
 
   const removeRepository = async (repo: Repository) => {
     try {
@@ -245,6 +250,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
         }}
         onSelect={select}
         onReview={(id, r) => void setReview(id, r)}
+        onChecklist={setChecklistItem}
         onAdd={() => setDialog('add')}
       />
     ),
@@ -293,6 +299,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
         </div>
       </aside>
     ),
+    automation: () => <AutomationPanel changeKey={snapshot.annotations} now={now} />,
   }
   const factory = (node: TabNode) => {
     const render = panels[node.getComponent() as TabComponent]
@@ -327,6 +334,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
 
     panelCommand('repositories', 'Repositories panel', 'Ctrl+B', PanelLeft),
     panelCommand('details', 'Details panel', 'Ctrl+Alt+B', PanelRight),
+    panelCommand('automation', 'Automation panel', 'Ctrl+Alt+U', Zap),
     { id: 'view.maximize', label: 'Maximize view', group: 'View', submenu: 'Panels', pressed: dock.isMaximized(), run: () => dock.toggleMaximize(current?.id) },
     { id: 'view.reset', label: 'Reset layout', group: 'View', submenu: 'Panels', run: dock.reset },
     { id: 'view.new', label: 'Open new view', group: 'View', shortcut: 'Ctrl+Alt+N', run: openView },
@@ -547,7 +555,7 @@ function GlobalStatusBar({
   onDiagnostics: () => void
 }) {
   const working = snapshot.sessions.filter((s) => workflowStatus(s, annotations.get(s.id)) === 'working').length
-  const attention = snapshot.sessions.filter((s) => ['needs_input', 'needs_review'].includes(workflowStatus(s, annotations.get(s.id)))).length
+  const attention = snapshot.sessions.filter((s) => statusNeedsAttention(workflowStatus(s, annotations.get(s.id)))).length
   const synced = snapshot.monitor.lastSyncAt ? new Date(snapshot.monitor.lastSyncAt).toLocaleTimeString() : '—'
   const connLabel = { connecting: 'Connecting…', live: 'Live', reconnecting: 'Reconnecting…', offline: 'Offline — data may be stale' }[connection]
   return (

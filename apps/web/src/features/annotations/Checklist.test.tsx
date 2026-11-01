@@ -19,15 +19,16 @@ const item = (id: string, text: string, done: boolean, order: number): DraftItem
 const state = () => JSON.parse(screen.getByTestId('state').textContent ?? '[]') as DraftItem[]
 
 describe('Checklist', () => {
-  it('hides a fully completed checklist behind a disclosure without deleting it', () => {
+  it('keeps a fully completed checklist listed, with nothing hidden or announced', () => {
     render(<Harness initial={[item('a', 'Read diff', true, 0), item('b', 'Run tests', false, 1)]} />)
-    expect(screen.getByRole('checkbox', { name: 'Run tests' })).toBeTruthy()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Run tests' }))
-    expect(screen.queryByRole('checkbox', { name: 'Run tests' })).toBeNull()
-    expect(screen.getByText(/All 2 checklist items complete/)).toBeTruthy()
-    expect(state()).toHaveLength(2)
-    fireEvent.click(screen.getByRole('button', { name: 'Show completed' }))
     expect((screen.getByRole('checkbox', { name: 'Run tests' }) as HTMLInputElement).checked).toBe(true)
+    expect((screen.getByRole('checkbox', { name: 'Read diff' }) as HTMLInputElement).checked).toBe(true)
+    expect(screen.queryByText(/complete/i)).toBeNull()
+    expect(state()).toHaveLength(2)
+    // A ticked item can be unticked again.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Read diff' }))
+    expect(state().map((i) => i.done)).toEqual([false, true])
   })
 
   it('adds, reorders and explicitly deletes items', () => {

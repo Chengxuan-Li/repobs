@@ -7,6 +7,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { openDatabase } from '../apps/server/src/persistence/database.ts'
 import { buildGitFixture, fixtureGit, type GitFixture } from '../fixtures/git-fixtures.ts'
 import {
   claude,
@@ -101,7 +102,28 @@ export function buildDemo(root: string, now = Date.now()): Demo {
     { id: '019a0000-0000-7000-8000-00000000c0d1', thread_name: 'Review ref grouping', updated_at: new Date(ago(5)).toISOString() },
     { id: '019a0000-0000-7000-8000-00000000c0d2', thread_name: 'Add rename detection test', updated_at: new Date(ago(2)).toISOString() },
   ])
+  seedAnnotations(dataDir, now)
   return { root, git, dataDir, claudeHome, codexHome }
+}
+
+/** Synthetic notes so the demo shows checklists: one partly done, one complete. */
+function seedAnnotations(dataDir: string, now: number) {
+  const at = new Date(now).toISOString()
+  const item = (id: string, text: string, done: boolean, order: number) => ({ id, text, done, order, createdAt: at, ...(done ? { completedAt: at } : {}) })
+  const notes: Array<[string, string, Array<ReturnType<typeof item>>]> = [
+    [
+      'claude:b2e1d3c5-2222-4aaa-8bbb-000000000002',
+      'Check the worktree table against the code.',
+      [item('demo-1', 'Read the generated table', true, 0), item('demo-2', 'Cover detached HEAD', false, 1), item('demo-3', 'Link from the user guide', false, 2)],
+    ],
+    ['claude:d4c3b2a1-4444-4aaa-8bbb-000000000004', '', [item('demo-4', 'Write down the merge order', true, 0), item('demo-5', 'Check the conflicting file', true, 1)]],
+  ]
+  const { db } = openDatabase(path.join(dataDir, 'repobs.db'))
+  const insert = db.prepare(
+    'INSERT INTO annotations (session_id, display_alias, review, tags_json, note, checklist_json, created_at, updated_at) VALUES (?, NULL, ?, ?, ?, ?, ?, ?)',
+  )
+  for (const [sessionId, note, checklist] of notes) insert.run(sessionId, 'unreviewed', '[]', note, JSON.stringify(checklist), at, at)
+  db.close()
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

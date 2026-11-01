@@ -1,0 +1,100 @@
+.wrap {
+  display: inline-flex;
+  flex: none;
+}
+/* A fully rounded count beside the review state: a progress pie, then done / total, in a theme tone. */
+.pill {
+  --pill-color: var(--tone-info-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 16px;
+  padding: 0 6px 0 3px;
+  border: 1px solid var(--pill-color);
+  border-radius: 999px;
+  background: var(--pill-bg, var(--tone-info-bg));
+  color: var(--pill-color);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  cursor: pointer;
+}
+.pill:hover,
+.pill[aria-expanded='true'] {
+  filter: brightness(1.15);
+}
+.info {
+  --pill-color: var(--tone-info-text);
+  --pill-bg: var(--tone-info-bg);
+}
+.success {
+  --pill-color: var(--tone-success-text);
+  --pill-bg: var(--tone-success-bg);
+}
+.neutral {
+  --pill-color: var(--tone-neutral-text);
+  --pill-bg: var(--tone-neutral-bg);
+}
+.pie {
+  flex: none;
+  display: block;
+}
+.pieRing {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+.pieFill {
+  fill: currentColor;
+}
+.pill:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+.popover {
+  position: fixed;
+  z-index: 90;
+  min-width: 200px;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-interactive);
+  box-shadow: var(--shadow-popover);
+  font-size: var(--font-size-small);
+}
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+label.item {
+  cursor: pointer;
+}
+.item input {
+  margin: 2px 0 0;
+}
+.done {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}

@@ -56,6 +56,24 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    version: 2,
+    name: 'automation rules',
+    sql: `
+      CREATE TABLE automation_rules (
+        id TEXT PRIMARY KEY,
+        rule_json TEXT NOT NULL,
+        sort_order INTEGER NOT NULL
+      );
+      CREATE TABLE automation_applied (
+        rule_id TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        applied_at TEXT NOT NULL,
+        PRIMARY KEY (rule_id, session_id)
+      );
+    `,
+  },
 ]
 
 export const SCHEMA_VERSION = MIGRATIONS.at(-1)!.version

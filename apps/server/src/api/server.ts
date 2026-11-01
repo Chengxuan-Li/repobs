@@ -6,6 +6,8 @@ import {
   AnnotationExport,
   AnnotationInput,
   API_PREFIX,
+  AUTOMATION_LIMITS,
+  AutomationRuleInput,
   CSRF_HEADER,
   type Diagnostics,
   PairRequest,
@@ -75,6 +77,7 @@ interface Route {
 
 const SESSION_ID = /^(claude|codex):[A-Za-z0-9._-]{1,128}$/
 const REPO_ID = /^repo_[0-9a-f]{12}$/
+const RULE_ID = /^[A-Za-z0-9_-]{1,64}$/
 const MAX_SSE_CLIENTS = 32
 
 function sendJson(res: ServerResponse, status: number, body: unknown) {
@@ -125,6 +128,12 @@ export function createRequestHandler(app: AppContext) {
   const sessionParam = (ctx: RequestCtx) => {
     const id = decodeURIComponent(ctx.params[0] ?? '')
     if (!SESSION_ID.test(id)) throw new HttpError(400, 'invalid_session_id', 'Invalid session id')
+    return id
+  }
+  const ruleParam = (ctx: RequestCtx) => {
+    const id = ctx.params[0] ?? ''
+    if (!RULE_ID.test(id)) throw new HttpError(400, 'invalid_rule_id', 'Invalid rule id')
+    if (!store.getRule(id)) throw new HttpError(404, 'not_found', 'Rule not found')
     return id
   }
   const repoParam = (ctx: RequestCtx) => {
@@ -339,6 +348,52 @@ export function createRequestHandler(app: AppContext) {
         monitor.annotationsChanged()
         return { imported, skipped }
       },
+    },
+    {
+      method: 'GET',
+      pattern: /^\/sessions\/([^/]+)\/automation$/,
+      auth: true,
+      handler: (ctx) => store.applicationsFor(sessionParam(ctx)),
+    },
+    { method: 'GET', pattern: /^\/automation\/rules$/, auth: true, handler: () => monitor.ruleStatuses() },
+    {
+      method: 'POST',
+      pattern: /^\/automation\/rules$/,
+      auth: true,
+      handler: (ctx) => {
+        const input = validate(AutomationRuleInput, ctx.body)
+        if (store.listRules().length >= AUTOMATION_LIMITS.rules) throw new HttpError(409, 'too_many_rules', `At most ${AUTOMATION_LIMITS.rules} rules`)
+        const rule = store.saveRule(input)
+        monitor.automationChanged()
+        return rule
+      },
+    },
+    {
+      method: 'PUT',
+      pattern: /^\/automation\/rules\/([^/]+)$/,
+      auth: true,
+      handler: (ctx) => {
+        const id = ruleParam(ctx)
+        const rule = store.saveRule(validate(AutomationRuleInput, ctx.body), id)
+        monitor.automationChanged()
+        return rule
+      },
+    },
+    {
+      method: 'DELETE',
+      pattern: /^\/automation\/rules\/([^/]+)$/,
+      auth: true,
+      handler: (ctx) => {
+        store.deleteRule(ruleParam(ctx))
+        monitor.automationChanged()
+        return { ok: true }
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/automation\/preview$/,
+      auth: true,
+      handler: (ctx) => monitor.previewRule(validate(AutomationRuleInput, ctx.body)),
     },
     { method: 'GET', pattern: /^\/settings$/, auth: true, handler: () => store.getSettings() },
     {

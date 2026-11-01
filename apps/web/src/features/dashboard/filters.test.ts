@@ -13,6 +13,7 @@ const ann = (sessionId: string, over: Partial<AnnotationSummary> = {}): Annotati
   note: '',
   checklistOpen: 0,
   checklistDone: 0,
+  checklist: [],
   updatedAt: 'x',
   ...over,
 })
@@ -46,6 +47,16 @@ describe('dashboard filters', () => {
     expect(sessionMatches(old, ann('claude:c', { tags: ['perf', 'ui'] }), { ...DEFAULT_FILTERS, tags: ['ui', 'x'] }, now)).toBe(true)
     expect(sessionMatches(old, ann('claude:c', { tags: ['perf'] }), { ...DEFAULT_FILTERS, tags: ['ui'] }, now)).toBe(false)
     expect(sessionMatches(old, undefined, { ...DEFAULT_FILTERS, query: 'parser' }, now)).toBe(true)
+  })
+
+  it('hides agents by hand and by review state, without touching their annotation', () => {
+    const f = { ...DEFAULT_FILTERS, hiddenAgents: ['codex:b'], hiddenReviews: ['outdated' as const, 'unreviewed' as const] }
+    expect(sessionMatches(waiting, ann('codex:b', { review: 'needs_review' }), f, now)).toBe(false)
+    // An agent without an annotation counts as unreviewed.
+    expect(sessionMatches(running, undefined, f, now)).toBe(false)
+    expect(sessionMatches(old, ann('claude:c', { review: 'outdated' }), f, now)).toBe(false)
+    expect(sessionMatches(old, ann('claude:c', { review: 'flagged' }), f, now)).toBe(true)
+    expect(filtersActive({ ...DEFAULT_FILTERS, hiddenAgents: ['x'] })).toBe(true)
   })
 
   it('suggests existing tags by prefix, then substring, most used first', () => {

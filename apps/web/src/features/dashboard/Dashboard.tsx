@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
-import { type AgentSession, type AnnotationSummary, type ReviewState, type Snapshot, workflowStatus } from '@repobs/contracts'
+import { type AgentSession, type AnnotationSummary, type ReviewState, type Snapshot, statusNeedsAttention, workflowStatus } from '@repobs/contracts'
 import { clamp, MAX_ZOOM, MIN_ZOOM, RANGE_MS, type ViewPatch, type ViewState } from '../../app/viewState'
 import { AgentRow } from './AgentRow'
 import { FilterBar } from './FilterBar'
-import { AgentHover, HoverCard, type HoverState, type ShowHover } from './HoverCard'
+import { AgentHover, HoverCard, hoverAt, type HoverState, type ShowHover } from './HoverCard'
 import type { RepoLayout } from './layout'
 import { Legend } from './Legend'
 import { LABEL_W, LABEL_W_NARROW, RepoBoard } from './RepoBoard'
@@ -32,6 +32,7 @@ export function Dashboard({
   now,
   onSelect,
   onReview,
+  onChecklist,
 }: {
   snapshot: Snapshot
   filtered: AgentSession[]
@@ -47,6 +48,8 @@ export function Dashboard({
   now: number
   onSelect: (id: string) => void
   onReview: (sessionId: string, review: ReviewState) => void
+  /** Resolves to whether the change was saved. */
+  onChecklist: (sessionId: string, itemId: string, done: boolean) => Promise<boolean>
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [viewport, setViewport] = useState(0)
@@ -151,7 +154,7 @@ export function Dashboard({
   const showHover: ShowHover = useCallback((content, e, options) => {
     clearTimeout(hideTimer.current)
     interactiveOpen.current = !!options?.interactive
-    setHover({ content, x: e.clientX, y: e.clientY, interactive: options?.interactive, label: options?.label })
+    setHover(hoverAt(content, e, options))
   }, [])
   const hideHover = useCallback(() => {
     clearTimeout(hideTimer.current)
@@ -172,6 +175,11 @@ export function Dashboard({
   )
   const toggleCollapsed = useCallback(
     (id: string) => setView((v) => ({ collapsedRepos: v.collapsedRepos.includes(id) ? v.collapsedRepos.filter((x) => x !== id) : [...v.collapsedRepos, id] })),
+    [setView],
+  )
+  /** Hides an agent from this view (a filter: the agent and your notes are unchanged). */
+  const hideAgent = useCallback(
+    (id: string) => setView((v) => ({ filters: { ...v.filters, hiddenAgents: v.filters.hiddenAgents.includes(id) ? v.filters.hiddenAgents : [...v.filters.hiddenAgents, id] } })),
     [setView],
   )
   const expandBranch = useCallback((rowId: string) => setView((v) => ({ expandedBranches: [...v.expandedBranches, rowId] })), [setView])
@@ -211,7 +219,18 @@ export function Dashboard({
   const orphans = filtered.filter((s) => !s.repoId)
   return (
     <>
-      <FilterBar view={view} setView={setView} knownTags={tags} repositories={allRepos.map((r) => ({ id: r.repo.id, name: r.repo.displayName }))} shown={filtered.length} total={snapshot.sessions.length} />
+      <FilterBar
+        view={view}
+        setView={setView}
+        knownTags={tags}
+        repositories={allRepos.map((r) => ({ id: r.repo.id, name: r.repo.displayName }))}
+        agentTitle={(id) => {
+          const s = sessionsById.get(id)
+          return annotations.get(id)?.displayAlias || s?.title || 'An agent no longer observed'
+        }}
+        shown={filtered.length}
+        total={snapshot.sessions.length}
+      />
       {view.legendOpen ? <Legend axisMode={view.axisMode} /> : null}
       <div
         ref={scrollRef}
@@ -276,7 +295,7 @@ export function Dashboard({
                 tabbableId={selectedId}
                 shownAgents={sessions.length}
                 totalAgents={summary.agents}
-                attention={sessions.filter((s) => ['needs_input', 'needs_review'].includes(workflowStatus(s, annotations.get(s.id)))).length}
+                attention={sessions.filter((s) => statusNeedsAttention(workflowStatus(s, annotations.get(s.id)))).length}
                 sessionsById={sessionsById}
                 childCount={childCount}
                 annotations={annotations}
@@ -285,6 +304,8 @@ export function Dashboard({
                 onToggleCollapsed={() => toggleCollapsed(repo.id)}
                 onSelect={onSelect}
                 onReview={onReview}
+                onChecklist={onChecklist}
+                onHide={hideAgent}
                 onExpandBranch={expandBranch}
                 onToggleAgent={toggleAgent}
                 onExpandGroup={expandGroup}
@@ -312,7 +333,7 @@ export function Dashboard({
                   >
                     <div
                       className={boardStyles.label}
-                      onMouseEnter={(e) => showHover(<AgentHover session={s} annotation={annotations.get(s.id)} now={now} children={childCount.get(s.id) ?? 0} />, e)}
+                      onMouseEnter={(e) => showHover(<AgentHover session={s} annotation={annotations.get(s.id)} now={now} children={childCount.get(s.id) ?? 0} />, e, { placement: 'right' })}
                       onMouseLeave={hideHover}
                     >
                       <AgentRow
@@ -326,6 +347,9 @@ export function Dashboard({
                         showName={view.agentNames}
                         onToggle={() => toggleAgent(s.id)}
                         onReview={(r) => onReview(s.id, r)}
+                        onChecklist={(item, done) => onChecklist(s.id, item, done)}
+                        onHide={() => hideAgent(s.id)}
+                        onPopover={hideHover}
                       />
                     </div>
                   </div>

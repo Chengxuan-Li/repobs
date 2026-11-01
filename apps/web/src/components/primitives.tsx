@@ -64,6 +64,11 @@ export function StatusIndicator({ state, compact = false, stale = false }: { sta
   )
 }
 
+/** A small dot in a review state's colour, beside its name in menus and lists (hollow for Outdated). */
+export function ReviewDot({ review }: { review: ReviewState }) {
+  return <span className={`${styles.dot} ${styles[`text-${REVIEW_TONES[review]}`]} ${review === 'outdated' ? styles.hollow : ''}`} aria-hidden="true" />
+}
+
 export function ReviewBadge({ review }: { review: ReviewState }) {
   if (review === 'unreviewed') return null
   return <Badge tone={REVIEW_TONES[review]}>{REVIEW_LABELS[review]}</Badge>

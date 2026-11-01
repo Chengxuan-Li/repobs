@@ -211,7 +211,8 @@ export const AgentSession = z.object({
 })
 export type AgentSession = z.infer<typeof AgentSession>
 
-export const ReviewState = z.enum(['unreviewed', 'needs_review', 'reviewed', 'complete', 'flagged'])
+/** Your review of an agent's work. `outdated`: no longer relevant (often set by an automation rule). */
+export const ReviewState = z.enum(['unreviewed', 'needs_review', 'reviewed', 'complete', 'flagged', 'outdated'])
 export type ReviewState = z.infer<typeof ReviewState>
 
 export const LIMITS = {
@@ -256,6 +257,8 @@ export const AnnotationSummary = z.object({
   note: z.string(),
   checklistOpen: z.number().int(),
   checklistDone: z.number().int(),
+  /** The checklist itself, for the dashboard's checklist pill. */
+  checklist: z.array(z.object({ id: z.string(), text: z.string(), done: z.boolean() })),
   updatedAt: IsoDate,
 })
 export type AnnotationSummary = z.infer<typeof AnnotationSummary>

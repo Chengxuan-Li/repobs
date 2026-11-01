@@ -274,7 +274,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(details(page).getByLabel('Review state')).toBeVisible()
   })
 
-  test('notes: review dropdown, tag autocomplete, multi-line notes, checklist collapse, persistence', async ({ page }) => {
+  test('notes: review dropdown, tag autocomplete, multi-line notes, checklist, persistence', async ({ page }) => {
     await pair(page)
     await openCard(page, 'Review ref grouping')
     const d = details(page)
@@ -285,8 +285,9 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await d.getByLabel('New checklist item').fill('Verify fixture coverage')
     await d.getByLabel('New checklist item').press('Enter')
     await expect(d.getByText(/^Saved /)).toBeVisible()
-    await d.getByRole('checkbox', { name: 'Verify fixture coverage' }).click() // collapses on completion
-    await expect(d.getByText('All 1 checklist item complete')).toBeVisible()
+    await d.getByRole('checkbox', { name: 'Verify fixture coverage' }).click() // stays listed when everything is done
+    await expect(d.getByRole('checkbox', { name: 'Verify fixture coverage' })).toBeChecked()
+    await expect(d.getByText(/checklist items? complete/i)).toHaveCount(0)
     await expect(d.getByText(/^Saved /)).toBeVisible()
 
     // Another session: typing a prefix and Tab completes the existing tag.
@@ -301,7 +302,6 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await openCard(page, 'Review ref grouping')
     await expect(d.getByLabel('Notes')).toHaveValue('Line one\nLine two')
     await expect(d.getByLabel('Review state')).toHaveValue('flagged')
-    await d.getByRole('button', { name: 'Show completed' }).click()
     await expect(d.getByRole('checkbox', { name: 'Verify fixture coverage' })).toBeChecked()
 
     // The hover card shows notes (with the line break) and tags; the tag filter narrows.
@@ -345,6 +345,91 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await status.click()
     await page.getByRole('menuitemradio', { name: 'Unreviewed' }).click()
     await expect(status).toHaveText('Unreviewed')
+  })
+
+  test('every review state shows as itself on the card', async ({ page }) => {
+    await pair(page)
+    const card = row(page, /^Document worktree states/)
+    const status = card.getByRole('button', { name: /change review state/ })
+    const menu = page.getByRole('menu', { name: 'Review state of Document worktree states' })
+    for (const state of ['Reviewed', 'Flagged', 'Outdated', 'Unreviewed']) {
+      await status.click()
+      await menu.getByRole('menuitemradio', { name: state, exact: true }).click()
+      await expect(status).toHaveText(state)
+    }
+  })
+
+  test('the checklist pill shows progress; hovering or clicking opens one list to tick items', async ({ page }) => {
+    await pair(page)
+    const card = row(page, /^Document worktree states/)
+    const pill = card.getByRole('button', { name: /^Checklist of Document worktree states/ })
+    const list = page.getByRole('dialog', { name: 'Checklist of Document worktree states' })
+    await expect(pill).toHaveText('1/3')
+    await pill.hover()
+    await expect(list).toBeVisible()
+    // The list is placed by the pill, not by the pointer: moving inside the pill does not move it.
+    const before = await list.boundingBox()
+    const box = (await pill.boundingBox())!
+    await page.mouse.move(box.x + box.width - 5, box.y + box.height / 2) // inside the rounded ends
+    expect(await list.boundingBox()).toEqual(before)
+
+    // Opened by hover, the list takes the pointer: tick an item there.
+    await list.getByRole('checkbox', { name: 'Cover detached HEAD' }).check()
+    await expect(pill).toHaveText('2/3')
+    await page.mouse.move(5, 5)
+    await expect(list).toBeHidden()
+    await openCard(page, 'Document worktree states')
+    await expect(details(page).getByRole('checkbox', { name: 'Cover detached HEAD' })).toBeChecked()
+
+    // Opened by a click, the same list stays after the pointer leaves, until Escape.
+    await pill.click()
+    await page.mouse.move(5, 5)
+    await expect(list).toBeVisible()
+    await list.getByRole('checkbox', { name: 'Cover detached HEAD' }).uncheck()
+    await expect(pill).toHaveText('1/3')
+    await page.keyboard.press('Escape')
+    await expect(list).toBeHidden()
+  })
+
+  test('hovering an agent card on the timeline shows the same agent details as the list', async ({ page }) => {
+    await pair(page)
+    const cards = board(page, 'repo-a').getByRole('group', { name: 'Agents on the timeline of repo-a' })
+    await cards.locator('[data-bar-label]', { hasText: 'Tighten status parser' }).getByText('Tighten status parser').hover()
+    const hover = page.getByRole('dialog', { name: 'Agent details' })
+    await expect(hover).toContainText('Last activity')
+    await expect(hover.getByRole('button', { name: /change review state of Tighten status parser/ })).toBeVisible()
+  })
+
+  test('hover cards stay where they opened while the pointer moves inside the item', async ({ page }) => {
+    await pair(page)
+    const label = row(page, /^Tighten status parser/).getByText('Tighten status parser', { exact: true })
+    await label.hover()
+    const hover = page.getByRole('dialog', { name: 'Agent details' })
+    await expect(hover).toBeVisible()
+    const before = await hover.boundingBox()
+    const box = (await label.boundingBox())!
+    await page.mouse.move(box.x + 3, box.y + box.height / 2, { steps: 4 })
+    expect(await hover.boundingBox()).toEqual(before)
+  })
+
+  test('hiding an agent is a view filter: it disappears from this view only and comes back', async ({ page }) => {
+    await pair(page)
+    const card = row(page, /^Document worktree states/)
+    await card.getByRole('button', { name: /change review state/ }).click()
+    await page.getByRole('menu', { name: 'Review state of Document worktree states' }).getByRole('menuitem', { name: 'Hide from this view' }).click()
+    await expect(card).toBeHidden()
+    await expect(dropdown(page, 'Hidden')).toHaveAccessibleName('Hidden: 1 by hand')
+    await dropdown(page, 'Hidden').click()
+    const panel = page.getByRole('dialog', { name: 'Hidden' })
+    await expect(panel.getByRole('list', { name: 'Agents hidden by hand' })).toContainText('Document worktree states')
+    // Hiding by review state.
+    await panel.getByRole('checkbox', { name: 'Unreviewed' }).check()
+    await expect(row(page, /^Tighten status parser/)).toBeHidden()
+    await panel.getByRole('checkbox', { name: 'Unreviewed' }).uncheck()
+    await panel.getByRole('button', { name: 'Show all 1' }).click()
+    await page.keyboard.press('Escape')
+    await expect(card).toBeVisible()
+    await expect(card.getByRole('button', { name: /change review state/ })).toHaveText('Unreviewed')
   })
 
   test('ribbon menus, command palette and shortcuts drive the dockable layout', async ({ page }) => {
@@ -577,6 +662,47 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await (await chooser).setFiles({ name: 'export.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)) })
     await expect(page.getByText(/1 view opened/)).toBeVisible()
     await expect(view(page, 'Imported')).toBeVisible()
+  })
+
+  test('automation: a rule changes the annotations of the agents it matches', async ({ page }) => {
+    await pair(page)
+    await runMenu(page, 'View', 'Automation panel')
+    const panel = page.getByRole('complementary', { name: 'Automation panel' })
+    await expect(panel.getByText('No rules yet.', { exact: false })).toBeVisible()
+    await panel.getByRole('button', { name: 'New rule' }).click()
+    const editor = panel.getByRole('form', { name: 'New rule' })
+    await editor.getByLabel('Name').fill('Flag merge work')
+    await editor.getByLabel('Condition 1', { exact: true }).selectOption('text')
+    await editor.getByLabel('Condition 1 text').fill('merge plan')
+    await editor.getByLabel('Action 1', { exact: true }).selectOption('set_review')
+    await editor.getByLabel('Action 1 review state').selectOption('flagged')
+    await editor.getByRole('button', { name: 'Add action' }).click()
+    await editor.getByLabel('Action 2', { exact: true }).selectOption('add_tag')
+    await editor.getByLabel('Action 2 tag').fill('merge')
+    await expect(editor).toContainText('Matches 1 agent')
+    await expect(editor.getByTitle('Resolve merge plan')).toBeVisible()
+    await editor.getByRole('button', { name: 'Create rule' }).click()
+
+    const rules = panel.getByRole('list', { name: 'Automation rules' })
+    await expect(rules).toContainText('When title contains “merge plan”: set review state to flagged, add tag “merge”.')
+    await expect(rules).toContainText('applied to 1')
+    const card = row(page, /^Resolve merge plan/)
+    await expect(card.getByRole('button', { name: /change review state/ })).toHaveText('Flagged')
+
+    // Your own change afterwards sticks; the details name the rule.
+    await card.getByRole('button', { name: /change review state/ }).click()
+    await page.getByRole('menu', { name: 'Review state of Resolve merge plan' }).getByRole('menuitemradio', { name: 'Reviewed', exact: true }).click()
+    await expect(card.getByRole('button', { name: /change review state/ })).toHaveText('Reviewed')
+    await openCard(page, 'Resolve merge plan')
+    await expect(details(page)).toContainText('Automation applied: “Flag merge work”')
+    await page.reload()
+    await expect(row(page, /^Resolve merge plan/).getByRole('button', { name: /change review state/ })).toHaveText('Reviewed')
+
+    // Deleting the rule keeps what it did.
+    await runMenu(page, 'View', 'Automation panel')
+    await panel.getByRole('button', { name: 'Delete rule Flag merge work' }).click()
+    await panel.getByRole('button', { name: 'Delete', exact: true }).click()
+    await expect(panel.getByText('No rules yet.', { exact: false })).toBeVisible()
   })
 
   test('removing a repository only removes it from repobs', async ({ page }) => {

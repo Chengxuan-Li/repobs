@@ -1,11 +1,12 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { type AgentSession, type AnnotationSummary, type ReviewState, workflowStatus } from '@repobs/contracts'
 import type { TreeGuide } from './layout'
+import { ChecklistPill } from './ChecklistPill'
 import { ReviewMenu } from './ReviewMenu'
 import styles from './board.module.css'
 
-// One agent per line, as a card indented by its spawn depth: name (or your alias) and its workflow
-// status, which opens the review menu. Spawn lines run in the gutter left of the cards, so they can
+// One agent per line, as a card indented by its spawn depth: name (or your alias), its workflow
+// status, which opens the review menu, and your checklist's progress when it has one. Spawn lines run in the gutter left of the cards, so they can
 // pass between rows. An agent that spawned others has a chevron (or → / ←) that shows or hides them.
 // Details stay out of the dashboard: they are in the hover card and the details panel.
 
@@ -24,6 +25,9 @@ export function AgentRow({
   showName = true,
   onToggle,
   onReview,
+  onChecklist,
+  onHide,
+  onPopover,
 }: {
   session: AgentSession
   annotation?: AnnotationSummary
@@ -39,6 +43,10 @@ export function AgentRow({
   showName?: boolean
   onToggle: () => void
   onReview: (review: ReviewState) => void
+  onChecklist: (itemId: string, done: boolean) => Promise<boolean>
+  onHide?: () => void
+  /** The checklist list opened: the row's hover card closes. */
+  onPopover?: () => void
 }) {
   const status = workflowStatus(session, annotation)
   const title = annotation?.displayAlias || session.title
@@ -74,7 +82,8 @@ export function AgentRow({
             {session.provider === 'claude' ? 'C' : 'X'}
           </span>
           {showName ? <span className={styles.agentName}>{title}</span> : <span className={styles.agentName} />}
-          <ReviewMenu status={status} review={annotation?.review ?? 'unreviewed'} title={title} focusable={focusable} onReview={onReview} />
+          <ReviewMenu status={status} review={annotation?.review ?? 'unreviewed'} title={title} focusable={focusable} onReview={onReview} onHide={onHide} />
+          {annotation?.checklist.length ? <ChecklistPill items={annotation.checklist} title={title} focusable={focusable} onToggle={onChecklist} onOpen={onPopover} /> : null}
         </div>
       </div>
     </div>

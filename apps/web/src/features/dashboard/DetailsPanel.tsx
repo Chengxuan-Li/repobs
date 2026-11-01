@@ -1,11 +1,14 @@
+import { useEffect, useState } from 'react'
 import {
   type AgentSession,
+  type AutomationApplication,
   type BranchClassification,
   CONFIDENCE_LABELS,
   DETAIL_LABELS,
   type Snapshot,
   type Worktree,
 } from '@repobs/contracts'
+import { api } from '../../app/api'
 import { AnnotationEditor } from '../annotations/AnnotationEditor'
 import { Badge, CopyButton, formatAge, formatTime, InlineAlert, shortOid, StatusIndicator } from '../../components/primitives'
 import type { BranchRow } from './layout'
@@ -37,6 +40,27 @@ export function WorktreeStatusText({ worktree }: { worktree: Worktree }) {
     <span>
       {s.gitOperation ? <Badge tone="warning">{s.gitOperation.replace('_', '-')} in progress</Badge> : null} {parts.length ? parts.join(', ') : <span className="muted">clean</span>}
     </span>
+  )
+}
+
+/** Automation rules that changed this agent's annotation (the source of an automatic review state, tag or checklist item). */
+function AutomationHistory({ sessionId, changeKey, now }: { sessionId: string; changeKey?: string; now: number }) {
+  const [list, setList] = useState<AutomationApplication[]>([])
+  useEffect(() => {
+    let cancelled = false
+    api<AutomationApplication[]>('GET', `/sessions/${encodeURIComponent(sessionId)}/automation`).then(
+      (l) => !cancelled && setList(l),
+      () => !cancelled && setList([]),
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [sessionId, changeKey])
+  if (!list.length) return null
+  return (
+    <p className="small muted">
+      Automation applied: {list.map((a) => `“${a.ruleName}” ${formatAge(a.appliedAt, now)} ago`).join('; ')}. Your edits after that are kept.
+    </p>
   )
 }
 
@@ -83,6 +107,7 @@ export function SessionDetails({ snapshot, session, now, knownTags, onSelect }: 
       <section className={styles.detailsSection}>
         <div className="label">Your notes</div>
         <AnnotationEditor key={session.id} session={session} summary={snapshot.annotations.find((a) => a.sessionId === session.id)} knownTags={knownTags} />
+        <AutomationHistory sessionId={session.id} changeKey={snapshot.annotations.find((a) => a.sessionId === session.id)?.updatedAt} now={now} />
       </section>
       <section className={styles.detailsSection}>
         <div className="label">Identification</div>
