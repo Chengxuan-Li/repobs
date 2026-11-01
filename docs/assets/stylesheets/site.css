@@ -601,13 +601,13 @@ html {
 
 /* ----------------------------------------------------------- Admonitions */
 
-/* [class] outranks Material's per-type rules, so one --ui-state drives the edge, title and icon of every type. */
+/* [class] outranks Material's per-type rules, so one --ui-state drives the title and icon of every type.
+   The box is ruled evenly on all sides: no accent stripe on the left edge (spec 0.15). */
 .md-typeset :is(.admonition, details)[class] {
   --ui-state: var(--ui-accent);
 
   background-color: transparent;
   border: 1px solid var(--ui-border-subtle);
-  border-left: 2px solid var(--ui-state);
   border-radius: 0;
   box-shadow: none;
   font-size: 0.7rem;

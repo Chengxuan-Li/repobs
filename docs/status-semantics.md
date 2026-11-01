@@ -3,7 +3,7 @@
 repobs separates two things that are easy to conflate:
 
 1. **Observed execution state** — what the agent process appears to be doing, as far as local evidence shows.
-2. **Human review state** — what *you* decided about the work (Unreviewed, Needs review, Reviewed, Complete, Flagged).
+2. **Human review state** — what *you* (or an automation rule you set up) decided about the work (Unreviewed, Needs review, Reviewed, Complete, Flagged, Outdated).
 
 They have no causal relationship. A session can be idle and still need your review; a running session can already be reviewed.
 
@@ -52,11 +52,16 @@ Dashboard cards and the *Status* filter combine the observed state with your rev
 | --- | --- |
 | Needs input | Awaiting approval / input, an error, or a pending tool call that may be waiting for permission (not for historical sessions) |
 | Working | Running or running subagents |
-| Needs review | You marked it *Needs review* or *Flagged* |
-| Complete | You marked it *Reviewed* or *Complete* |
+| Flagged | You marked it *Flagged* |
+| Needs review | You marked it *Needs review* |
+| Reviewed | You marked it *Reviewed* |
+| Complete | You marked it *Complete* |
+| Outdated | You marked it *Outdated* (no longer relevant) |
 | Unreviewed | Idle / turn finished or ended, and you have not reviewed it (neutral colour: finishing is not a result) |
 | Unknown | Anything else (including stale evidence) |
 
 Clicking the status on a dashboard card (or in its hover card) opens a menu that sets your review state; the observed state is never changed by it.
 
-Agent activity that needs a person wins over your review state, so a session you marked complete shows *Working* again if it starts a new turn.
+Agent activity that needs a person wins over your review state, so a session you marked complete shows *Working* again if it starts a new turn. Otherwise every review state shows as itself, so the card always agrees with the details panel. *Needs input*, *Flagged* and *Needs review* count as needing attention in the status bar and the repository list.
+
+An automation rule can set the review state (for example *Outdated* after a week without activity). It does so once per version of the rule, like an edit you make, and the details panel names the rule; it never changes the observed state. Rules use only the evidence listed above: an agent whose last activity is unknown never matches a time condition.

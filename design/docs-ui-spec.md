@@ -133,6 +133,12 @@ container; the page never overflows horizontally.
 - No `repo_url`: Material would query the GitHub API from the visitor's browser for the repository's statistics, and the
   site makes no request beyond its own origin.
 
+### 0.15 No accent stripes
+
+Decided by the owner on 2026-10-31, for the docs and the application alike: no card, callout, quote or message is marked
+by a heavy stroke on one side (the "left border accent" pattern). State colour goes in the title, an icon, a dot or the
+text; boxes are ruled evenly or not at all. Structural lines (tree guides, table column rules) are not stripes.
+
 ---
 
 ## 1. Tokens
@@ -192,8 +198,8 @@ footer directions use the label style: Geist, 0.6rem, semibold, sentence case, m
 - **Code:** square blocks on the raised surface with a subtle rule; inline code on the raised surface without a border.
 - **Tables:** square subtle outer edge, rules between rows and columns, raised header row in the label style, accent tint
   on row hover.
-- **Admonitions:** transparent body, subtle edge, a 2 px left edge in the state colour, title in the label style in the
-  state colour on a rule.
+- **Admonitions:** transparent body, an even subtle edge on all four sides (no left stripe, spec 0.15), title in the label
+  style in the state colour on a rule.
 - **Buttons:** the app's button (section 0.11); primary inverted.
 - **Footer:** previous/next with label-style directions; a meta line with a top rule.
 - **Strips and grids:** sections 0.8 and 0.13.

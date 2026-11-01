@@ -79,13 +79,15 @@ All repositories share one horizontal axis, labelled at the top; scroll sideways
 
 ## Agents
 
-Each Claude Code or Codex session is a **one-line card** under the branch whose worktree it ran in, newest first: a chevron with a count if it spawned other agents, a provider mark (**C** = Claude Code, **X** = Codex), the name (your alias if you set one, else the provider title or a fallback such as *Claude session 1a2b3c4d*) and its **workflow status** — *Needs input*, *Working*, *Needs review*, *Unreviewed*, *Complete* or *Unknown* (see [Status semantics](status-semantics.md)). Its bar on the lanes runs from its first to its last activity, coloured by that status.
+Each Claude Code or Codex session is a **one-line card** under the branch whose worktree it ran in, newest first: a chevron with a count if it spawned other agents, a provider mark (**C** = Claude Code, **X** = Codex), the name (your alias if you set one, else the provider title or a fallback such as *Claude session 1a2b3c4d*) and its **workflow status** — *Needs input*, *Working*, *Flagged*, *Needs review*, *Unreviewed*, *Reviewed*, *Complete*, *Outdated* or *Unknown* (see [Status semantics](status-semantics.md)). Its bar on the lanes runs from its first to its last activity, coloured by that status.
 
-**Click the status** to set your review state from a menu (Unreviewed, Needs review, Reviewed, Complete, Flagged); the same menu is in the agent's hover card. A finished agent you have not reviewed shows *Unreviewed*, never a success colour.
+**Click the status** to set your review state from a menu (Unreviewed, Needs review, Reviewed, Complete, Flagged, Outdated; each with a dot in its colour, hollow for Outdated); the same menu is in the agent's hover card. A finished agent you have not reviewed shows *Unreviewed*, never a success colour. The menu's last item, **Hide from this view**, hides the agent from the current view (see *Hidden* under [Filters and view options](#filters-and-view-options)).
+
+When an agent has a checklist, a rounded pill follows its status, on the card and on the timeline label. It shows a small pie that fills clockwise with the share of items done, then the **done/total** count (for example *1/3*). The pill is blue while items are open, green when all are done and grey before any is. Hover or click it to open its list, where you tick or untick items. Opened by hover, the list closes shortly after the pointer leaves the pill and the list. Opened by a click, it stays until Escape or a click elsewhere.
 
 Cards never grow on the dashboard; the details are a hover or a click away:
 
-- **Hover** the row or its bar for the observed state and why, last activity, the **latest message excerpt** (the agent's last reply, or the tool it is running with the tool's own description), review state, tags, notes (line breaks kept) and checklist progress. The row's card opens beside the label column; move onto it to use its review menu.
+- **Hover** the row, its bar or its card on the timeline for the observed state and why, last activity, the **latest message excerpt** (the agent's last reply, or the tool it is running with the tool's own description), review state, tags, notes (line breaks kept) and checklist progress. The card opens beside the label column (below the card on the timeline); move onto it to use its review menu. Hover cards open next to the item you point at and stay put while the pointer moves inside it (on a long bar, where the pointer entered); they move only to stay inside the window.
 - **Select** it (click its name, or Enter) to open it in the details panel.
 
 Excerpts are read mechanically from the provider's files, truncated, with obvious secrets redacted, and never stored; Settings → Privacy turns them off.
@@ -103,11 +105,13 @@ Spawned agents (Claude Code subagents, Codex sub-threads) start hidden under the
 
 Select an agent (click its name, or use the keyboard) to open it in the details panel:
 
-- **Review state** dropdown: Unreviewed, Needs review, Reviewed, Complete, Flagged.
+- **Review state** dropdown: Unreviewed, Needs review, Reviewed, Complete, Flagged, Outdated (no longer relevant).
 - **Display alias**.
 - **Tags** with autocomplete: start typing and existing tags are suggested (most used first); **Tab** or **Enter** takes the highlighted one, **↑/↓** move, **Backspace** in an empty field removes the last tag.
 - **Notes**: plain text; Enter starts a new line, and line breaks are shown on the card.
-- **Checklist**: add, tick, reorder, delete. When every item is done it collapses to *All N checklist items complete*; **Show completed** brings it back. Nothing is deleted unless you delete it.
+- **Checklist**: add, tick, untick, reorder, delete. Ticked items stay in the list, struck through, also when every item is done. Nothing is deleted unless you delete it.
+
+When an [automation rule](#automation) changed the agent, a line under your notes names the rule and when it ran.
 
 Everything saves automatically to the local repobs database. Notes belong to the agent session: they survive restarts, removal of the repository from the dashboard, deletion of the worktree and disappearance of the provider's file. **Clear annotations…** deletes a session's notes after confirmation; Settings → Annotations exports or imports them as JSON.
 
@@ -122,8 +126,9 @@ The bar above the dashboard has the filters on the left and the view options on 
 - **Status**: *Any status*, or tick any combination of the workflow statuses.
 - **Last message**: any time, or within 24 hours, 2, 3, 7, 14 or 40 days.
 - **Tags**: type to pick tags (with the same autocomplete as the notes); agents with any of them are shown.
+- **Hidden**: hide agents with chosen review states (*Hide agents marked*, for example *Outdated*; an agent without notes counts as *Unreviewed*), and see the agents you hid by hand with **Hide from this view**, each with **Show**, or **Show all**. Hiding changes this view only: the agents and your notes stay as they are.
 
-The agent count follows the filters, and **Clear filters** resets them. Filters apply to agents; branches stay visible according to the *Branches* dropdown.
+The agent count follows the filters, and **Clear filters** resets them (including hidden agents). Filters apply to agents; branches stay visible according to the *Branches* dropdown.
 
 **View options** (how the history is drawn):
 
@@ -132,6 +137,21 @@ The agent count follows the filters, and **Clear filters** resets them. Filters 
 - **Agents**: *Collapse spawned agents*, *Agent names in list*, *Agent labels on timeline*.
 - **Timeline**: the axis mode and how much history to show.
 - **Legend** explains every mark.
+
+## Automation
+
+**View → Panels → Automation panel** (Ctrl+Alt+U) opens rules that label agents for you: when a rule's conditions hold for an agent, its actions change that agent's notes, exactly as if you had edited them. Rules never hide anything; for that, use a view's *Hidden* filter.
+
+- **Conditions** (all must hold, or any one): last activity more than or within N hours or days; a keyword in the title, alias, note, tags, repository name, branch, agent type or latest message; review state; a tag set or not; harness; working/waiting or finished; checklist all ticked, with open items, or empty; spawned by another agent or not.
+- **Actions**: set the review state, add or remove a tag, set the alias, add to the note, add a checklist item (once), tick checklist items (all, or those containing a text), remove ticked items.
+- **Before you save**, the editor shows how many agents the conditions match now; hover the count for up to ten names. Saving an enabled rule applies it to them at once, and to other agents as they come to match (age conditions are checked at every session rescan).
+- **A rule can stop matching the agents it changed.** For example, "idle for 7 days and unreviewed → outdated" turns those agents *Outdated*, so they are no longer unreviewed: afterwards the rule matches 0 agents, while its *changed* count shows what it did. When you edit a saved rule, the editor shows that count beside the matches (*· already changed N*).
+- **All or any.** With *any of these holds*, one condition is enough. "Idle for 7 days *or* unreviewed" also matches every recent agent you have not reviewed, so check the count before you save.
+- **Once per version:** a rule changes each agent at most once per version of the rule. If you change that agent afterwards, your change stays. Editing a rule's conditions or actions makes a new version, which applies again; renaming it or switching it off and on does not.
+- Each rule shows how many agents it matches now and how many its current version changed. **Delete** removes the rule but keeps the changes it made.
+- With no rules yet, the panel offers starting points: mark agents idle for 7 days as outdated, complete agents whose checklist is done, ask for review of agents with "fix" in the title.
+
+Rules live in the local repobs database and run only while repobs runs. See [ADR 0008](decisions/0008-automation-rules-and-view-hiding.md).
 
 Check boxes keep the dropdown open so you can set several; Esc or a click elsewhere closes it. The same toggles are in Search commands (Ctrl+K) under *Current view*. These settings belong to the view: another view keeps its own.
 

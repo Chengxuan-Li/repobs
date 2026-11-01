@@ -6,7 +6,24 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
+- **Automation panel** (View → Panels, Ctrl+Alt+U): rules that set the review state, tags, alias, note or checklist of agents matching conditions on last activity, keywords (title, alias, note, tags, repository, branch, agent type, latest message), review state, tags, harness, activity, checklist and spawning. Each rule applies once per agent and version, shows its matches before saving, and is named in the agent's details (ADR 0008).
+- **Outdated** review state.
+- **Hidden** filter per view: hide agents by review state, or one at a time with *Hide from this view* in the status menu; list and show them again.
+- **Checklist pill** on agent cards and timeline labels: a pie filled clockwise by the share done, then done/total, in the theme's info or success colour; hovering or clicking opens one list where items are ticked and unticked.
+- Review states carry a colour dot in the status menu, the Hidden filter and the rule editor.
+- The demo data includes two checklists.
+
+### Added
+
 - Ready-to-run release download: `repobs-<version>.zip` (built app, launchers and its one runtime dependency; needs only Node.js 24) with `SHA256SUMS.txt`, built by `npm run package` and published by a tag-triggered release workflow (ADR 0006).
+
+### Fixed
+
+- The dashboard showed *Reviewed* as *Complete* and *Flagged* as *Needs review*; every review state now shows as itself, matching the details panel.
+- Hover cards followed the pointer inside the item that opened them; they now stay next to that item and move only to stay inside the window.
+- No box is marked by a heavy left stripe any more (rule preview, message excerpts, documentation callouts).
+- Hovering an agent's card on the timeline showed no details; it now shows the same agent details card as the list.
+- A fully ticked checklist no longer collapses behind *All N checklist items complete*; it stays listed.
 
 ### Changed
 

@@ -2,6 +2,63 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 19 — 2026-11-01: timeline card details, one checklist popover, no completion banner
+
+| Request | Implementation |
+| --- | --- |
+| Hovering an agent's card on the timeline showed nothing | `BarCard` opens the same interactive agent details card (`AgentDetailsHover`, shared with the label column), below the card |
+| Hover and click showed two different checklist lists | `ChecklistPill`: one dialog with check boxes for both; opened by hover it closes 200 ms after the pointer leaves pill and list, opened by a click it stays until Escape or a click elsewhere |
+| The details panel's "All N checklist items complete / Show completed" banner | Removed: the checklist always lists its items, ticked ones struck through |
+
+Verification (2026-11-01): `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:integration`, `npm run build`, `npx playwright test` (33 passed, 1 skipped), `npm run docs:build`. See the closing report for counts.
+
+## Checkpoint 18 — 2026-10-31: checklist pie, rule preview, state colours, no accent stripes
+
+| Request | Implementation |
+| --- | --- |
+| A pie left of the checklist count, filled clockwise by the share done; theme colours (too faint before) | `Pie` in `ChecklistPill.tsx`; the pill uses the tone tokens: info while open, success when all done, neutral before any |
+| "All of these hold" matched no agents for *Idle for 7 days → outdated* | Not a matching bug. The owner's saved rule (read from the local database, rules table only) had set its agents to *Outdated*, so its own condition *review state is unreviewed* no longer held. With *any*, every unreviewed agent matched. The editor now shows *· already changed N* beside the matches when editing a saved rule; the guide explains self-falsifying rules and *any* |
+| Shorter preview text | "Matches N agents"; names moved to the count's tooltip |
+| No left-stripe accent anywhere | Removed from the rule preview, hover and details excerpts, and docs admonitions; recorded in `reference-audit.md` and `docs-ui-spec.md` §0.15 |
+| A slight colour for the states | `ReviewDot` beside each review state in the status menu, the Hidden filter and the rule editor (hollow for Outdated) |
+
+Owner's data, observed and not changed: the rule's revision 2 uses *any* (idle > 8 days **or** unreviewed) and had set 252 agents to *Outdated*, including recently active unreviewed ones.
+
+## Checkpoint 17 — 2026-10-31: review states, automation rules, view hiding, checklist pill, anchored hover cards (ADR 0008)
+
+| Request | Implementation |
+| --- | --- |
+| *Reviewed* showed as *Complete* and *Flagged* as *Needs review*; the dashboard disagreed with the details panel | `workflowStatus` (contracts) returns every review state as itself; new statuses *Flagged*, *Reviewed*, *Outdated*; `statusNeedsAttention` counts *Flagged* |
+| An *Outdated* state | `ReviewState` gains `outdated` (no migration: the column is text) |
+| Automation rules that label agents (age of last message, keywords in agent or repository, metadata), configurable in a new panel | `automation/engine.ts` (pure, unit-tested), migration 2 (`automation_rules`, `automation_applied`), monitor applies rules once per agent and rule revision after each session rebuild, API `/automation/*` and `/sessions/{id}/automation`, *Automation* panel (View → Panels, Ctrl+Alt+U) with editor, live preview and templates; the details panel names applied rules |
+| Visibility through view filters, not automation | Per-view *Hidden* dropdown: hide by review state, *Hide from this view* in the status menu, list with *Show* / *Show all* |
+| Checklist count on dashboard rows with hover list and click-to-tick | `ChecklistPill.tsx` beside the status on list and timeline cards; ticks show at once and are undone if saving fails; annotation summaries carry checklist items; the demo seeds two checklists |
+| Hover menus followed the cursor inside their trigger | `components/placement.ts`: cards are placed against the trigger's box (entry point on wide elements), flipped or shifted only to stay in the window; `onMouseMove` repositioning removed |
+
+Verification (2026-10-31, this machine):
+
+- `npm run typecheck` and `npm run lint` pass.
+- `npm test`: 20 files, 155 tests.
+- `npm run test:integration`: 7 files, 86 tests.
+- `npm run build`, then `npx playwright test`: 32 passed, 1 skipped (the documentation screenshot).
+- New tests:
+  - `tests/automation/engine.test.ts`;
+  - `tests/api/automation.int.test.ts` (preview, apply once per revision, later edits kept, re-apply on edit, switch on and off, delete, validation);
+  - `placement.test.ts`, `ChecklistPill.test.tsx`, `describe.test.ts` and the hidden filters in `filters.test.ts`;
+  - e2e:
+    - every review state on the card;
+    - the checklist pill's hover list, pinned ticking and fixed position;
+    - hover cards staying put;
+    - hiding from a view;
+    - an automation rule end to end.
+- Browser pane (synthetic demo, 1440 px, dark):
+  - the pill, its pinned list (the row's hover card now closes when it opens), the status menu with *Hide from this view*, and the Automation panel with a template preview (192 matching demo agents, not saved);
+  - a commit hover card stayed at the same position while the pointer moved within the commit.
+
+Not checked: light theme and narrow widths for the new panel; rules over a long-running session with real agent data; the Firefox and Safari engines.
+
+Next: decide whether rules need reordering in the panel (order is creation order today) and whether the *Hidden* filter should default to hiding *Outdated* in new views.
+
 ## Checkpoint 16 — 2026-10-31: documentation site in the app's visual family (ADR 0007)
 
 | Request | Implementation |

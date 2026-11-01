@@ -34,3 +34,4 @@ The EnergyAtlas UI is a **visual reference only** (handoff section 2.1). This pa
 - ~~Labels in Geist Mono~~ — aligned in [decision 0004](../decisions/0004-reference-ui-alignment-ribbon-docking.md): labels and panel titles use Geist, sentence case, as in the reference; Geist Mono remains for identifiers and data.
 - **Fonts from npm, not vendored.** repobs installs Geist Mono from `@fontsource-variable/geist-mono` (pinned) for version and license tracking instead of vendoring files.
 - **No product mark.** repobs uses a plain text wordmark and a generic favicon; no EnergyAtlas logo or brand asset.
+- **No accent stripes** (owner decision, 2026-10-31). No card, callout, excerpt or message is marked by a heavy stroke on one side. State colour goes in a title, icon, dot or the text, and boxes are ruled evenly or not at all. Tree guides and table column rules are structure, not stripes.
