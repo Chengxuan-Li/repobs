@@ -1247,6 +1247,13 @@ body:has(.ui-product) .md-main {
   width: 100%;
 }
 
+/* Each screenshot comes in both themes (`#only-light`, `#only-dark`, Material's markers); the page shows the one of its
+   own theme. Restated here because `display: block` above outranks Material's own rule. */
+[data-md-color-scheme="default"] .md-typeset img.ui-feature__media[src$="#only-dark"],
+[data-md-color-scheme="slate"] .md-typeset img.ui-feature__media[src$="#only-light"] {
+  display: none;
+}
+
 .md-typeset .ui-feature__text ul {
   margin: 0.4rem 0 0;
 }

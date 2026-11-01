@@ -4,12 +4,22 @@ import { expect, test } from '@playwright/test'
 import { mintPairingToken } from '../../scripts/lib.mjs'
 import { readE2EState } from './state.ts'
 
-// Regenerates docs/assets/repobs-overview.png from the real app on synthetic demo data.
+// Regenerates docs/assets/repobs-overview.png and the landing page's feature-*.png from the real app on synthetic demo
+// data, each also as *-dark.png in the dark theme.
 // Run alone:  REPOBS_DOCS_SCREENSHOT=1 npx playwright test docs-screenshot
 test.skip(!process.env.REPOBS_DOCS_SCREENSHOT, 'documentation screenshot only on request')
 
 test('dashboard screenshot for the documentation', async ({ page }) => {
   const state = readE2EState(Number(process.env.REPOBS_E2E_PORT ?? 47399))
+  // Every picture in both themes: `<name>.png` in light, `<name>-dark.png` in dark, of the same state. The app follows
+  // the system theme, so switching the emulated colour scheme repaints it in place; controls fade their colours (150 ms),
+  // so each picture fast-forwards transitions.
+  const capture = async (file: string) => {
+    await page.screenshot({ path: path.resolve(`docs/assets/${file}.png`), animations: 'disabled' })
+    await page.emulateMedia({ colorScheme: 'dark' })
+    await page.screenshot({ path: path.resolve(`docs/assets/${file}-dark.png`), animations: 'disabled' })
+    await page.emulateMedia({ colorScheme: 'light' })
+  }
   await page.setViewportSize({ width: 1440, height: 800 })
   await page.emulateMedia({ colorScheme: 'light' })
   await page.goto(`/#pair=${mintPairingToken(state.dataDir) as string}`)
@@ -54,13 +64,13 @@ test('dashboard screenshot for the documentation', async ({ page }) => {
       el.setAttribute('title', el.textContent)
     }),
   )
-  await page.screenshot({ path: path.resolve('docs/assets/repobs-overview.png') })
+  await capture('repobs-overview')
 
   // Feature pictures for the landing page (design/docs-ui-spec.md, 0.7), from the same demo: whole windows at 16:9, so
   // every picture has the same aspect ratio.
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.getByLabel(/^Branches and agents\. Use the arrow keys/).evaluate((el) => (el.scrollTop = 0))
-  const shot = (name: string) => page.screenshot({ path: path.resolve(`docs/assets/feature-${name}.png`) })
+  const shot = (name: string) => capture(`feature-${name}`)
 
   // 1. The timeline: the repositories' branches, commits and agents.
   await shot('timeline')

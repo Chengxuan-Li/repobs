@@ -4,13 +4,12 @@ repobs is a local dashboard for developers who run many coding agents across Git
 
 It only reads. It never changes your repositories or agent files, needs no API keys, and sends nothing off your machine.
 
-![repobs dashboard with synthetic demo data](docs/assets/repobs-overview.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/repobs-overview-dark.png">
+  <img alt="repobs dashboard with synthetic demo data" src="docs/assets/repobs-overview.png">
+</picture>
 
 *Synthetic demo data: one repository's branches on the timeline, with each agent's status, review state and checklist pill.*
-
-[![A frame from the repobs film: four agents waiting for input, picked out of hundreds](docs/assets/repobs-film-poster.jpg)](docs/assets/repobs-film.mp4)
-
-*▶ [The 25-second film](docs/assets/repobs-film.mp4): an animated illustration with invented repositories, branches and agents. The screenshot above is the real application.*
 
 ## Quick start (Windows)
 
