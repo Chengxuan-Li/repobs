@@ -4,13 +4,14 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+### Changed
+
+- The documentation site takes the shape of the EnergyAtlas documentation sites: two parts (*User guide*, *Developer*), each with an index page in reading order; a landing page with a serif italic line in the headline, two cells and fewer sections; the tab bar and section strips on the page's own surface (ADR 0007, amended).
+- The demo repositories have realistic names (`git-status-kit`, `storefront-web`), and the overview screenshot shows the dashboard alone, without side panels or legend.
+
 ### Fixed
 
 - After closing a side panel from the toolbar, its button stayed pressed until something else redrew the page.
-
-### Changed
-
-- The demo repositories have realistic names (`git-status-kit`, `storefront-web`), and the overview screenshot shows the dashboard alone, without side panels or legend.
 
 ## [0.3.0] — 2026-11-01
 

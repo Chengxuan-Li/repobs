@@ -10,7 +10,9 @@ This folder (`design/`) is versioned but is not part of the published site.
 
 ## 0. Implementation decisions
 
-Decided by the owner on 2026-10-31. These are implementation rules, not one-off clarifications.
+Decided by the owner on 2026-10-31 and revised on 2026-11-01 (marked *2026-11-01*), when the owner found that the site
+did not match the shape of the EnergyAtlas documentation sites. These are implementation rules, not one-off
+clarifications.
 
 ### 0.1 Brand
 
@@ -23,6 +25,11 @@ Decided by the owner on 2026-10-31. These are implementation rules, not one-off 
 
 - **Reference UI:** the repobs application itself (ribbon, dock tab strips, section strips, data tables, buttons). No
   reference image is kept in the repository; section 0.11 describes the reference in words.
+- **Site shape (2026-11-01):** the EnergyAtlas documentation sites, BEMGen
+  (`energy-atlas.github.io/BEMGen-docs`) and the Energy Archetype Atlas (`energy-atlas.github.io/archetype-atlas`):
+  a two-part structure, a hero with a serif italic second line, a two-cell landing grid, section index pages with a
+  reading order, and a header and tab bar on one surface. Their uppercase mono labels, product mark, repository link
+  and left-striped callouts are not adopted (sections 0.1, 0.11, 0.14, 0.15).
 - **Palette:** `apps/web/src/theme/tokens.css`. If it changes, the docs tokens (`docs/assets/stylesheets/site.css`) follow
   it. The values in section 1 match it as of 2026-10-31.
 
@@ -35,8 +42,9 @@ Decided by the owner on 2026-10-31. These are implementation rules, not one-off 
 
 ### 0.4 Fonts
 
-- Families: Geist (interface and prose) and Geist Mono (code, identifiers, numeric indices). No serif: the application has
-  none.
+- Families: Geist (interface and prose) and Geist Mono (code, identifiers, numeric indices).
+- *2026-11-01:* Cormorant Garamond italic 500 for the second line of the landing headline only, as on the EnergyAtlas
+  sites; nowhere else. Its two WOFF2 subsets and OFL licence are the files the BEMGen documentation vendors.
 - Self-hosted in `docs/assets/fonts/` (copied from the `@fontsource-variable` 5.3.0 packages the app already pins, Latin
   and Latin Extended subsets, with their OFL licences), declared in `docs/assets/stylesheets/fonts.css`;
   `theme.font: false`. The browser contacts no font host.
@@ -73,17 +81,21 @@ Targets (WCAG 2.2 AA): text below 24 px at least 4.5:1 on every surface it sits 
 ### 0.7 Landing page
 
 - A restrained hero followed immediately by a shared-border grid of the documentation pages; not a marketing page.
-- Headline: "Observe your Git worktrees and coding agents, locally." in Geist bold; one sentence of supporting copy; a
-  primary *Get started* button and a *Download* button (the releases page).
+- Headline (*2026-11-01*): "Observe worktrees and agents" in Geist bold, then on its own line
+  "*locally, on one timeline.*" in Cormorant Garamond italic; one sentence of supporting copy; a primary *Get
+  started* button and a *Download* button (the releases page).
+- *2026-11-01:* the first strip, *Documentation*, holds a two-cell grid, one cell per part (*User guide*,
+  *Developer*), each with a short description and an *Open …* button.
 - The landing page hides both sidebars but keeps their widths as empty margins, without their rules, so its text starts
   where every other page's text starts. Strips and grid rules still run from frame to frame.
 - The headline is sized to the hero's width (container query units) so it stays on at most two lines on desktop.
-- The page's existing sections (what it answers, the screenshot, what repobs is not, privacy, support matrix) stay, under
-  numbered strips.
+- *2026-11-01:* the other sections are fewer and shorter, each under a numbered strip: what repobs shows (with the
+  screenshot), local and read-only (what repobs is not, and privacy), and support.
 
 ### 0.8 Numbered section strips
 
-Only on the landing page. Never automatic on the `##` headings of ordinary pages. The site has no section index pages.
+On the landing page and (*2026-11-01*) the two section index pages. Never automatic on the `##` headings of ordinary
+pages.
 
 ### 0.9 Content width
 
@@ -100,10 +112,13 @@ container; the page never overflows horizontally.
 - **Surface:** black (dark) or white (light) base; a raised surface (`#1a1a1a` / `#f8fafc`) for strips, table headers and
   the tab bar; no shadows except one overlay shadow for menus; radius 0 everywhere.
 - **Page frame:** 1 px rules on pane boundaries; in the docs, the content column is bounded by two thin vertical rules.
-- **Header (the ribbon):** one line on the base surface with a bottom rule; the wordmark bold in the accent colour.
-- **Tab strip (the dock):** raised surface with a bottom rule; tab labels in the label style; the selected tab is an
-  inverted block (text colour fill, base colour text) inside a thin accent outline drawn inset with a gap.
-- **Section strip:** raised surface, top and bottom rule, a label in the text colour; in the docs a mono `01 /` index on
+- **Header (the ribbon):** one line on the base surface with a bottom rule; the wordmark bold in the text colour
+  (*2026-11-01*, as on the EnergyAtlas sites; before, the accent colour). The search field has a plain 1 px edge.
+- **Tab strip (the dock):** the base surface, like the header (*2026-11-01*; before, the raised surface), with a
+  bottom rule; tab labels in the label style; the selected tab is an inverted block (text colour fill, base colour
+  text) inside a thin accent outline drawn inset with a gap.
+- **Section strip:** the page's own surface (*2026-11-01*, as on the EnergyAtlas sites; before, the raised surface),
+  top and bottom rule, a label in the text colour; in the docs a mono `01 /` index on
   the left and a muted note on the right.
 - **Buttons:** square, 1 px interactive edge, a raised fill (text colour at 8 %); hover turns the edge to the accent;
   primary is an inverted block that turns accent on hover.
@@ -124,12 +139,17 @@ container; the page never overflows horizontally.
 - Cell text is padded by the article gutter, so it lines up with strips and prose.
 - Every cell is closed on all four sides; where an empty sidebar margin moves a grid in from the frame, the grid draws its
   own outer rules.
-- Cells are indexed `A`, `B`, … in mono, muted. No icons.
+- Cells are indexed `A`, `B`, … in mono, muted, or `01`, `02`, … in a numbered list (a reading order). No icons.
+- *2026-11-01:* columns fit the width (at least 14rem each), so two cells share a row on desktop and a reading order
+  runs three or four to a row.
 
 ### 0.14 Navigation
 
-- Top-level tabs: *Home*, *Guide* (getting started, user guide, status semantics, integrations, privacy and security,
-  limitations), *Reference* (architecture, HTTP API) and *Development*. Grouping changes no page URL.
+- Top-level tabs (*2026-11-01*): *Home*, *User guide* and *Developer*. Each part opens with a section index page
+  (`guide/index.md`, `developer/index.md`, `navigation.indexes`) that lists its pages in reading order. *User guide*:
+  getting started, using repobs, status semantics, integrations, privacy and security, limitations. *Developer*:
+  architecture, HTTP API, testing, progress, the decisions, the reference audit and the original handoff. Grouping
+  changes no page URL; the page `user-guide.md` is titled *Using repobs* so it does not repeat its part's name.
 - No `repo_url`: Material would query the GitHub API from the visitor's browser for the repository's statistics, and the
   site makes no request beyond its own origin.
 
@@ -189,10 +209,10 @@ footer directions use the label style: Geist, 0.6rem, semibold, sentence case, m
 
 ## 3. Components
 
-- **Header:** base surface, bottom rule, no shadow; the wordmark in the accent colour, bold.
-- **Tabs:** raised surface, bottom rule; labels; the active tab inverted inside an inset accent outline.
-- **Search:** square field with the interactive edge and a heavier bottom edge (the app's field grammar); accent edge
-  when open; results on the base surface with a hover tint.
+- **Header:** base surface, bottom rule, no shadow; the wordmark in the text colour, bold (0.11).
+- **Tabs:** base surface like the header, bottom rule; labels; the active tab inverted inside an inset accent outline.
+- **Search:** square field with a plain 1 px interactive edge on the header's surface; accent edge when open; results
+  on the base surface with a hover tint.
 - **Sidebars:** navigation links in the secondary colour, the active page in the accent with a thin accent edge; section
   titles in the label style; the table of contents hangs from a thin rule.
 - **Code:** square blocks on the raised surface with a subtle rule; inline code on the raised surface without a border.
@@ -212,7 +232,7 @@ footer directions use the label style: Geist, 0.6rem, semibold, sentence case, m
 - **Phone drawer on the landing page:** the landing page hides its navigation sidebar, which also emptied Material's phone
   drawer. Below the tabs breakpoint the sidebar is shown as the drawer anyway, so the menu button always opens the
   navigation.
-- **Grid columns:** four columns from 60em, two from 30em, one below, so the landing grid's eight cells fill whole rows.
+- **Grid columns:** superseded on 2026-11-01 by section 0.13: columns of at least 14rem that fit the width.
 - **Local preview:** instant navigation only intercepts links listed in the sitemap, whose URLs come from `site_url`. A
   local build served elsewhere than the Pages address reloads on each click; `mkdocs serve` rewrites `site_url` and
   behaves like the published site.

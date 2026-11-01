@@ -1,6 +1,6 @@
 # 0007 — Documentation site in the application's visual family
 
-- Status: accepted (owner request, 2026-10-31)
+- Status: accepted (owner request, 2026-10-31); amended 2026-11-01 (see *Amendment* below)
 
 ## Context
 
@@ -20,3 +20,14 @@ The documentation site used MkDocs' built-in theme with a light CSS restyle: no 
 - The docs build needs `pip install -r requirements-docs.txt` (MkDocs 1.6.1 and Material 9.7.7) as before; the Pages workflow is unchanged.
 - Light/dark follows the system with a toggle; the visitor's choice is remembered by the browser.
 - Palette changes in `apps/web/src/theme/tokens.css` must be mirrored in `docs/assets/stylesheets/site.css`.
+
+## Amendment — 2026-11-01: the shape of the EnergyAtlas documentation sites
+
+The owner found that the site did not match the shape of the EnergyAtlas documentation sites ([BEMGen](https://energy-atlas.github.io/BEMGen-docs/) and the [Energy Archetype Atlas](https://energy-atlas.github.io/archetype-atlas/)) and asked for a simpler site. Decided with the owner:
+
+- **Two parts:** tabs *Home*, *User guide* and *Developer* replace *Guide*, *Reference* and *Development*. Each part opens with an index page listing its pages in reading order (`guide/index.md`, `developer/index.md`). No page URL changed; `user-guide.md` is titled *Using repobs*.
+- **Landing page:** the headline's second line is in Cormorant Garamond italic, as on the EnergyAtlas sites (the only use of the serif); a two-cell grid, one cell per part, replaces the eight-cell grid; the other sections are fewer and shorter.
+- **Surfaces:** the wordmark is in the text colour, and the tab bar and section strips are on the page's own surface between rules, no longer on the raised surface.
+- **Kept:** sentence-case sans labels (the owner chose not to adopt the references' uppercase mono labels), no logo, no repository link, no left-striped callouts.
+
+The rules are in `design/docs-ui-spec.md`, section 0, marked *2026-11-01*.

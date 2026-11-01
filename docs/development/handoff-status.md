@@ -2,6 +2,17 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 23 — 2026-11-01: documentation site in the shape of the EnergyAtlas sites (ADR 0007 amended)
+
+| Request | Implementation |
+| --- | --- |
+| Simplify the docs; they did not match the shape of the BEMGen and Archetype Atlas sites | Compared with local builds of both (`D:\BEMGen-docs\site`, `D:\archetype-atlas\build\site`, read only; the live sites are blocked in this machine's browser pane). Owner decisions: two parts, serif hero line, header and tabs on one surface; labels stay sentence-case sans |
+| Two parts | Tabs *Home*, *User guide*, *Developer*; `docs/guide/index.md` and `docs/developer/index.md` list their pages in reading order (`navigation.indexes`); `user-guide.md` titled *Using repobs*; no page URL changed |
+| Landing page | "Observe worktrees and agents / *locally, on one timeline.*" with the second line in Cormorant Garamond italic 500 (vendored, OFL, the BEMGen files); two cells; four strips instead of five; the privacy paragraph now mentions excerpts and plan steps |
+| Surfaces | Wordmark in the text colour; tab bar and strips on the base surface; search with a plain edge; grid columns of at least 14rem that fit the width; larger part cells |
+
+Verification (2026-11-01): `npm run docs:build` (strict) passes. In the browser pane at 1440 × 900, dark and light: the landing page, both index pages and an ordinary page side by side with the BEMGen build; at 375 px no horizontal overflow, cells in one column, the serif loaded from the site.
+
 ## Checkpoint 22 — 2026-11-01: dashboard-only screenshot, realistic demo names, toolbar fix
 
 | Request | Implementation |

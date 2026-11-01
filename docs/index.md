@@ -6,84 +6,53 @@ hide:
 
 <div class="ui-hero" markdown>
 
-# Observe your Git worktrees and coding agents, locally.
+# Observe worktrees and agents<br>*locally, on one timeline.*
 
-repobs is a local-first, read-only dashboard for developers who juggle many Git worktrees, temporary agent branches and Claude Code / Codex sessions across projects.
+repobs is a local, read-only dashboard: each repository's branches on one timeline, with the Claude Code and Codex agents that worked on them, what they are doing now, and what you still need to review.
 
-[Get started](getting-started.md){ .md-button .md-button--primary } [Download](https://github.com/Chengxuan-Li/repobs/releases){ .md-button }
+[Get started](getting-started.md){ .md-button .md-button--primary } [Download](https://github.com/Chengxuan-Li/repobs/releases/latest){ .md-button }
 
 </div>
 
-## Documentation { .ui-strip data-index="01" data-note="Guide and reference" }
+## Documentation { .ui-strip data-index="01" data-note="Two parts" }
 
 <div class="grid cards" markdown>
 
--   [Getting started](getting-started.md)
+-   [User guide](guide/index.md)
 
-    Install from a release or from source, start repobs and add your first repositories.
+    For people who use repobs: installing it, the dashboard and its agent cards, review states, notes and checklists, automation, what each status means, what is read from Claude Code and Codex, and what stays private.
 
--   [User guide](user-guide.md)
+    [Open the user guide](guide/index.md){ .md-button }
 
-    Views, the commit graph and agent cards, filters, panels, notes and shortcuts.
+-   [Developer](developer/index.md)
 
--   [Status semantics](status-semantics.md)
+    For people who change repobs itself: the architecture, the HTTP API, testing, the progress log and the architecture decision records.
 
-    What each agent state means, and the evidence and confidence behind it.
-
--   [Integrations](integrations.md)
-
-    How Claude Code, Codex and the optional GitHub lookup are read.
-
--   [Privacy & security](privacy-security.md)
-
-    What repobs reads, stores and never sends anywhere.
-
--   [Limitations](limitations.md)
-
-    What is not supported yet, and known gaps.
-
--   [Architecture](architecture.md)
-
-    The server, adapters, persistence and web UI, and how they fit together.
-
--   [HTTP API](api.md)
-
-    Every endpoint and schema of the loopback API, generated from the contracts.
+    [Open the developer documentation](developer/index.md){ .md-button }
 
 </div>
 
-## At a glance { .ui-strip data-index="02" data-note="What repobs answers" }
+## What repobs shows { .ui-strip data-index="02" data-note="At a glance" }
 
-At a glance, repobs shows:
-
-- which repositories are registered, and which local, remote-tracking and remote-only refs exist;
-- how branches relate on a **commit graph over time** — forks, merges, what is only local and not pushed, which heads have uncommitted work — and which worktree each branch is checked out in (staged, unstaged, untracked, conflicts, merge/rebase/cherry-pick in progress, ahead/behind, errors);
-- which Claude Code and Codex agents worked on each branch — as cards with their status, the evidence behind it, a short excerpt of their latest message, and the agents they spawned — including sessions started outside repobs and several per worktree;
-- what **you** still need to review, with your own tags, review states, notes and checklists.
-
-The view updates by itself when Git or agent data changes on disk.
+- **Your repositories:** branches, worktrees and commits on one timeline, with forks, merges, unpushed commits and uncommitted changes.
+- **Your agents:** Claude Code and Codex sessions on the branches they worked on, with their status and the evidence behind it, and the plan an agent keeps with its planning tool.
+- **Your review:** review states, tags, notes, checklists and automation rules, kept by repobs and never written to your repositories.
 
 ![repobs dashboard with synthetic demo data](assets/repobs-overview.png)
 
-*Screenshot of the real application running on the synthetic demo data from `npm run demo` (no real repositories or sessions).*
+*The real application on synthetic demo data (`npm run demo`): no real repositories or sessions.*
 
-## What repobs is not { .ui-strip data-index="03" data-note="Read-only by design" }
+## Local and read-only { .ui-strip data-index="03" data-note="By design" }
 
-repobs is **not** an agent launcher, an IDE, a terminal or a Git client. It never runs `git fetch`, checkout, commit, reset or any other mutating command, never edits agent histories or configuration, never installs hooks, and never calls a model API. Removing a repository from repobs deletes nothing on disk.
+repobs runs on your machine and listens on `127.0.0.1` only. It never runs `git fetch`, checkout, commit or any other command that changes a repository, never edits agent files or configuration, never installs hooks and never calls a model API. From session files it reads structural metadata and, unless you turn them off, a short redacted excerpt of each agent's latest message and the agent's plan steps; these stay in memory and are never saved. Your annotations live under `%LOCALAPPDATA%\repobs`. Nothing is sent anywhere unless you turn on the optional GitHub pull request lookup. See [Privacy & security](privacy-security.md).
 
-## Privacy in one paragraph { .ui-strip data-index="04" data-note="Local only" }
-
-repobs runs on your machine and binds to `127.0.0.1` only. Your annotations live in an app database under `%LOCALAPPDATA%\repobs`, never in a repository or transcript. It reads only structural metadata from provider session files (ids, timestamps, working directory, turn lifecycle) — not prompts, code or tool output — and sends nothing anywhere unless you explicitly enable the optional GitHub pull-request lookup. See [Privacy & security](privacy-security.md).
-
-## Support matrix { .ui-strip data-index="05" data-note="Platforms and harnesses" }
+## Support { .ui-strip data-index="04" data-note="Platforms and agents" }
 
 | | Status |
 | --- | --- |
-| Windows 11, native paths, Git for Windows | Primary platform, tested |
+| Windows 11, Git for Windows | Primary platform, tested |
 | macOS / Linux | Expected to work (CI runs the suite on Ubuntu); not the primary target |
-| Claude Code (2.1.x session files) | Supported, verified against local data |
-| OpenAI Codex CLI / desktop (0.165 rollout files) | Supported, verified against local data |
+| Claude Code, terminal and desktop app (2.1.x session files) | Supported, verified against local data |
+| OpenAI Codex CLI and desktop (0.165 rollout files) | Supported, verified against local data |
 | Node.js | 24 LTS (24.11 or newer) |
 | GitHub pull requests | Optional, read-only, off by default (GitHub CLI) |
-
-Continue with [Getting started](getting-started.md).

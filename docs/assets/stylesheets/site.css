@@ -1,6 +1,7 @@
 /*
  * Documentation styling that follows design/docs-ui-spec.md: the repobs application's palette and shapes (flat, square,
- * rule-framed surfaces; labels in sentence-case semibold Geist; Geist Mono for code and indices) on Material for MkDocs.
+ * rule-framed surfaces; labels in sentence-case semibold Geist; Geist Mono for code and indices) in the page shape of
+ * the EnergyAtlas documentation sites (a serif italic line in the hero, two-part grids), on Material for MkDocs.
  * Sizes are in rem so that they scale with Material's root font size (1rem = 20px at the base size, so 0.6rem = 12px).
  * Keep the token values in step with apps/web/src/theme/tokens.css.
  */
@@ -10,6 +11,8 @@
 :root {
   --font-sans: "Geist", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+  /* The second line of the landing headline only (spec 0.4). */
+  --font-serif: "Cormorant Garamond", Georgia, serif;
 
   --md-text-font: "Geist";
   --md-code-font: "Geist Mono";
@@ -168,7 +171,7 @@ html {
 
 /* -------------------------------------------------------- Header and tabs */
 
-/* The header is the application's ribbon: the base surface, one bottom rule, the wordmark bold in the accent colour. */
+/* The header is the application's ribbon: the base surface, one bottom rule, the wordmark bold in the text colour. */
 .md-header,
 .md-header--shadow {
   border-bottom: 1px solid var(--ui-border-subtle);
@@ -176,9 +179,9 @@ html {
 }
 
 .md-header__title {
-  color: var(--ui-accent);
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  color: var(--ui-text-primary);
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 /* No mark in the header or the phone drawer: the wordmark stands alone (spec 0.1). */
@@ -197,9 +200,9 @@ html {
   background-color: var(--ui-accent);
 }
 
-/* The tab bar is the application's dock tab strip: the raised surface, one bottom rule. */
+/* The tab bar shares the header's surface, as on the EnergyAtlas sites, with one bottom rule. */
 .md-tabs {
-  background-color: var(--ui-bg-raised);
+  background-color: var(--ui-bg-base);
   border-bottom: 1px solid var(--ui-border-subtle);
   color: var(--ui-text-muted);
 }
@@ -233,19 +236,18 @@ html {
 .md-tabs__item--active .md-tabs__link,
 .md-tabs__item--active .md-tabs__link:is(:focus, :hover) {
   background-color: var(--ui-text-primary);
-  box-shadow: inset 0 0 0 1px var(--ui-accent), inset 0 0 0 3px var(--ui-bg-raised);
+  box-shadow: inset 0 0 0 1px var(--ui-accent), inset 0 0 0 3px var(--ui-bg-base);
   color: var(--ui-bg-base);
   padding: 0 0.6rem;
 }
 
 /* ---------------------------------------------------------------- Search */
 
-/* A field is a well with a heavier bottom edge (the application's field grammar). */
+/* A square field with a plain edge on the header's surface. */
 @media screen and (min-width: 60em) {
   .md-search__form {
     background-color: var(--ui-bg-base);
     border: 1px solid var(--ui-border-interactive);
-    border-bottom-width: 2px;
     border-radius: 0;
     height: 1.7rem;
     transition: border-color var(--ui-transition);
@@ -740,7 +742,8 @@ html {
  */
 .md-typeset h2.ui-strip {
   align-items: center;
-  background-color: var(--ui-bg-raised);
+  /* The page's own surface between two rules, as on the EnergyAtlas sites (spec 0.11). */
+  background-color: transparent;
   border-bottom: 1px solid var(--ui-border-subtle);
   border-top: 1px solid var(--ui-border-subtle);
   color: var(--ui-text-primary);
@@ -816,16 +819,10 @@ html {
   padding: 0;
 }
 
-/* Four columns on wide screens, two on tablets, one on phones: the landing grid's eight cells fill whole rows. */
+/* As many columns of at least 14rem as fit: the landing's two cells share a row, a reading order runs three or four. */
 @media screen and (min-width: 30em) {
   .md-typeset .grid.cards > :is(ul, ol) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media screen and (min-width: 60em) {
-  .md-typeset .grid.cards > :is(ul, ol) {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
   }
 }
 
@@ -925,6 +922,29 @@ html {
   color: inherit;
 }
 
+/* The landing's part cells are larger, as on the EnergyAtlas sites; reading orders (numbered) stay compact. */
+.md-typeset .grid.cards > ul > li {
+  padding: 1.4rem var(--ui-gutter) 1.6rem;
+}
+
+.md-typeset .grid.cards > ul > li > p:first-of-type {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 0.6rem;
+}
+
+.md-typeset .grid.cards > ol > li > p:first-of-type {
+  font-size: 0.95rem;
+}
+
+/* A cell's button sits at its foot, so the buttons of a row line up. */
+.md-typeset .grid.cards > :is(ul, ol) > li > p:last-child:has(> .md-button) {
+  margin-top: auto;
+  padding-top: 1.2rem;
+}
+
 .md-typeset .grid.cards > :is(ul, ol) > li > p:first-of-type a:is(:focus, :hover) {
   color: var(--ui-accent);
 }
@@ -948,6 +968,15 @@ html {
 
 .md-typeset .ui-hero h1 .headerlink {
   display: none;
+}
+
+/* The headline's second line, in the serif italic of the EnergyAtlas sites (spec 0.4, 0.7). */
+.md-typeset .ui-hero h1 em {
+  font-family: var(--font-serif);
+  font-size: 1.1em;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 .md-typeset .ui-hero p {
