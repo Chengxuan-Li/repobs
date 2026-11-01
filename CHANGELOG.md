@@ -13,6 +13,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 - The documentation site takes the shape of the EnergyAtlas documentation sites: two parts (*User guide*, *Developer*), each with an index page in reading order; a landing page with a serif italic line in the headline, two cells and fewer sections; the tab bar and section strips on the page's own surface (ADR 0007, amended).
 - The demo repositories have realistic names (`git-status-kit`, `storefront-web`), and the overview screenshot shows the dashboard alone, without side panels or legend.
+- Notices (a repository removed, a refresh, a file opened, a failed action, a lost connection) float above the status bar instead of pushing the workbench down. A confirmation leaves by itself after 8 seconds, but not while the pointer or focus is on it; a failure stays until dismissed.
 - Every screenshot also comes in the dark theme: the landing page and the README show the one matching the reader's theme.
 
 ### Fixed

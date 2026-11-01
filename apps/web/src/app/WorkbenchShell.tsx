@@ -17,7 +17,7 @@ import {
   statusNeedsAttention,
   workflowStatus,
 } from '@repobs/contracts'
-import { Dialog, InlineAlert, useNow } from '../components/primitives'
+import { Dialog, Toast, useNow } from '../components/primitives'
 import { type ChecklistEntry, planKeyOf } from '../features/dashboard/checklistEntries'
 import { BranchDetails, SessionDetails } from '../features/dashboard/DetailsPanel'
 import { knownTags as collectTags } from '../features/dashboard/filters'
@@ -51,13 +51,17 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
   const [dialog, setDialog] = useState<'add' | 'settings' | 'diagnostics' | 'rename' | undefined>()
   const [confirmRemove, setConfirmRemove] = useState<Repository | undefined>()
   const [theme, setTheme] = useState<ThemePreference>(() => (localStorage.getItem('repobs.theme') as ThemePreference | null) ?? 'system')
-  const [notice, setNotice] = useState<string>()
+  // The latest notice: a confirmation (info) leaves by itself; a failure or refusal stays until dismissed.
+  const [notice, setNoticeState] = useState<{ id: number; text: string; tone: 'info' | 'warning' | 'danger' }>()
+  const setNotice = useCallback((text: string, tone: 'info' | 'warning' | 'danger' = 'info') => setNoticeState((n) => ({ id: (n?.id ?? 0) + 1, text, tone })), [])
+  const failed = useCallback((text: string) => setNotice(text, 'danger'), [setNotice])
+  const refused = useCallback((text: string) => setNotice(text, 'warning'), [setNotice])
   const now = useNow(30_000)
   // The current view: the one last selected, clicked or focused. Ribbon commands, the repository
   // ticks and the details panel follow it.
   const [currentId, setCurrentId] = useState<string>()
   const dock = useDockLayout({
-    onRejected: setNotice,
+    onRejected: refused,
     onViewSelected: setCurrentId,
     // Settings of closed views are dropped.
     onViewsChanged: keepViews,
@@ -131,10 +135,10 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
       await api('PUT', path, change(current))
       return true
     } catch (e) {
-      setNotice(e instanceof ApiError ? e.message : failure)
+      failed(e instanceof ApiError ? e.message : failure)
       return false
     }
-  }, [])
+  }, [failed])
   const setReview = useCallback((sessionId: string, review: ReviewState) => updateAnnotation(sessionId, (a) => ({ ...a, review }), 'Could not update the review state'), [updateAnnotation])
   /** Ticks one of your items, or overrides the agent's status of a plan item (kept in repobs only). */
   const setChecklistItem = useCallback(
@@ -157,7 +161,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
       await api('DELETE', `/repositories/${repo.id}`)
       setNotice(`${repo.displayName} was removed from repobs. No files were changed; your session notes are kept.`)
     } catch (e) {
-      setNotice(e instanceof ApiError ? e.message : 'Could not remove the repository')
+      failed(e instanceof ApiError ? e.message : 'Could not remove the repository')
     }
   }
 
@@ -167,7 +171,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     try {
       await api('PATCH', '/settings', { theme: next })
     } catch {
-      setNotice('The theme could not be saved on the server; it applies to this browser only.')
+      failed('The theme could not be saved on the server; it applies to this browser only.')
     }
   }
 
@@ -182,7 +186,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
       await api('POST', '/rescan')
       setNotice('Refreshed: repositories and agent sessions were read again.')
     } catch (e) {
-      setNotice(e instanceof ApiError ? e.message : 'Could not refresh')
+      failed(e instanceof ApiError ? e.message : 'Could not refresh')
     }
   }
 
@@ -209,7 +213,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
       a.click()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (e) {
-      setNotice(e instanceof ApiError ? e.message : 'Could not export')
+      failed(e instanceof ApiError ? e.message : 'Could not export')
     }
   }
 
@@ -245,7 +249,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
       }
       setNotice(`${file.name}: ${done.join('; ') || 'nothing to open'}.`)
     } catch (e) {
-      setNotice(e instanceof SyntaxError ? 'This file is not valid JSON.' : e instanceof Error ? e.message : 'Could not open the file')
+      failed(e instanceof SyntaxError ? 'This file is not valid JSON.' : e instanceof Error ? e.message : 'Could not open the file')
     }
   }
 
@@ -416,12 +420,12 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
       <Ribbon commands={commands} quick={QUICK_COMMANDS} paletteShortcut="Ctrl+K" />
 
       <div className={styles.notices}>
+        {error ? <Toast tone="danger">{error}</Toast> : null}
         {notice ? (
-          <InlineAlert tone="info" onDismiss={() => setNotice(undefined)}>
-            {notice}
-          </InlineAlert>
+          <Toast key={notice.id} tone={notice.tone} onDismiss={() => setNoticeState(undefined)}>
+            {notice.text}
+          </Toast>
         ) : null}
-        {error ? <InlineAlert tone="danger">{error}</InlineAlert> : null}
       </div>
 
       <div className={styles.dock}>
