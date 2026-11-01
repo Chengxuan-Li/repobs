@@ -2,6 +2,15 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 21 — 2026-11-01: release preparation, v0.3.0
+
+- Version 0.3.0 in all package manifests, the lockfile's workspace entries and `APP_VERSION` (reported by `/health`).
+- `CHANGELOG.md`: the Unreleased entries became `[0.3.0] — 2026-11-01` (agent plans, automation, Outdated, Hidden, checklist pill, the release zip, the fixes and the documentation site), with the two *Added* lists merged and an upgrade note: schema v3, backed up before migrating, not readable by 0.2.0.
+
+Verification (2026-11-01, this machine): `npm run typecheck`, `npm run lint`, `npm test` (167 tests), `npm run test:integration` (86), `npm run build`, `npx playwright test` (34 passed, 1 skipped), `npm run docs:build` and `npm run package` (`release\repobs-0.3.0.zip`, 817 files) all succeeded. The zip unpacked with `Expand-Archive`; its server started on an empty data folder reported version 0.3.0 at `/api/v1/health`, served `/`, and returned 401 for an unpaired `/api/v1/snapshot`.
+
+Next action: with the owner's approval, push `main` and the `v0.3.0` tag; the release workflow then publishes the zip, its checksum and these notes.
+
 ## Checkpoint 20 — 2026-11-01: agent plans in checklists (ADR 0009, merged into `main`)
 
 | Request | Implementation |

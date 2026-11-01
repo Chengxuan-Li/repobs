@@ -4,6 +4,8 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-11-01
+
 ### Added
 
 - **Agent plans in checklists** (ADR 0009). The steps agents keep with their planning tools (Claude desktop app task list, Claude Code `TodoWrite`, Codex `update_plan`) are replayed from the session files into the first section of each checklist, ahead of your own items. You can tick or untick the agent's steps in repobs. Plan text stays in memory. Settings → Privacy turns reading off. Your ticks on the agent's steps need database migration 3; repobs backs up the database before applying it, and earlier versions do not open the migrated database.
@@ -13,9 +15,6 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - **Checklist pill** on agent cards and timeline labels: a pie filled clockwise by the share done, then done/total, in the theme's info or success colour; hovering or clicking opens one list where items are ticked and unticked.
 - Review states carry a colour dot in the status menu, the Hidden filter and the rule editor.
 - The demo data includes two checklists.
-
-### Added
-
 - Ready-to-run release download: `repobs-<version>.zip` (built app, launchers and its one runtime dependency; needs only Node.js 24) with `SHA256SUMS.txt`, built by `npm run package` and published by a tag-triggered release workflow (ADR 0006).
 
 ### Fixed
@@ -28,6 +27,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Changed
 
+- Database schema version 3. The first start of 0.3.0 copies the database to `repobs.db.bak-v2-<time>` in `%LOCALAPPDATA%\repobs`, then migrates it. Version 0.2.0 does not open the migrated database; to go back, restore that copy.
 - The documentation site uses Material for MkDocs in the application's look: light and dark themes, self-hosted Geist fonts, a landing page with a grid of the guides, tabs, breadcrumbs, search and instant navigation (ADR 0007).
 
 ## [0.2.0] — 2026-10-31

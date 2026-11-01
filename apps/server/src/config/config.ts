@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export const APP_VERSION = '0.2.0'
+export const APP_VERSION = '0.3.0'
 export const DEFAULT_PORT = 47321
 export const PORT_ATTEMPTS = 10
 
