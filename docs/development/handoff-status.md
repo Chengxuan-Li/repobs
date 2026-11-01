@@ -2,6 +2,57 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 29 — 2026-11-01: Claude task checklist fix ready for local review
+
+Branch `codex/claude-task-checklists` implements the follow-up to checkpoint 28. The owner requested a local branch first and a PR only after checking it. The owner checked the preview, approved the result and authorized opening the PR on 2026-11-01. Local implementation commit: `72fc7e4`. Published as [PR #4](https://github.com/Chengxuan-Li/repobs/pull/4) against `main`; the PR is open and ready for review.
+
+- `sessions/claude-plan.ts` matches `TaskCreate`/`TaskUpdate` calls to successful structured results, takes returned task ids, and replays confirmed statuses, subject changes, deletions and reused ids. Failed, unrelated, malformed and unconfirmed results are ignored. Task text stays in memory; human overrides retain their existing keys. Contracts and the UI identify this source as *Claude Code tasks*.
+- The Claude adapter recovers creations and results across skipped transcript regions, including large appends and subagents; truncation/replacement resets the child's accumulator too. Existing full-list formats remain supported.
+- Thirteen new synthetic adapter regressions were run red before implementation/fixes, then green. A new browser test verifies task results appearing as a checklist, live completion without refresh, human overrides and the details panel. Independent review found pending requests surviving a full-list replacement and truncated ids matching unrelated results; both now have regression coverage and are resolved on re-review.
+- A read-only local adapter check now finds 12 sessions with plans (85 known items), seven in registered repositories, compared with none before. The separate built preview's snapshot contains seven plans among its 197 sessions. Only counts were reported; no real source text was committed or exported.
+
+Verification (PowerShell, repository root):
+
+| Command | Final result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm test` | 181 tests passed |
+| `npm run test:integration` | 86 tests passed |
+| `npm run build` | Passed |
+| `npx playwright test` | 35 passed, one opt-in docs screenshot skipped |
+| `npm run docs:api` | Regenerated API schemas for the added source |
+| `npm run docs:build` | Strict build passed |
+| `git diff --check` | Passed |
+
+The first integration run correctly rejected stale generated API docs, which were regenerated before the successful rerun. A later typecheck caught readonly tuples passed to mutable fixture helpers; fixed and rechecked. No remaining check failures are known.
+
+Local review: a separate loopback preview runs on port 47323 with data under `%LOCALAPPDATA%\repobs\previews\claude-task-checklists`, seeded from the existing registrations and annotations. Edits there belong to that preview copy. The original instance and database were left running unchanged. To reopen a paired browser from this checkout:
+
+```powershell
+$taskPreviousDataDir = $env:REPOBS_DATA_DIR
+try {
+  $env:REPOBS_DATA_DIR = Join-Path $env:LOCALAPPDATA 'repobs\previews\claude-task-checklists'
+  npm run open
+} finally {
+  $env:REPOBS_DATA_DIR = $taskPreviousDataDir
+}
+```
+
+Remaining limits: plan-mode documents and free-text plan parsing remain unsupported; creations beyond the 64 MB recovery bound or in other sessions cannot be reconstructed, so only known tasks appear. Next action: review PR #4 and its GitHub CI results; no merge has been performed.
+
+## Checkpoint 28 — 2026-11-01: missing automatic plan tracking investigated
+
+The running 0.3.0 app has `privacy.readAgentPlans: true`, both adapters available, no adapter problems, and a healthy monitor. Its snapshot contains 197 Claude sessions with no plans; the newest activity among those sessions is September 27. The Codex adapter discovers 16 sessions, all outside the registered repositories, so none appear in that snapshot.
+
+Root cause for the Claude checklists: the source records use **`TaskCreate` and `TaskUpdate`**, which `sessions/plan.ts` does not recognize. A read-only structural audit of the configured Claude source counted 128 creations and 223 updates across 15 transcript files; 68 creations and 117 updates occur in registered repositories (eight transcript files). Creation inputs have `subject`, `description` and `activeForm`; updates identify `taskId` and report `in_progress` or `completed`, or change dependencies. None of the scanned Claude or Codex records yield a supported plan event. Six Claude `ExitPlanMode` calls also exist in registered repositories; plan-mode documents are explicitly unsupported by ADR 0009. Counts and field shapes only were reported; no transcript content was saved.
+
+The parser currently supports only the Claude desktop task-list tools, `TodoWrite`, and Codex `update_plan`. The earlier checkpoint 20 survey is historical evidence, not evidence of coverage for these currently configured sources. The nine existing plan tests exercise those supported formats and do not cover `TaskCreate`/`TaskUpdate`.
+
+Verification (PowerShell, repository root): `node --conditions=development --input-type=module` with read-only diagnostic scripts on stdin (paired localhost API summaries, adapter discovery, then streamed source-record counts/field shapes); `npx vitest run --project unit tests/sessions/plan.test.ts` — nine tests passed; `npm run docs:build` — strict build passed; `git diff --check` — passed.
+
+No application code, settings, annotations or provider files changed. Next action: add synthetic regression fixtures and replay support for task creation (including returned task ids) and updates; separately decide plan-mode document support. Recheck current source freshness and repository registration when validating recent desktop sessions. No claim is made that automatic tracking is fixed.
+
 ## Checkpoint 26 — 2026-11-01: floating notices; repository published
 
 | Request | Implementation |

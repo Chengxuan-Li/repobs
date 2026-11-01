@@ -5,7 +5,8 @@ import { redactHome } from '../../platform/paths.ts'
 import type { LastMessage } from '@repobs/contracts'
 import { makeExcerpt, toolExcerpt } from '../excerpt.ts'
 import { JsonlCursor, readSmallJson, scanBackward } from '../jsonl.ts'
-import { claudeRecordPlanEvents, PLAN_MARKERS, PlanTracker } from '../plan.ts'
+import { claudeRecordPlanEvents } from '../plan.ts'
+import { CLAUDE_PLAN_MARKERS, ClaudePlanReader } from '../claude-plan.ts'
 import { isActivePhase, type Lifecycle, type RegistryEvidence, resolveState } from '../status.ts'
 import {
   type AdapterConfig,
@@ -45,11 +46,11 @@ export class ClaudeAccumulator {
   lastMessage?: LastMessage
   readonly excerpts: boolean
   /** Replays plan tool calls when plans are read (ADR 0009). */
-  readonly plan?: PlanTracker
+  readonly plan?: ClaudePlanReader
 
   constructor(excerpts = true, plans = false) {
     this.excerpts = excerpts
-    if (plans) this.plan = new PlanTracker()
+    if (plans) this.plan = new ClaudePlanReader()
   }
 
   feedHead = (rec: unknown) => {
@@ -98,7 +99,7 @@ export class ClaudeAccumulator {
     const phase = claudePhase(rec)
     if (phase) this.lifecycle = { phase, at: ts ?? this.lifecycle.at }
     if (this.excerpts && rec.type === 'assistant') this.lastMessage = assistantExcerpt(rec, ts) ?? this.lastMessage
-    if (this.plan) for (const ev of claudeRecordPlanEvents(rec)) this.plan.feed(ev)
+    this.plan?.feedRecord(rec)
   }
 }
 
@@ -336,7 +337,7 @@ export class ClaudeAdapter implements SessionAdapter {
     return [...sessions.values()]
   }
 
-  private async refreshFile(tracked: TrackedFile) {
+  private async refreshFile(tracked: TrackedFile, sidechain = false) {
     let st: import('node:fs').Stats
     try {
       st = await fs.stat(tracked.cursor.file)
@@ -347,22 +348,30 @@ export class ClaudeAdapter implements SessionAdapter {
     if (key === tracked.statKey) return
     tracked.statKey = key
     try {
-      const stats = await tracked.cursor.read(tracked.acc.feed, tracked.acc.feedHead)
+      const tail: unknown[] = []
+      const normalize = (rec: unknown) => sidechain && isRecord(rec) ? { ...rec, isSidechain: false } : rec
+      const stats = await tracked.cursor.read((rec) => {
+        const normalized = normalize(rec)
+        tracked.acc.feed(normalized)
+        if (tracked.acc.plan) tail.push(normalized)
+      }, tracked.acc.feedHead)
       if (stats?.reset) {
         // File replaced or truncated: rebuild the accumulator from scratch on the next read.
         tracked.acc = new ClaudeAccumulator(this.config.excerpts !== false, this.config.plans !== false)
-        tracked.cursor = new JsonlCursor(tracked.cursor.file)
+        tracked.cursor = new JsonlCursor(tracked.cursor.file, sidechain ? { headBytes: 16 * 1024, tailBytes: 64 * 1024 } : undefined)
         tracked.statKey = ''
-        await this.refreshFile(tracked)
+        await this.refreshFile(tracked, sidechain)
         return
       }
-      // The middle of a long transcript was skipped: look back for the latest full plan list.
+      // Task lists are incremental: replay all creations and results in the bounded lookback,
+      // stopping only at an authoritative full replacement from an older planning tool.
       const plan = tracked.acc.plan
-      if (stats?.jumped && stats.jumpedFrom && plan && !plan.hasList()) {
-        const earlier = await scanBackward(tracked.cursor.file, stats.jumpedFrom, PLAN_MARKERS, (rec) =>
-          claudeRecordPlanEvents(rec).some((e) => e.op.kind === 'replace'),
+      const tailHasList = tail.some((rec) => isRecord(rec) && rec.isSidechain !== true && claudeRecordPlanEvents(rec).some((e) => e.op.kind === 'replace'))
+      if (stats?.jumped && stats.jumpedFrom && plan && !tailHasList) {
+        const earlier = await scanBackward(tracked.cursor.file, stats.jumpedFrom, CLAUDE_PLAN_MARKERS, (rec) =>
+          isRecord(rec) && (sidechain || rec.isSidechain !== true) && claudeRecordPlanEvents(rec).some((e) => e.op.kind === 'replace'),
         )
-        plan.prepend(earlier.flatMap((rec) => (isRecord(rec) && rec.isSidechain !== true ? claudeRecordPlanEvents(rec) : [])))
+        plan.replay([...earlier.map(normalize), ...tail])
       }
       if (stats && stats.badLines > 0) this.problems.add('bad_jsonl_lines', 'Some transcript lines were not valid JSON (partial write or unknown format)')
       if (stats && stats.skippedLongLines > 0) this.problems.add('long_lines_skipped', 'Very long transcript lines were skipped')
@@ -404,16 +413,9 @@ export class ClaudeAdapter implements SessionAdapter {
       }
       const key = `${st.size}:${st.mtimeMs}`
       if (key !== sub.statKey) {
-        sub.statKey = key
         sub.mtimeMs = st.mtimeMs
-        const acc = sub.acc
-        // Subagent records are sidechain records; evaluate them as their own lifecycle.
-        await sub.cursor
-          .read(
-            (rec) => isRecord(rec) && acc.feed({ ...rec, isSidechain: false }),
-            (rec) => acc.feedHead(rec),
-          )
-          .catch(() => undefined)
+        // Share recovery/reset handling, evaluating the child's sidechain as its own session.
+        await this.refreshFile(sub, true)
         try {
           const meta = await readSmallJson(file.replace(/\.jsonl$/, '.meta.json'), 16 * 1024)
           if (isRecord(meta)) sub.meta = { agentType: asString(meta.agentType, 60), description: asString(meta.description, 200) }

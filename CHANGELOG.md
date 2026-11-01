@@ -17,6 +17,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Fixed
 
+- Claude Code task plans using `TaskCreate` and `TaskUpdate` now appear in agent checklists. Successful results supply task ids and confirmed changes; long-transcript and subagent recovery preserves earlier task creations.
 - After closing a side panel from the toolbar, its button stayed pressed until something else redrew the page.
 
 ## [0.3.0] — 2026-11-01
