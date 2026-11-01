@@ -27,13 +27,15 @@ A survey of the owner's machine counted tool names and field shapes only, no tex
   | Claude desktop task list: `mcp__ccd_turn__update_plan` with `items`, `advance`, or `done` plus `start` | full lists replace the plan; *advance* and *done/start* are replayed |
   | `mcp__ccd_turn__wrap_up` | completes the step in progress; open steps stay open |
   | Claude Code `TodoWrite` | each call is a full list |
+  | Claude Code `TaskCreate` / `TaskUpdate` (local fix under review, 2026-11-01) | correlate calls with successful structured tool results; create by returned id, then replay confirmed status/subject changes and deletions |
   | Codex `update_plan` | each call is a full list |
 
 - **No guessing:**
   - Steps without a full list before them give no plan.
   - Unknown statuses read as pending.
   - Free chat text is not interpreted.
-- **Long transcripts:** when the reader skipped the middle of a transcript and its tail holds no full list, it scans backwards (prefiltered by the tool names, up to 64 MB) for the latest full list and replays from there.
+- **Claude Code tasks:** `sessions/claude-plan.ts` correlates `tool_use.id` with `tool_result.tool_use_id`. Creation requires a successful `toolUseResult.task` with a returned id. Updates require a matching, successful result; status changes come from the reported change (or explicitly updated status field), and subject edits require the result to confirm that field. Dependency-only updates do not change the checklist. Failed, unconfirmed, unrelated and ambiguous batched results are ignored. Updates without a known creation never invent a task. A new successful creation can reuse an old task id and replaces that item. At most 100 known tasks and 100 pending requests are retained; only subjects, ids and statuses are kept. Task source is `claude_tasks`, shown as *Claude Code tasks*. A full-list replacement switches back to the corresponding plan source and clears the known task items.
+- **Long transcripts:** when the reader skipped the middle of a transcript and its tail holds no full list, it scans backwards (prefiltered by planning tool names and, for Claude, structured tool-result envelopes, up to 64 MB). A full list stops recovery; otherwise known task creations and updates within the bound are replayed. This also applies to subagent transcripts and skipped large appends. Creations outside the bound cannot be reconstructed; a task list may contain only the known tasks. No completeness or cross-session task synchronization is claimed.
 
 ### Two sections in one checklist
 

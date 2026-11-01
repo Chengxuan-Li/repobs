@@ -182,7 +182,7 @@ export const PlanItemStatus = z.enum(['pending', 'in_progress', 'completed'])
 export type PlanItemStatus = z.infer<typeof PlanItemStatus>
 
 /** Which planning tool a plan came from (ADR 0009). */
-export const AgentPlanSource = z.enum(['claude_task_list', 'claude_todo', 'codex_update_plan'])
+export const AgentPlanSource = z.enum(['claude_task_list', 'claude_todo', 'claude_tasks', 'codex_update_plan'])
 export type AgentPlanSource = z.infer<typeof AgentPlanSource>
 
 /**

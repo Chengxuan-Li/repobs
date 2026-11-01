@@ -244,6 +244,7 @@ JSON Schema generated from the shared zod contracts.
           "enum": [
             "claude_task_list",
             "claude_todo",
+            "claude_tasks",
             "codex_update_plan"
           ]
         },
@@ -3547,6 +3548,7 @@ JSON Schema generated from the shared zod contracts.
                 "enum": [
                   "claude_task_list",
                   "claude_todo",
+                  "claude_tasks",
                   "codex_update_plan"
                 ]
               },
@@ -4494,6 +4496,7 @@ JSON Schema generated from the shared zod contracts.
                     "enum": [
                       "claude_task_list",
                       "claude_todo",
+                      "claude_tasks",
                       "codex_update_plan"
                     ]
                   },

@@ -3,7 +3,7 @@ import path from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 // @ts-expect-error -- plain ESM helper shared with the launcher scripts
 import { mintPairingToken } from '../../scripts/lib.mjs'
-import { claude } from '../../fixtures/session-fixtures.ts'
+import { claude, writeClaudeSession } from '../../fixtures/session-fixtures.ts'
 import { readE2EState } from './state.ts'
 
 const port = Number(process.env.REPOBS_E2E_PORT ?? 47399)
@@ -418,6 +418,39 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
     // Codex plans too: two of three steps done, plus the ticked item you added in the notes test.
     await expect(row(page, /^Review ref grouping/).getByRole('button', { name: /^Checklist of Review ref grouping/ })).toHaveText('3/4')
+  })
+
+  test('Claude task results create a checklist and later updates sync without a refresh', async ({ page }) => {
+    const { claudeHome, git } = state()
+    const sid = 'task-checklist-regression'
+    const time = Date.now()
+    const call = (n: number, name: 'TaskCreate' | 'TaskUpdate', input: Record<string, unknown>) => claude.planCall(sid, git.repoA, time + n, name, input, `task-call-${n}`)
+    const result = (n: number, value: Record<string, unknown>) => claude.planResult(sid, git.repoA, time + n + 1, `task-call-${n}`, value)
+    writeClaudeSession(claudeHome, git.repoA, sid, [
+      claude.title(sid, 'Track Claude task steps'),
+      call(0, 'TaskCreate', { subject: 'Inspect task format' }), result(0, { task: { id: '7', subject: 'Inspect task format' } }),
+      call(10, 'TaskCreate', { subject: 'Verify live checklist' }), result(10, { task: { id: '12', subject: 'Verify live checklist' } }),
+      call(20, 'TaskUpdate', { taskId: '7', status: 'completed' }), result(20, { success: true, taskId: '7', updatedFields: ['status'], statusChange: { from: 'pending', to: 'completed' } }),
+    ])
+    await pair(page)
+    const card = row(page, /^Track Claude task steps/)
+    const pill = card.getByRole('button', { name: /^Checklist of Track Claude task steps/ })
+    await expect(pill).toHaveText('1/2')
+    await pill.click()
+    const list = page.getByRole('dialog', { name: 'Checklist of Track Claude task steps' })
+    await expect(list).toContainText('Claude Code tasks')
+    await expect(list.getByRole('checkbox', { name: /Inspect task format/ })).toBeChecked()
+    await expect(list.getByRole('checkbox', { name: /Verify live checklist/ })).not.toBeChecked()
+    writeClaudeSession(claudeHome, git.repoA, sid, [
+      call(30, 'TaskUpdate', { taskId: '12', status: 'completed' }), result(30, { success: true, taskId: '12', updatedFields: ['status'], statusChange: { from: 'pending', to: 'completed' } }),
+    ])
+    await expect(pill).toHaveText('2/2', { timeout: 10_000 })
+    await list.getByRole('checkbox', { name: /Inspect task format/ }).uncheck()
+    await expect(pill).toHaveText('1/2')
+    await expect(list).toContainText('unticked by you')
+    await page.keyboard.press('Escape')
+    await openCard(page, 'Track Claude task steps')
+    await expect(details(page).getByRole('region', { name: 'Agent plan' })).toContainText('Claude Code tasks')
   })
 
   test('hovering an agent card on the timeline shows the same agent details as the list', async ({ page }) => {

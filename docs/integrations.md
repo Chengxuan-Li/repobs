@@ -47,6 +47,7 @@ On by default ([ADR 0009](decisions/0009-agent-plans-in-checklists.md)); Setting
 | Claude desktop app task list | `mcp__ccd_turn__update_plan` with `items` (full list), `advance`, or `done` + `start` (1-based) | Full lists replace; steps are replayed; without a full list there is no plan |
 | Claude desktop app wrap-up | `mcp__ccd_turn__wrap_up` | Completes the step in progress |
 | Claude Code to-do list | `TodoWrite` with `todos` | Each call is a full list |
+| Claude Code tasks | `TaskCreate` / `TaskUpdate` and their successful structured results | Create by returned task id; replay confirmed status/subject changes and deletions; orphan updates are ignored |
 | Codex | `update_plan` function call with `plan` | Each call is a full list |
 
 The plan is rebuilt by replaying the calls in transcript order (`apps/server/src/sessions/plan.ts`):
@@ -56,16 +57,17 @@ The plan is rebuilt by replaying the calls in transcript order (`apps/server/src
 3. **done** + **start** complete the listed steps and start the named one; numbers count from 1.
 4. A **wrap-up** completes the step in progress. Pending steps stay pending: ending a turn says nothing about them.
 5. Steps or wrap-ups with no full list before them give **no plan**; a list is never guessed.
+6. **Claude Code tasks** use request/result correlation in `sessions/claude-plan.ts`. Only successful, matching structured results create or change known tasks. Subjects become checklist text; descriptions are not retained. Unknown statuses and dependency-only edits leave the last known state alone. Failed/unconfirmed calls and updates to unknown ids do not invent tasks. Reused ids replace the corresponding old item; duplicate results alone do not create duplicates. A full-list replacement clears the task items and selects that plan source again.
 
 For example, a list of four steps with the first in progress, then *advance*, then *done [2], start 4*, gives: 1 and 2 completed, 3 pending, 4 in progress.
 
 Each item has a key: a hash of its text (and occurrence, for repeated texts). Your ticks on agent steps are stored by that key, without the text, and shown in place of the agent's status. A new list with the same wording keeps your ticks; a reworded step is a new item. New lines appended to a transcript are read as they arrive and fed to the same replay, so plans follow the agent while it works.
 
-Observed on the owner's machine (November 2026) for the Claude desktop task list. `TodoWrite` and Codex `update_plan` follow their published shapes and are covered by synthetic fixtures only. Plan text stays in memory.
+Observed on the owner's machine (November 2026) for the Claude desktop task list and Claude Code `TaskCreate`/`TaskUpdate` with `toolUseResult` envelopes. Unknown or ambiguous batched result formats are ignored. `TodoWrite` and Codex `update_plan` follow their published shapes and are covered by synthetic fixtures only. Plan text stays in memory.
 
 ## Reading strategy
 
-Transcripts can be tens of megabytes. On first sight repobs reads a bounded head (256 KB, for metadata) and tail (512 KB, for the latest state); afterwards only appended bytes. Partial last lines wait for completion; lines are split on newline bytes so multi-byte UTF-8 characters are never cut; truncated or replaced files are re-read from scratch; over-long lines (> 4 MB) are skipped. When the tail of a long transcript holds no full plan list, repobs scans backwards from the skipped part (lines prefiltered by the plan tool names, at most 64 MB) for the latest one. Directories are watched (`fs.watch`) and re-listed on a timer, so missed events are recovered.
+Transcripts can be tens of megabytes. On first sight repobs reads a bounded head (256 KB, for metadata) and tail (512 KB, for the latest state); afterwards only appended bytes. Partial last lines wait for completion; lines are split on newline bytes so multi-byte UTF-8 characters are never cut; truncated or replaced files are re-read from scratch; over-long lines (> 4 MB) are skipped. When the tail of a long transcript holds no full plan list, repobs scans backwards from the skipped part (lines prefiltered by planning tool names and Claude structured result envelopes, at most 64 MB) to replay earlier plan records. Full lists supersede earlier records; incremental task lists recover known creations and updates within that bound. This recovery also applies to subagents (16 KB head, 64 KB tail) and large appends. Tasks whose creations lie outside the bound cannot be recovered, so a task list can be partial. Directories are watched (`fs.watch`) and re-listed on a timer, so missed events are recovered.
 
 ## GitHub pull requests (optional)
 
