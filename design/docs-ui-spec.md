@@ -94,9 +94,11 @@ page" rule, the film's earlier place under *What repobs shows*, and its caption.
     end fades the film out (700 ms), releases the page and scrolls to the title.
   - **Scrolling back up** to the film (60 % of it in view) fades it in and plays it again from the start, without
     holding; scrolling away pauses it.
-  - **Never held:** after the first hold in a browser tab's session (`sessionStorage`), when reduced motion is
-    requested (then it does not start by itself either), when the page opens on an anchor or a restored scroll
-    position, or when the browser refuses to play.
+  - **Whatever the motion preference** (owner, 2026-11-01, after it did not start on a machine with Windows'
+    animation effects off): it plays by itself and holds the page with reduced motion requested too; *Skip*,
+    Escape, a click or Space stop it, and the move to the title is then instant instead of smooth.
+  - **Never held:** after the first hold in a browser tab's session (`sessionStorage`), when the page opens on an
+    anchor or a restored scroll position, or when the browser refuses to play.
   - A click, or Space or Enter when it has focus, pauses and resumes it, so its motion can always be stopped. The
     video's accessible name says it is an animated illustration with invented repositories and agents, and how to
     pause it. `opening.js` sets the film up on every page change (Material's `document$`) and undoes it when leaving. The film is made in a separate repository

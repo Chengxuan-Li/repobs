@@ -6,7 +6,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
-- A 25-second product film (an animated illustration, with sound) that opens the documentation landing page, and is linked from the README. It plays by itself, muted, without player controls, and the page waits for it; trying to scroll offers *Skip*, which fades it out and shows the title, as its end does. Scrolling back up plays it again. The page waits only once per session, and never with reduced motion requested.
+- A 25-second product film (an animated illustration, with sound) that opens the documentation landing page, and is linked from the README. It plays by itself, muted, without player controls, and the page waits for it; trying to scroll offers *Skip*, which fades it out and shows the title, as its end does. Scrolling back up plays it again. The page waits only once per session; the film starts by itself whatever the motion preference.
 - The documentation landing page is a product page, in the manner of energyatlas.io: it opens on the film, full window; the header, the product name, a serif tagline and the buttons appear as the page scrolls; then feature rows with real screenshots (rounded, with a glow) and hand-drawn icons, privacy, documentation cards and a closing call to action. No frame, strips or tabs on that page; the header shows section links instead (ADR 0007, amended).
 
 ### Changed

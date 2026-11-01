@@ -3,9 +3,10 @@
 // The film has no player controls. On entry it plays by itself, muted (browsers allow only muted autoplay), and the
 // page waits for it: scrolling is held until it ends. Trying to scroll meanwhile (wheel, touch or a scroll key) shows
 // Skip; Skip, Escape or the film's end fades the film out, releases the page and brings the title into view. Scrolling
-// back up to the film plays it again, without holding the page. The page is held only once per browser session, and
-// never when reduced motion is requested, when the page opens on an anchor or a restored scroll position, or when the
-// browser refuses to play; a click or Space on the film always pauses and resumes it.
+// back up to the film plays it again, without holding the page. It plays by itself whatever the motion preference (the
+// owner's decision); Skip, Escape, a click or Space stop it, and with reduced motion requested the move to the title is
+// instant rather than smooth. The page is held only once per browser session, and never when the page opens on an anchor
+// or a restored scroll position, or when the browser refuses to play.
 //
 // The header: <html data-ui-scrolled> is set whenever the page is not at its top; CSS reveals the header from it, on
 // the landing page only.
@@ -112,7 +113,7 @@
     const watcher = new IntersectionObserver(
       ([entry]) => {
         if (holding) return
-        if (entry.intersectionRatio >= 0.6 && opening.dataset.state === 'faded' && !reducedMotion()) {
+        if (entry.intersectionRatio >= 0.6 && opening.dataset.state === 'faded') {
           video.currentTime = 0
           void play().catch(() => {})
         } else if (entry.intersectionRatio < 0.6 && !video.paused) {
@@ -132,8 +133,8 @@
     }
 
     const atTop = window.scrollY === 0 && (!window.location.hash || window.location.hash === '#film')
-    if (reducedMotion() || !atTop) {
-      opening.dataset.state = atTop ? 'still' : 'faded'
+    if (!atTop) {
+      opening.dataset.state = 'faded'
       return
     }
     holding = !seen()
