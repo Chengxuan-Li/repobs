@@ -745,6 +745,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(board(page, 'storefront-web')).toBeHidden()
     // The confirmation floats over the workbench: the dashboard does not move down for it.
     await expect(page.getByRole('status').filter({ hasText: 'storefront-web was removed from repobs' })).toBeVisible()
-    expect(await top()).toBe(before)    expect(fs.existsSync(path.join(state().git.repoB, 'b.txt'))).toBe(true)
+    expect(await top()).toBe(before)
+    expect(fs.existsSync(path.join(state().git.repoB, 'b.txt'))).toBe(true)
   })
 })
