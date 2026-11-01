@@ -38,6 +38,13 @@ repobs is a local, read-only dashboard: each repository's branches on one timeli
 - **Your agents:** Claude Code and Codex sessions on the branches they worked on, with their status and the evidence behind it, and the plan an agent keeps with its planning tool.
 - **Your review:** review states, tags, notes, checklists and automation rules, kept by repobs and never written to your repositories.
 
+<video class="ui-film" controls preload="none" playsinline width="1920" height="1080" poster="assets/repobs-film-poster.jpg" aria-label="The repobs film, 25 seconds, with sound">
+  <source src="assets/repobs-film.mp4" type="video/mp4">
+  <a href="assets/repobs-film.mp4">Download the repobs film (MP4, 25 seconds)</a>
+</video>
+
+*A 25-second film, animated: the repositories, branches and agents in it are invented. Below, the real application.*
+
 ![repobs dashboard with synthetic demo data](assets/repobs-overview.png)
 
 *The real application on synthetic demo data (`npm run demo`): no real repositories or sessions.*

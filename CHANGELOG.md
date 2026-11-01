@@ -4,6 +4,10 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+### Added
+
+- A 25-second product film (an animated illustration, with sound) on the documentation landing page, above the screenshot, and linked from the README.
+
 ### Changed
 
 - The documentation site takes the shape of the EnergyAtlas documentation sites: two parts (*User guide*, *Developer*), each with an index page in reading order; a landing page with a serif italic line in the headline, two cells and fewer sections; the tab bar and section strips on the page's own surface (ADR 0007, amended).

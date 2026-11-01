@@ -1001,3 +1001,14 @@ html {
     transition: none !important;
   }
 }
+
+/* The product film on the landing page: full column width, square, a thin frame like the screenshot's
+   surroundings; black behind the poster so the frame never flashes white. */
+.md-typeset video.ui-film {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  background: #000000;
+  border: 1px solid var(--ui-border-subtle);
+}

@@ -91,6 +91,11 @@ Targets (WCAG 2.2 AA): text below 24 px at least 4.5:1 on every surface it sits 
 - The headline is sized to the hero's width (container query units) so it stays on at most two lines on desktop.
 - *2026-11-01:* the other sections are fewer and shorter, each under a numbered strip: what repobs shows (with the
   screenshot), local and read-only (what repobs is not, and privacy), and support.
+- *2026-11-01:* *What repobs shows* holds the product film above the screenshot, never in the hero: a `<video>` with
+  controls, a poster frame and no autoplay (`video.ui-film`: full column width, square, a 1 px subtle frame). Its
+  caption says it is an animated illustration with invented names; the screenshot stays the real application. The film
+  is made in a separate repository (`repobs-video`); only the web encode (`repobs-film.mp4`, H.264 CRF 27, AAC) and its
+  poster (`repobs-film-poster.jpg`) are copied here.
 
 ### 0.8 Numbered section strips
 
