@@ -106,6 +106,12 @@
   flex: 1;
   color: var(--color-text);
 }
+/* The alert's tone wash is translucent: an opaque surface under it keeps the toast readable over the timeline. */
+.toast {
+  background: var(--color-surface);
+  box-shadow: var(--shadow-popover);
+  pointer-events: auto;
+}
 
 .backdrop {
   position: fixed;

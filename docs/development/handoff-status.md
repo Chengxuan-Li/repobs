@@ -2,6 +2,15 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 26 — 2026-11-01: floating notices; repository published
+
+| Request | Implementation |
+| --- | --- |
+| "*storefront-web* was removed from repobs…" should be a floating message, not a bar under the ribbon that moves the layout | `Toast` in `components/primitives.tsx`: the `InlineAlert` on an opaque surface with the popover shadow. `WorkbenchShell` stacks them in a fixed `.notices` box above the status bar (bottom right, 420 px at most, under dialogs); the shell grid lost its notice row. Each notice has a tone and an id: confirmations (`info`) leave after 8 s, not while hovered or focused; refusals from the dock (`warning`) and failures (`danger`) stay until dismissed; the lost-connection error stays while it lasts. The automation panel keeps its own inline notices |
+| GitHub page | Owner's request: description "Local, read-only dashboard for Git worktrees and the Claude Code / Codex agents working in them", website the docs site, topics `ai-agents`, `claude-code`, `codex`, `dashboard`, `developer-tools`, `git-worktree` |
+
+Verification (2026-11-01): `npm run typecheck`, `npm run lint`, `npm test` (171 tests, with the new `Toast.test.tsx`: leaves after the timeout across parent re-renders, stays while hovered, a failure stays until dismissed), `npm run test:integration` (86), `npm run build`, then `npx playwright test` (34 passed, 1 skipped: the docs screenshots). The removal e2e test asserts the toast and that the view's top edge does not move; a screenshot of that state showed the toast bottom right over the empty dashboard area.
+
 ## Checkpoint 25 — 2026-11-01: the landing page as a product page (branch `docs/product-landing`, ADR 0007 amended)
 
 Built on `docs/product-film` (checkpoint 24, PR #1), which the film session finished before this started.
