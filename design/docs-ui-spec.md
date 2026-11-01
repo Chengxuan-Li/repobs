@@ -87,12 +87,19 @@ page" rule, the film's earlier place under *What repobs shows*, and its caption.
 
 - **Opening:** the film fills the window (`overrides/home.html`, Material's `hero` block, so instant navigation swaps it
   with the page): `100svh` high, the video scaled to fit (`object-fit: contain`), black wherever the film does not
-  reach, no frame, no caption, no player controls (owner, 2026-11-01). It starts by itself, muted (browsers allow only
-  muted autoplay), and plays once; then a single *Replay* button plays it again from the start with sound. With
-  reduced motion requested it does not start by itself and the button reads *Play*. A click, or Space or Enter when
-  it has focus, pauses and resumes it, so its motion can always be stopped. The video's accessible name says it is an
-  animated illustration with invented repositories and agents, and how to pause it. `opening.js` sets the film up on
-  every page change (Material's `document$`). The film is made in a separate repository
+  reach, no frame, no caption, no player controls and no Play or Replay button (owner, 2026-11-01).
+  - **On entry** it plays by itself, muted (browsers allow only muted autoplay), and the page waits for it: scrolling
+    is held (`html[data-ui-film-hold]`, `overflow: hidden`).
+  - **Trying to scroll** while held (wheel, touch, or a scroll key) shows a *Skip* button. *Skip*, Escape or the film's
+    end fades the film out (700 ms), releases the page and scrolls to the title.
+  - **Scrolling back up** to the film (60 % of it in view) fades it in and plays it again from the start, without
+    holding; scrolling away pauses it.
+  - **Never held:** after the first hold in a browser tab's session (`sessionStorage`), when reduced motion is
+    requested (then it does not start by itself either), when the page opens on an anchor or a restored scroll
+    position, or when the browser refuses to play.
+  - A click, or Space or Enter when it has focus, pauses and resumes it, so its motion can always be stopped. The
+    video's accessible name says it is an animated illustration with invented repositories and agents, and how to
+    pause it. `opening.js` sets the film up on every page change (Material's `document$`) and undoes it when leaving. The film is made in a separate repository
   (`repobs-video`); only the web encode (`repobs-film.mp4`, H.264 CRF 27, AAC) and its poster
   (`repobs-film-poster.jpg`) are copied here, replaced at the same paths when the film changes.
 - **Header:** hidden while the page is at its top; it slides in as soon as the page scrolls (`docs/assets/javascripts/

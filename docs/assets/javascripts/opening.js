@@ -1,12 +1,14 @@
 // The product landing page (design/docs-ui-spec.md, 0.7).
 //
-// The film: no player controls. It starts by itself, muted (browsers allow only muted autoplay), and plays once; then a
-// Replay button plays it again from the start, with sound (the click allows it). With reduced motion requested it does
-// not start by itself: the button reads Play. A click or Space on the film pauses and resumes it, so the motion can
-// always be stopped.
+// The film has no player controls. On entry it plays by itself, muted (browsers allow only muted autoplay), and the
+// page waits for it: scrolling is held until it ends. Trying to scroll meanwhile (wheel, touch or a scroll key) shows
+// Skip; Skip, Escape or the film's end fades the film out, releases the page and brings the title into view. Scrolling
+// back up to the film plays it again, without holding the page. The page is held only once per browser session, and
+// never when reduced motion is requested, when the page opens on an anchor or a restored scroll position, or when the
+// browser refuses to play; a click or Space on the film always pauses and resumes it.
 //
-// The header: the page opens on the film alone; <html data-ui-scrolled> is set whenever the page is not at its top, and
-// CSS reveals the header from it, on the landing page only.
+// The header: <html data-ui-scrolled> is set whenever the page is not at its top; CSS reveals the header from it, on
+// the landing page only.
 (() => {
   const root = document.documentElement
   let pending = false
@@ -26,39 +28,121 @@
   for (const event of ['pageshow', 'hashchange', 'resize']) window.addEventListener(event, schedule)
   update()
 
+  const SEEN = 'repobs-film-seen'
+  const SCROLL_KEYS = new Set(['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '])
+  const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const seen = () => {
+    try {
+      return window.sessionStorage.getItem(SEEN) === 'true'
+    } catch {
+      return false
+    }
+  }
+  const markSeen = () => {
+    try {
+      window.sessionStorage.setItem(SEEN, 'true')
+    } catch {
+      // storage blocked: the page may be held again on the next visit
+    }
+  }
+
+  // What the previous landing page left behind (instant navigation keeps <html> and the window).
+  let teardown = () => {}
+
   const setUpFilm = () => {
-    const video = document.querySelector('.ui-opening video')
-    const button = document.querySelector('.ui-opening .ui-film-replay')
-    if (!video || !button || video.dataset.ready) return
-    video.dataset.ready = 'true'
+    teardown()
+    root.removeAttribute('data-ui-film-hold')
+    const opening = document.querySelector('.ui-opening')
+    const video = opening?.querySelector('video')
+    const skip = opening?.querySelector('.ui-film-skip')
+    if (!opening || !video || !skip) return
 
-    const offer = (label) => {
-      button.textContent = label
-      button.hidden = false
+    const listeners = []
+    const on = (target, type, handler, options) => {
+      target.addEventListener(type, handler, options)
+      listeners.push(() => target.removeEventListener(type, handler, options))
     }
-    const toggle = () => {
-      if (video.paused) {
-        button.hidden = true
-        void video.play()
-      } else video.pause()
+    let holding = false
+
+    const release = () => {
+      holding = false
+      root.removeAttribute('data-ui-film-hold')
+      skip.hidden = true
+      markSeen()
+    }
+    // Fade the film out and bring the title into view.
+    const finish = () => {
+      const wasHolding = holding
+      release()
+      opening.dataset.state = 'faded'
+      video.pause()
+      if (wasHolding || window.scrollY < opening.offsetHeight / 2) {
+        window.scrollTo({ top: opening.offsetHeight, behavior: reducedMotion() ? 'auto' : 'smooth' })
+      }
+    }
+    const play = () => {
+      opening.dataset.state = 'playing'
+      return video.play()
+    }
+    const toggle = () => (video.paused ? void play() : video.pause())
+    const wantsToScroll = (event) => {
+      if (!holding) return
+      if (event.type === 'keydown' && !SCROLL_KEYS.has(event.key)) {
+        if (event.key === 'Escape') finish()
+        return
+      }
+      if (event.type === 'keydown' && event.target === video && (event.key === ' ' || event.key === 'Enter')) return
+      event.preventDefault()
+      skip.hidden = false
     }
 
-    video.addEventListener('ended', () => offer('Replay'))
-    video.addEventListener('click', toggle)
-    video.addEventListener('keydown', (event) => {
+    on(video, 'ended', () => finish())
+    on(video, 'click', toggle)
+    on(video, 'keydown', (event) => {
       if (event.key !== ' ' && event.key !== 'Enter') return
       event.preventDefault()
       toggle()
     })
-    button.addEventListener('click', () => {
-      button.hidden = true
-      video.currentTime = 0
-      video.muted = false
-      void video.play()
-    })
+    on(skip, 'click', finish)
+    on(window, 'wheel', wantsToScroll, { passive: false })
+    on(window, 'touchmove', wantsToScroll, { passive: false })
+    on(window, 'keydown', wantsToScroll)
 
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) offer('Play')
-    else video.play().catch(() => offer('Play'))
+    // Back at the film after scrolling away: play it again from the start; away from it: pause.
+    const watcher = new IntersectionObserver(
+      ([entry]) => {
+        if (holding) return
+        if (entry.intersectionRatio >= 0.6 && opening.dataset.state === 'faded' && !reducedMotion()) {
+          video.currentTime = 0
+          void play().catch(() => {})
+        } else if (entry.intersectionRatio < 0.6 && !video.paused) {
+          video.pause()
+          opening.dataset.state = 'faded'
+        }
+      },
+      { threshold: [0, 0.6] },
+    )
+    watcher.observe(opening)
+
+    teardown = () => {
+      for (const off of listeners) off()
+      watcher.disconnect()
+      root.removeAttribute('data-ui-film-hold')
+      teardown = () => {}
+    }
+
+    const atTop = window.scrollY === 0 && (!window.location.hash || window.location.hash === '#film')
+    if (reducedMotion() || !atTop) {
+      opening.dataset.state = atTop ? 'still' : 'faded'
+      return
+    }
+    holding = !seen()
+    if (holding) root.setAttribute('data-ui-film-hold', '')
+    play().catch(() => {
+      // The browser refused to play: release the page and leave the poster; a click plays the film.
+      release()
+      opening.dataset.state = 'still'
+    })
   }
 
   // Material's instant navigation swaps pages without reloading; its document$ announces each one.
