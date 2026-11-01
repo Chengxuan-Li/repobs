@@ -772,8 +772,13 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await page.getByRole('button', { name: 'Remove storefront-web from repobs' }).click()
     const dialog = page.getByRole('dialog', { name: 'Remove repository from repobs' })
     await expect(dialog).toContainText('no files, branches or worktrees are deleted')
+    const top = async () => (await page.getByRole('main').first().boundingBox())?.y
+    const before = await top()
     await dialog.getByRole('button', { name: 'Remove from repobs' }).click()
     await expect(board(page, 'storefront-web')).toBeHidden()
+    // The confirmation floats over the workbench: the dashboard does not move down for it.
+    await expect(page.getByRole('status').filter({ hasText: 'storefront-web was removed from repobs' })).toBeVisible()
+    expect(await top()).toBe(before)
     expect(fs.existsSync(path.join(state().git.repoB, 'b.txt'))).toBe(true)
   })
 })

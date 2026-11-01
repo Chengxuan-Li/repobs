@@ -99,6 +99,40 @@ export function InlineAlert({ tone = 'warning', children, onDismiss }: { tone?: 
   )
 }
 
+/**
+ * A notice that floats over the workbench instead of pushing it down. An info notice leaves by
+ * itself after `timeout` ms, but not while the pointer or focus is on it; others stay until dismissed.
+ * Give each notice its own `key`, so a new one starts its own timer.
+ */
+export function Toast({ tone = 'info', children, onDismiss, timeout = 8000 }: { tone?: Tone; children: ReactNode; onDismiss?: () => void; timeout?: number }) {
+  const [held, setHeld] = useState(false)
+  // The latest onDismiss, so a parent re-rendering with a new function does not restart the timer.
+  const dismiss = useRef(onDismiss)
+  useEffect(() => {
+    dismiss.current = onDismiss
+  })
+  useEffect(() => {
+    if (tone !== 'info' || held || !dismiss.current) return
+    const timer = setTimeout(() => dismiss.current?.(), timeout)
+    return () => clearTimeout(timer)
+  }, [tone, held, timeout])
+  return (
+    <div
+      className={styles.toast}
+      onMouseEnter={() => setHeld(true)}
+      onMouseLeave={() => setHeld(false)}
+      onFocus={() => setHeld(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setHeld(false)
+      }}
+    >
+      <InlineAlert tone={tone} onDismiss={onDismiss}>
+        {children}
+      </InlineAlert>
+    </div>
+  )
+}
+
 /** Modal dialog with focus containment and Escape to close. */
 export function Dialog({
   title,

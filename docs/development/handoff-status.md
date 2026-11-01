@@ -2,9 +2,9 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
-## Checkpoint 27 — 2026-11-01: Claude task checklist fix ready for local review
+## Checkpoint 29 — 2026-11-01: Claude task checklist fix ready for local review
 
-Branch `codex/claude-task-checklists` implements the follow-up to checkpoint 26. The owner requested a local branch first and a PR only after checking it. The owner checked the preview, approved the result and authorized opening the PR on 2026-11-01. Local implementation commit: `72fc7e4`. Published as [PR #4](https://github.com/Chengxuan-Li/repobs/pull/4) against `main`; the PR is open and ready for review.
+Branch `codex/claude-task-checklists` implements the follow-up to checkpoint 28. The owner requested a local branch first and a PR only after checking it. The owner checked the preview, approved the result and authorized opening the PR on 2026-11-01. Local implementation commit: `72fc7e4`. Published as [PR #4](https://github.com/Chengxuan-Li/repobs/pull/4) against `main`; the PR is open and ready for review.
 
 - `sessions/claude-plan.ts` matches `TaskCreate`/`TaskUpdate` calls to successful structured results, takes returned task ids, and replays confirmed statuses, subject changes, deletions and reused ids. Failed, unrelated, malformed and unconfirmed results are ignored. Task text stays in memory; human overrides retain their existing keys. Contracts and the UI identify this source as *Claude Code tasks*.
 - The Claude adapter recovers creations and results across skipped transcript regions, including large appends and subagents; truncation/replacement resets the child's accumulator too. Existing full-list formats remain supported.
@@ -41,7 +41,7 @@ try {
 
 Remaining limits: plan-mode documents and free-text plan parsing remain unsupported; creations beyond the 64 MB recovery bound or in other sessions cannot be reconstructed, so only known tasks appear. Next action: review PR #4 and its GitHub CI results; no merge has been performed.
 
-## Checkpoint 26 — 2026-11-01: missing automatic plan tracking investigated
+## Checkpoint 28 — 2026-11-01: missing automatic plan tracking investigated
 
 The running 0.3.0 app has `privacy.readAgentPlans: true`, both adapters available, no adapter problems, and a healthy monitor. Its snapshot contains 197 Claude sessions with no plans; the newest activity among those sessions is September 27. The Codex adapter discovers 16 sessions, all outside the registered repositories, so none appear in that snapshot.
 
@@ -52,6 +52,15 @@ The parser currently supports only the Claude desktop task-list tools, `TodoWrit
 Verification (PowerShell, repository root): `node --conditions=development --input-type=module` with read-only diagnostic scripts on stdin (paired localhost API summaries, adapter discovery, then streamed source-record counts/field shapes); `npx vitest run --project unit tests/sessions/plan.test.ts` — nine tests passed; `npm run docs:build` — strict build passed; `git diff --check` — passed.
 
 No application code, settings, annotations or provider files changed. Next action: add synthetic regression fixtures and replay support for task creation (including returned task ids) and updates; separately decide plan-mode document support. Recheck current source freshness and repository registration when validating recent desktop sessions. No claim is made that automatic tracking is fixed.
+
+## Checkpoint 26 — 2026-11-01: floating notices; repository published
+
+| Request | Implementation |
+| --- | --- |
+| "*storefront-web* was removed from repobs…" should be a floating message, not a bar under the ribbon that moves the layout | `Toast` in `components/primitives.tsx`: the `InlineAlert` on an opaque surface with the popover shadow. `WorkbenchShell` stacks them in a fixed `.notices` box above the status bar (bottom right, 420 px at most, under dialogs); the shell grid lost its notice row. Each notice has a tone and an id: confirmations (`info`) leave after 8 s, not while hovered or focused; refusals from the dock (`warning`) and failures (`danger`) stay until dismissed; the lost-connection error stays while it lasts. The automation panel keeps its own inline notices |
+| GitHub page | Owner's request: description "Local, read-only dashboard for Git worktrees and the Claude Code / Codex agents working in them", website the docs site, topics `ai-agents`, `claude-code`, `codex`, `dashboard`, `developer-tools`, `git-worktree` |
+
+Verification (2026-11-01): `npm run typecheck`, `npm run lint`, `npm test` (171 tests, with the new `Toast.test.tsx`: leaves after the timeout across parent re-renders, stays while hovered, a failure stays until dismissed), `npm run test:integration` (86), `npm run build`, then `npx playwright test` (34 passed, 1 skipped: the docs screenshots). The removal e2e test asserts the toast and that the view's top edge does not move; a screenshot of that state showed the toast bottom right over the empty dashboard area.
 
 ## Checkpoint 25 — 2026-11-01: the landing page as a product page (branch `docs/product-landing`, ADR 0007 amended)
 
