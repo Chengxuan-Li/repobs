@@ -61,10 +61,16 @@ export const claude = {
   relocated: (sid: string, cwd: string) => ({ type: 'relocated', sessionId: sid, relocatedCwd: cwd }),
   futureRecord: (sid: string) => ({ type: 'some-future-record', sessionId: sid, payload: { x: 1 } }),
   /** A plan tool call (ADR 0009): the Claude app's task list, `TodoWrite`, or the app's wrap-up. */
-  planCall: (sid: string, cwd: string, at: number, name: 'mcp__ccd_turn__update_plan' | 'mcp__ccd_turn__wrap_up' | 'TodoWrite', input: Record<string, unknown>) => ({
+  planCall: (sid: string, cwd: string, at: number, name: 'mcp__ccd_turn__update_plan' | 'mcp__ccd_turn__wrap_up' | 'TodoWrite' | 'TaskCreate' | 'TaskUpdate', input: Record<string, unknown>, id = `plan-${at}`) => ({
     ...claudeCommon(sid, cwd, at),
     type: 'assistant',
-    message: { role: 'assistant', stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `plan-${at}`, name, input }] },
+    message: { role: 'assistant', stop_reason: 'tool_use', content: [{ type: 'tool_use', id, name, input }] },
+  }),
+  planResult: (sid: string, cwd: string, at: number, callId: string, result: Record<string, unknown>, isError = false) => ({
+    ...claudeCommon(sid, cwd, at),
+    type: 'user',
+    toolUseResult: result,
+    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: callId, content: 'synthetic task result', is_error: isError }] },
   }),
 }
 

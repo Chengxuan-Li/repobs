@@ -19,6 +19,7 @@ export interface ChecklistEntry {
 export const PLAN_SOURCE_LABELS: Record<AgentPlan['source'], string> = {
   claude_task_list: 'Claude task list',
   claude_todo: 'Claude Code to-do list',
+  claude_tasks: 'Claude Code tasks',
   codex_update_plan: 'Codex plan',
 }
 
