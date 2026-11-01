@@ -49,6 +49,18 @@ On by default ([ADR 0009](decisions/0009-agent-plans-in-checklists.md)); Setting
 | Claude Code to-do list | `TodoWrite` with `todos` | Each call is a full list |
 | Codex | `update_plan` function call with `plan` | Each call is a full list |
 
+The plan is rebuilt by replaying the calls in transcript order (`apps/server/src/sessions/plan.ts`):
+
+1. A **full list** (`items`, `todos` or `plan`) replaces everything before it. Item text is the agent's own `content` or `step`; the status is its own `pending`, `in_progress` or `completed`. Any other status reads as pending.
+2. **advance** completes the step in progress and starts the next pending one.
+3. **done** + **start** complete the listed steps and start the named one; numbers count from 1.
+4. A **wrap-up** completes the step in progress. Pending steps stay pending: ending a turn says nothing about them.
+5. Steps or wrap-ups with no full list before them give **no plan**; a list is never guessed.
+
+For example, a list of four steps with the first in progress, then *advance*, then *done [2], start 4*, gives: 1 and 2 completed, 3 pending, 4 in progress.
+
+Each item has a key: a hash of its text (and occurrence, for repeated texts). Your ticks on agent steps are stored by that key, without the text, and shown in place of the agent's status. A new list with the same wording keeps your ticks; a reworded step is a new item. New lines appended to a transcript are read as they arrive and fed to the same replay, so plans follow the agent while it works.
+
 Observed on the owner's machine (November 2026) for the Claude desktop task list. `TodoWrite` and Codex `update_plan` follow their published shapes and are covered by synthetic fixtures only. Plan text stays in memory.
 
 ## Reading strategy

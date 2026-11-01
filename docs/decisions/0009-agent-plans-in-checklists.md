@@ -1,6 +1,6 @@
 # 0009 — Agent plans in checklists
 
-- Status: accepted for experimentation on `feature/chat-extraction` (owner request, 2026-11-01)
+- Status: accepted (owner request, 2026-11-01). Tried on `feature/chat-extraction` against the owner's own sessions, approved by the owner and merged into `main` the same day.
 
 ## Context
 

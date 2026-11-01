@@ -34,13 +34,15 @@ Development: `npm run dev` (backend from sources with watch + Vite dev UI on `ht
 - A commit graph per repository: one row per branch on an axis shared by all repositories (commit order, calendar time or compressed calendar; zoom, and drag to pan), fork/merge edges on parallel tracks, pushed vs local-only commits, uncommitted-change markers, and quiet commits folded into counted groups on request.
 - Claude Code and Codex sessions discovered from their local files — including sessions started outside repobs, many per worktree, and the sub-agents they spawned (collapsible under their parent) — as cards with observed state, confidence (direct / inferred / unknown), source and evidence time, and an optional redacted excerpt of the latest message. Missing data is shown as unknown, never idle.
 - Several named views, each with its own filters (harness, status, last-message time, tags, text), display options and repositories; a dockable layout with repositories and details panels; File → Export / Open for your annotations and views.
-- Your own review layer: review-state dropdown, autocompleting tags, alias, multi-line autosaved notes and checklists (completed checklists collapse without being deleted), export/import as JSON. Stored only in `%LOCALAPPDATA%\repobs`.
+- Your own review layer: review-state dropdown (including *Outdated*), autocompleting tags, alias, multi-line autosaved notes and checklists, export/import as JSON. Stored only in `%LOCALAPPDATA%\repobs`.
+- Checklists in two parts: first the agent's own plan, replayed from its planning tool calls (Claude desktop task list, Claude Code `TodoWrite`, Codex `update_plan`) and synced as it works, then your items. You can tick or untick the agent's steps in repobs; nothing goes back to the agent. A pill on each card shows done/total.
+- Automation rules that set review state, tags, alias, note or checklist items on agents matching conditions (last activity, keywords, review state, tags and more), and a per-view *Hidden* filter.
 - Live updates over server-sent events, from file watchers plus self-healing polling.
 - Optional, off-by-default, read-only GitHub pull request overlay via the GitHub CLI.
 
 ## Privacy and security
 
-Loopback only (`127.0.0.1`), launcher pairing with an HttpOnly SameSite=Strict session, Host/Origin/CSRF checks on every route, strict CSP, read-only allowlisted Git commands without a shell, no telemetry and no network use unless you enable the PR lookup. Only structural metadata is read from session files, plus an optional, truncated, redacted excerpt of each agent's latest message that is never stored. Details: [docs/privacy-security.md](docs/privacy-security.md) and [SECURITY.md](SECURITY.md).
+Loopback only (`127.0.0.1`), launcher pairing with an HttpOnly SameSite=Strict session, Host/Origin/CSRF checks on every route, strict CSP, read-only allowlisted Git commands without a shell, no telemetry and no network use unless you enable the PR lookup. Only structural metadata is read from session files, plus an optional, truncated, redacted excerpt of each agent's latest message and, also optional, the agents' plan steps; neither is ever stored. Details: [docs/privacy-security.md](docs/privacy-security.md) and [SECURITY.md](SECURITY.md).
 
 ## Documentation
 

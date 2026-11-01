@@ -2,7 +2,7 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
-## Checkpoint 20 — 2026-11-01: agent plans in checklists (branch `feature/chat-extraction`, ADR 0009)
+## Checkpoint 20 — 2026-11-01: agent plans in checklists (ADR 0009, merged into `main`)
 
 | Request | Implementation |
 | --- | --- |
@@ -14,8 +14,11 @@ Verification (2026-11-01, this machine):
 
 - typecheck, lint, `npm test` (167 tests), `npm run test:integration` (86), and `npx playwright test` (34 passed, 1 skipped) all pass.
 - Run against the owner's real Claude transcripts, counting only: 62 of 874 sessions have a plan, all from the desktop task list (194 steps completed, 9 in progress, 97 pending). The 4 transcripts with a full list but no plan under their own id are forked sessions, which repobs lists under their parent's id.
+- The owner restarted their own repobs on the branch: the database migrated from v2 to v3 with the automatic backup `repobs.db.bak-v2-2026-11-01T06-21-40-061Z`, and the owner confirmed the agent sections in the live dashboard. The owner approved the merge into `main` (fast-forward, no other changes on `main` since the branch).
 
 Not done: plan-mode documents, `- [ ]` parsing of messages, timeline marks for step changes, chapter marks as phases. Real `TodoWrite` and Codex `update_plan` transcripts were not available here.
+
+Next action: none requested. Candidates: `- [ ]` checkboxes in agent messages, plan-mode documents, and timeline marks for step changes.
 
 ## Checkpoint 19 — 2026-11-01: timeline card details, one checklist popover, no completion banner
 
