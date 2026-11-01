@@ -1,6 +1,6 @@
 # 0007 — Documentation site in the application's visual family
 
-- Status: accepted (owner request, 2026-10-31); amended 2026-11-01 (see *Amendment* below)
+- Status: accepted (owner request, 2026-10-31); amended twice on 2026-11-01 (see the amendments below)
 
 ## Context
 
@@ -31,3 +31,15 @@ The owner found that the site did not match the shape of the EnergyAtlas documen
 - **Kept:** sentence-case sans labels (the owner chose not to adopt the references' uppercase mono labels), no logo, no repository link, no left-striped callouts.
 
 The rules are in `design/docs-ui-spec.md`, section 0, marked *2026-11-01*.
+
+## Amendment — 2026-11-01: the landing page as a product page
+
+The owner asked for the landing page to read as a product page rather than a documentation page, in the manner of [energyatlas.io](https://www.energyatlas.io/), with the product film, then refined it after a first version. Decided with the owner:
+
+- **The film opens the page:** it fills the window, letterboxed in black, with no frame and no caption. The header, the product name, the serif tagline and the buttons appear as the page scrolls; the title and buttons hold still for a short scroll.
+- **No documentation chrome on this page:** no frame rules, no numbered strips, no section separators, no tabs (section links and *Download* in the header instead), no support table.
+- **Feature rows:** *See every branch*, *Follow every agent*, *Review on your terms* and *Local and read-only*, each with a hand-drawn icon, a serif lead and three points; the first three with a real screenshot, all 16:9, with rounded top corners, a soft glow and a fade, as on energyatlas.io.
+- **Documentation cards** like energyatlas.io's product cards: icon, underlined title, short text, and a torn-paper wash with a faint copy of the icon on hover.
+- **Hand-drawn icons:** six editorial ink icons drawn from a versioned module (`design/icons/`), inlined at build time so they follow the theme's colours.
+
+The rules are in `design/docs-ui-spec.md`, sections 0.4, 0.7 and 0.16.

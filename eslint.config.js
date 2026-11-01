@@ -43,6 +43,11 @@ export default tseslint.config(
     },
   },
   {
+    // Scripts the documentation site loads in the browser.
+    files: ['docs/assets/javascripts/**/*.js'],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
     files: ['apps/web/**/*.{ts,tsx,js}'],
     languageOptions: { globals: { ...globals.browser } },
     plugins: { 'react-hooks': reactHooks },

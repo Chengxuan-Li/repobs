@@ -1,0 +1,16 @@
+{% extends "main.html" %}
+
+{#- The product landing page (design/docs-ui-spec.md, 0.7): the film fills the opening screen, letterboxed in black, with
+    no frame, no caption and no player controls. It plays by itself on entry, muted, and the page waits for it: trying
+    to scroll shows Skip, which fades the film out and brings in the title, as the film's end does. Scrolling back up to
+    it plays it again (assets/javascripts/opening.js). The hero block sits inside Material's container, which instant
+    navigation swaps with the page. -#}
+{% block hero %}
+  <section id="film" class="ui-opening" aria-label="The repobs film">
+    <video class="ui-film" muted playsinline preload="auto" tabindex="0" width="1920" height="1080" poster="{{ 'assets/repobs-film-poster.jpg' | url }}" aria-label="The repobs film: an animated illustration with invented repositories and agents, 25 seconds. A click or Space pauses and resumes it.">
+      <source src="{{ 'assets/repobs-film.mp4' | url }}" type="video/mp4">
+      <a href="{{ 'assets/repobs-film.mp4' | url }}">Download the repobs film (MP4, 25 seconds)</a>
+    </video>
+    <button type="button" class="ui-film-skip" hidden>Skip</button>
+  </section>
+{% endblock %}

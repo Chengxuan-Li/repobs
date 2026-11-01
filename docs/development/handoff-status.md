@@ -2,12 +2,43 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 25 — 2026-11-01: the landing page as a product page (branch `docs/product-landing`, ADR 0007 amended)
+
+Built on `docs/product-film` (checkpoint 24, PR #1), which the film session finished before this started.
+
+| Request | Implementation |
+| --- | --- |
+| A product page rather than a docs page, like energyatlas.io (read from its local build, `D:\EnergyAtlasWebsite\dist`, read only) | `docs/index.md` wrapped in `.ui-product`: hero (`repobs`, serif tagline, *Download* and *Get started*), the film (`#film`), *Features* (three rows), *Local and read-only*, *Support*, *Documentation*, a closing call to action. Design in `design/docs-ui-spec.md` 0.7 |
+| Prepare for the product film | The film is the hero's media: the same `<video class="ui-film">` and asset paths, so a re-export at the same paths needs no page change |
+| Three new screenshots | `tests/e2e/docs-screenshot.spec.ts` also writes `docs/assets/feature-timeline.png`, `feature-agent.png` (details panel with the agent plan) and `feature-review.png` (the checklist with the agent's plan and one item of yours, added by the test); paths replaced by `C:\src\<name>`. The candidate-list wait is 15 s (it timed out once at 5 s) |
+| Hand-drawn icons | Pilot (`timeline`) approved by the owner; `agents`, `review`, `local` in the same grammar. Source `design/icons/repobs_icons.py`, rendered by the editorial-icons skill to `docs/assets/icons/`, all eight files valid (`--require-matching-canvas`); inlined by `hooks/icons.py`; ink `currentColor`, accent `--ui-accent` (0.16) |
+| Product-style header | `overrides/partials/header.html` (copy of Material 9.7.7's, plus `partials/product-nav.html`); CSS shows the links and hides the tabs only with `.ui-product` on the page |
+
+Verification (2026-11-01): `npm run docs:build` (strict) passes. The built site served locally: in the browser pane, the product links show and the tabs hide on the landing page, the reverse on `/guide/`; four inline icons, ink and accent in the theme colours; the serif loaded; no horizontal overflow. Screenshots with Edge (headless Playwright, the pane was hidden): 1440 × 900 dark and light, and 375 px, the feature rows stacking on the phone. Not checked: the published Pages site (not pushed).
+
+### Checkpoint 25, revised — the owner's review of the first product page
+
+| Request | Implementation |
+| --- | --- |
+| The film as the opening content, black around it, no frame, no caption | `overrides/home.html` puts it in Material's `hero` block: `100svh`, `object-fit: contain` on black |
+| The header, title and buttons appear after scrolling; title and buttons hold still for a short distance | `docs/assets/javascripts/opening.js` sets `html[data-ui-scrolled]`; the header is fixed and slides in; the hero is sticky under it with a stage 30vh taller (measured: it stays 48 px from the top for about 270 px of scroll, then moves on) |
+| No vertical rules, no horizontal rules, no *01 / Features* subtitles | Frame, strips and the page footer removed on this page; titles only |
+| Screenshots at one aspect ratio, rounded, with the reference's glow | All three are 1280 × 720 windows; rounded top, glow, fade (spec 0.7) |
+| Remove the support section | Removed |
+| Remove the play button; autoplay on entry; hold scrolling until the film ends; Skip when the visitor tries to scroll, fading the film and showing the title; the film again when scrolling back up | `opening.js`: muted autoplay, `html[data-ui-film-hold]` (no scrolling), wheel/touch/scroll keys show *Skip*; *Skip*, Escape or the end fade it and scroll to the title; back at the film (60 % in view) it plays again without holding. Held once per tab session, never with reduced motion, an anchor, a restored scroll position or a refused play. Checked in Edge on `mkdocs serve`: held and playing on entry; wheel and ArrowDown keep `scrollY` 0 and show *Skip*; *Skip* and Escape release, fade and land on the title (`scrollY` 900 at 900 px high); the end at 24.8 s does the same; scrolling back up plays from the start; a reload in the same tab plays without holding; instant navigation away and back leaves the guide unheld and plays again; reduced motion: still, not held; `#features`: not held; no page errors |
+| The film must play without a click (it did not on the owner's machine) | Cause: the machine reports `prefers-reduced-motion: reduce` (Windows animation effects off), and the film waited for a click then. Now it plays and holds whatever the preference; with reduced motion the move to the title is instant. Checked in the app's browser pane (reduced motion on, no user activation): playing, muted, held; in Edge with reduced motion: held on entry, Escape releases and lands on the title |
+| Hide the video's play widgets; just allow replay (superseded by the next row: no Replay button) | No `controls`; `opening.js` starts it muted (only muted autoplay is allowed), shows *Replay* when it ends, which restarts it with sound; *Play* instead when reduced motion is requested; click or Space pauses. Checked in Edge: muted and playing on load, paused by a click, *Replay* at 24.8 s, then playing from 0 with sound, set up again after instant navigation, *Play* and paused with reduced motion. Seeking was not testable on the local Python server (no range requests); GitHub Pages serves ranges |
+| Documentation cards like the reference's | Two cards with new `guide` and `developer` icons, underlined titles, a torn-paper hover wash with the icon's faint copy |
+
+Verification (2026-11-01): `npm run docs:build` (strict) passes; the six icons and their bold weights pass the validator. The built site served locally and captured with Edge (headless Playwright): at 1440 × 900 in dark and light, the opening shows only the film (the header is above the window), after one screen of scroll the header is in, the wordmark stays `repobs`, the hero holds, the glow is not cut, and a card's hover shows the wash; at 375 px the film fills the first screen letterboxed; no horizontal overflow anywhere. The real browser pane was hidden during this work. Not checked: playback with sound in a browser, the published site.
+
 ## Checkpoint 24 — 2026-11-01: product film in the README and on the landing page
 
 | Request | Implementation |
 | --- | --- |
-| Put the product film into the README and the docs site | The film is made in a separate local repository (`D:epobs-video`, Remotion; not part of this repository's build). Copied here: `docs/assets/repobs-film.mp4` (1920×1080, 60 fps, 24.8 s, H.264 CRF 27, AAC 160 kb/s, 6.9 MB, from the CRF 16 master) and `docs/assets/repobs-film-poster.jpg` (the frame at 7.9 s) |
-| Landing page | *What repobs shows* holds a `<video class="ui-film">` with controls, the poster and no autoplay, above the screenshot; its caption says it is animated, with invented names, and that the screenshot is the real application. Recorded in `design/docs-ui-spec.md` section 0.7; one rule in `site.css` |
+| Put the product film into the README and the docs site | The film is made in a separate local repository (`D:
+epobs-video`, Remotion; not part of this repository's build). Copied here: `docs/assets/repobs-film.mp4` (1920×1080, 60 fps, 24.8 s, H.264 CRF 27, AAC 160 kb/s, 6.9 MB, from the CRF 16 master) and `docs/assets/repobs-film-poster.jpg` (the frame at 7.9 s) |
+| Landing page (moved into the hero in checkpoint 25) | *What repobs shows* holds a `<video class="ui-film">` with controls, the poster and no autoplay, above the screenshot; its caption says it is animated, with invented names, and that the screenshot is the real application. Recorded in `design/docs-ui-spec.md` section 0.7; one rule in `site.css` |
 | README | The poster links to the MP4 (GitHub does not play videos embedded from repository paths in a README; it plays the file on its page), after the real screenshot |
 
 Verification (2026-11-01, this machine): `npm run docs:build` passes (strict); in the browser pane (built site served locally): the film fills the column at 16:9 (975×548 px at a 1024 px window, 343 px on a 375 px phone) with no horizontal overflow; it plays (1920×1080, 24.8 s, no media error; checked muted, as autoplay with sound is blocked); dark and light themes take the matching frame token; no console errors. Not checked: the published Pages site and GitHub's README rendering (not pushed).
