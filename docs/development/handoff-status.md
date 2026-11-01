@@ -16,6 +16,20 @@ Built on `docs/product-film` (checkpoint 24, PR #1), which the film session fini
 
 Verification (2026-11-01): `npm run docs:build` (strict) passes. The built site served locally: in the browser pane, the product links show and the tabs hide on the landing page, the reverse on `/guide/`; four inline icons, ink and accent in the theme colours; the serif loaded; no horizontal overflow. Screenshots with Edge (headless Playwright, the pane was hidden): 1440 × 900 dark and light, and 375 px, the feature rows stacking on the phone. Not checked: the published Pages site (not pushed).
 
+### Checkpoint 25, revised — the owner's review of the first product page
+
+| Request | Implementation |
+| --- | --- |
+| The film as the opening content, black around it, no frame, no caption | `overrides/home.html` puts it in Material's `hero` block: `100svh`, `object-fit: contain` on black |
+| The header, title and buttons appear after scrolling; title and buttons hold still for a short distance | `docs/assets/javascripts/opening.js` sets `html[data-ui-scrolled]`; the header is fixed and slides in; the hero is sticky under it with a stage 30vh taller (measured: it stays 48 px from the top for about 270 px of scroll, then moves on) |
+| No vertical rules, no horizontal rules, no *01 / Features* subtitles | Frame, strips and the page footer removed on this page; titles only |
+| Screenshots at one aspect ratio, rounded, with the reference's glow | All three are 1280 × 720 windows; rounded top, glow, fade (spec 0.7) |
+| Remove the support section | Removed |
+| Hide the video's play widgets; just allow replay | No `controls`; `opening.js` starts it muted (only muted autoplay is allowed), shows *Replay* when it ends, which restarts it with sound; *Play* instead when reduced motion is requested; click or Space pauses. Checked in Edge: muted and playing on load, paused by a click, *Replay* at 24.8 s, then playing from 0 with sound, set up again after instant navigation, *Play* and paused with reduced motion. Seeking was not testable on the local Python server (no range requests); GitHub Pages serves ranges |
+| Documentation cards like the reference's | Two cards with new `guide` and `developer` icons, underlined titles, a torn-paper hover wash with the icon's faint copy |
+
+Verification (2026-11-01): `npm run docs:build` (strict) passes; the six icons and their bold weights pass the validator. The built site served locally and captured with Edge (headless Playwright): at 1440 × 900 in dark and light, the opening shows only the film (the header is above the window), after one screen of scroll the header is in, the wordmark stays `repobs`, the hero holds, the glow is not cut, and a card's hover shows the wash; at 375 px the film fills the first screen letterboxed; no horizontal overflow anywhere. The real browser pane was hidden during this work. Not checked: playback with sound in a browser, the published site.
+
 ## Checkpoint 24 — 2026-11-01: product film in the README and on the landing page
 
 | Request | Implementation |

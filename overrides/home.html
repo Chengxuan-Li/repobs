@@ -1,0 +1,15 @@
+{% extends "main.html" %}
+
+{#- The product landing page (design/docs-ui-spec.md, 0.7): the film fills the opening screen, letterboxed in black, with
+    no frame, no caption and no player controls. It starts by itself, muted, and plays once; then a Replay button plays
+    it again with sound (assets/javascripts/opening.js). The header appears once the page scrolls. The hero block sits
+    inside Material's container, which instant navigation swaps with the page. -#}
+{% block hero %}
+  <section id="film" class="ui-opening" aria-label="The repobs film">
+    <video class="ui-film" muted playsinline preload="auto" tabindex="0" width="1920" height="1080" poster="{{ 'assets/repobs-film-poster.jpg' | url }}" aria-label="The repobs film: an animated illustration with invented repositories and agents, 25 seconds. Space or a click pauses and resumes it.">
+      <source src="{{ 'assets/repobs-film.mp4' | url }}" type="video/mp4">
+      <a href="{{ 'assets/repobs-film.mp4' | url }}">Download the repobs film (MP4, 25 seconds)</a>
+    </video>
+    <button type="button" class="ui-film-replay" hidden>Replay</button>
+  </section>
+{% endblock %}

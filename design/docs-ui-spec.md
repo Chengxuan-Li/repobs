@@ -81,33 +81,48 @@ Targets (WCAG 2.2 AA): text below 24 px at least 4.5:1 on every surface it sits 
 
 ### 0.7 Landing page: a product page
 
-Revised on 2026-11-01 (second time): the landing page is a **product page** in the manner of energyatlas.io, not a
-documentation index. This replaces the earlier "restrained hero, not a marketing page" rule and the film's earlier
-place under *What repobs shows*.
+Revised on 2026-11-01 (third time, owner's review of the first product page): the landing page is a **product page** in
+the manner of energyatlas.io that **opens on the film**. This replaces the earlier "restrained hero, not a marketing
+page" rule, the film's earlier place under *What repobs shows*, and its caption.
 
-- **Header (landing only):** section links *Film*, *Features*, *Privacy*, *Documentation* and a *Download* button sit in
-  the header line, and the tab bar is hidden. Every page carries the links (`overrides/partials/product-nav.html`, from a
-  copy of Material 9.7.7's `partials/header.html` in `overrides/partials/header.html`: refresh it when the pinned
-  Material version changes); CSS shows them, and hides the tabs, only while the content holds `.ui-product`, so instant
-  navigation, which swaps only the content, never leaves the header out of step. Below 60em the links are hidden; the
-  menu button opens the navigation.
-- **Hero:** the product name `repobs` as the headline in Geist bold, sized to the hero's width; the tagline "*every
-  worktree and coding agent, / on one local timeline.*" in Cormorant Garamond italic; one paragraph of copy; a primary
-  *Download* button (the latest release) and *Get started*.
-- **Film (`#film`):** directly under the hero, full column width: a `<video>` with controls, a poster frame and no
-  autoplay (`video.ui-film`: square, a 1 px subtle frame, black behind the poster). Its caption says it is an animated
-  illustration with invented names and that the pictures below are the real application. The film is made in a
-  separate repository (`repobs-video`); only the web encode (`repobs-film.mp4`, H.264 CRF 27, AAC) and its poster
+- **Opening:** the film fills the window (`overrides/home.html`, Material's `hero` block, so instant navigation swaps it
+  with the page): `100svh` high, the video scaled to fit (`object-fit: contain`), black wherever the film does not
+  reach, no frame, no caption, no player controls (owner, 2026-11-01). It starts by itself, muted (browsers allow only
+  muted autoplay), and plays once; then a single *Replay* button plays it again from the start with sound. With
+  reduced motion requested it does not start by itself and the button reads *Play*. A click, or Space or Enter when
+  it has focus, pauses and resumes it, so its motion can always be stopped. The video's accessible name says it is an
+  animated illustration with invented repositories and agents, and how to pause it. `opening.js` sets the film up on
+  every page change (Material's `document$`). The film is made in a separate repository
+  (`repobs-video`); only the web encode (`repobs-film.mp4`, H.264 CRF 27, AAC) and its poster
   (`repobs-film-poster.jpg`) are copied here, replaced at the same paths when the film changes.
-- **Features (`#features`, strip 01):** three rows, *See every branch*, *Follow every agent*, *Review on your terms*. Each
-  has a title, then a real screenshot (left, about 63 %) beside its hand-drawn icon, a lead line in the serif italic and
-  three points. The screenshots are `docs/assets/feature-*.png`, made by `tests/e2e/docs-screenshot.spec.ts` on the
-  synthetic demo with the overview screenshot; temporary paths in them are replaced by `C:\src\<name>`.
-- **Local and read-only (strip 02):** the same row without a picture: the icon beside the lead and three points.
-- **Support (strip 03)**, **Documentation (strip 04**, the two-cell grid of the two parts), then a closing call to action:
-  a serif italic line and the two buttons.
-- The page hides both sidebars and keeps their widths as empty margins, so its text starts where every other page's
-  text starts. Strips and grid rules run from frame to frame.
+- **Header:** hidden while the page is at its top; it slides in as soon as the page scrolls (`docs/assets/javascripts/
+  opening.js` sets `html[data-ui-scrolled]`) or when focus enters it. On this page it lies over the content
+  (`position: fixed`), keeps the wordmark (Material's swap to the page title is undone), shows the section links *Film*,
+  *Features*, *Privacy*, *Documentation* and a *Download* button, and hides the tabs and the back-to-top button. Every
+  page carries the links (`overrides/partials/product-nav.html`, in a copy of Material 9.7.7's `partials/header.html`:
+  refresh it when the pinned Material version changes); CSS applies all of this only while the content holds
+  `.ui-product`. Below 60em the links are hidden; the menu button opens the navigation.
+- **Hero:** right under the film: the product name `repobs` in Geist bold, sized to the hero's width; the tagline
+  "*every worktree and coding agent, / on one local timeline.*" in Cormorant Garamond italic; one paragraph; a primary
+  *Download* button (the latest release) and *Get started*. It is sticky under the header and its stage is 30vh taller
+  than it, so it holds still for a short scroll before moving on with the page.
+- **No frame and no rules:** no vertical rules beside the content, no strips (no *01 / Features*-style subtitles), no
+  separators between sections, no page footer (previous/next).
+- **Features (`#features`):** three rows, *See every branch*, *Follow every agent*, *Review on your terms*, then *Local and
+  read-only* (`#local-and-read-only`, its icon beside the text, no picture). Each row has a large title, then a real
+  screenshot (left, about 63 %) beside its hand-drawn icon, a lead line in the serif italic and three points.
+- **Screenshots:** all 16:9 (`docs/assets/feature-*.png`, whole 1280 × 720 windows made by
+  `tests/e2e/docs-screenshot.spec.ts` on the synthetic demo, temporary paths replaced by `C:\src\<name>`), shown as on
+  energyatlas.io: rounded top corners (1rem; the one exception to radius 0, 0.11), a soft glow (white at 22 % in dark,
+  black at 35 % in light, blurred 3rem), and a fade to transparent towards the bottom. The glow's room (4rem) is at least
+  its blur, so the fade's mask never cuts it.
+- **Documentation (`#documentation`):** two cards in the manner of energyatlas.io's product cards: no rules; a 4rem
+  hand-drawn icon (`guide`, `developer`), an underlined title with an accent arrow, a short text; the whole card is the
+  link. On hover a torn-paper wash (`docs/assets/shapes/card-wash.svg`, a mask drawn for this site) sweeps in from the
+  left, slightly turned, with a faint oversized copy of the icon in the accent behind the text, and the icon's accent
+  mark pulses. No motion under `prefers-reduced-motion: reduce`.
+- **Closing:** a serif italic line and the two buttons. No support table on this page (the platforms are in the README
+  and the limitations page).
 
 ### 0.8 Numbered section strips
 
@@ -127,7 +142,8 @@ container; the page never overflows horizontally.
 ### 0.11 The reference, described
 
 - **Surface:** black (dark) or white (light) base; a raised surface (`#1a1a1a` / `#f8fafc`) for strips, table headers and
-  the tab bar; no shadows except one overlay shadow for menus; radius 0 everywhere.
+  the tab bar; no shadows except one overlay shadow for menus; radius 0 everywhere, except the landing page's
+  screenshots (0.7).
 - **Page frame:** 1 px rules on pane boundaries; in the docs, the content column is bounded by two thin vertical rules.
 - **Header (the ribbon):** one line on the base surface with a bottom rule; the wordmark bold in the text colour
   (*2026-11-01*, as on the EnergyAtlas sites; before, the accent colour). The search field has a plain 1 px edge.
@@ -181,14 +197,15 @@ text; boxes are ruled evenly or not at all. Structural lines (tree guides, table
 
 Decided by the owner on 2026-11-01, after approving a pilot.
 
-- Four editorial ink icons, one per feature row of the landing page: `timeline` (a commit ring, the main line, a branch
+- Six editorial ink icons for the landing page. One per feature row: `timeline` (a commit ring, the main line, a branch
   curving up to its head), `agents` (a card with a pulse line, its status light), `review` (a three-row checklist, the
-  first ticked), `local` (a house with a lock on its door).
+  first ticked), `local` (a house with a lock on its door). One per documentation card: `guide` (an open book, its ribbon
+  in the accent), `developer` (`< / >`, the slash in the accent).
 - Drawn by the editorial-icons skill from `design/icons/repobs_icons.py` (the source; never edit the SVGs), rendered to
   `docs/assets/icons/<name>.svg` (regular, used at about 3.6rem) and `<name>-bold.svg` (for sizes below about 26 px,
   unused so far). Validated with `--require-matching-canvas`.
-- `hooks/icons.py` replaces `<span class="ui-icon" data-icon="name"></span>` with the inline SVG at build time, so CSS
-  colours it: ink `currentColor` (the text colour), the one accent mark `--ui-accent`, in both themes.
+- `hooks/icons.py` replaces `<span class="ui-icon" data-icon="name"></span>` (and `ui-icon-backdrop`, a card's faint
+  copy) with the inline SVG at build time, so CSS colours it: ink `currentColor` (the text colour), the one accent mark `--ui-accent`, in both themes.
 
 ---
 

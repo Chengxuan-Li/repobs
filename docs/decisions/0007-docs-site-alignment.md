@@ -34,11 +34,12 @@ The rules are in `design/docs-ui-spec.md`, section 0, marked *2026-11-01*.
 
 ## Amendment — 2026-11-01: the landing page as a product page
 
-The owner asked for the landing page to read as a product page rather than a documentation page, in the manner of [energyatlas.io](https://www.energyatlas.io/), with the product film. Decided with the owner:
+The owner asked for the landing page to read as a product page rather than a documentation page, in the manner of [energyatlas.io](https://www.energyatlas.io/), with the product film, then refined it after a first version. Decided with the owner:
 
-- **Film-led:** the product name and a serif italic tagline, then the film directly under the hero (it had been under *What repobs shows*).
-- **Feature rows:** *See every branch*, *Follow every agent*, *Review on your terms*, each with a new real screenshot from the synthetic demo, a hand-drawn icon, a serif lead and three points; then *Local and read-only*, *Support*, the two documentation parts and a closing call to action.
-- **Hand-drawn icons:** four editorial ink icons drawn from a versioned module (`design/icons/`), inlined at build time so they follow the theme's colours.
-- **Product header on the landing page:** section links and *Download* in the header line, no tabs. The links are on every page and shown by CSS only on the product page, so instant navigation stays correct.
+- **The film opens the page:** it fills the window, letterboxed in black, with no frame and no caption. The header, the product name, the serif tagline and the buttons appear as the page scrolls; the title and buttons hold still for a short scroll.
+- **No documentation chrome on this page:** no frame rules, no numbered strips, no section separators, no tabs (section links and *Download* in the header instead), no support table.
+- **Feature rows:** *See every branch*, *Follow every agent*, *Review on your terms* and *Local and read-only*, each with a hand-drawn icon, a serif lead and three points; the first three with a real screenshot, all 16:9, with rounded top corners, a soft glow and a fade, as on energyatlas.io.
+- **Documentation cards** like energyatlas.io's product cards: icon, underlined title, short text, and a torn-paper wash with a faint copy of the icon on hover.
+- **Hand-drawn icons:** six editorial ink icons drawn from a versioned module (`design/icons/`), inlined at build time so they follow the theme's colours.
 
 The rules are in `design/docs-ui-spec.md`, sections 0.4, 0.7 and 0.16.

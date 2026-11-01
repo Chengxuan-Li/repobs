@@ -51,9 +51,26 @@ def local(pen: Pen) -> None:
     pen.blob(pen.rounded_rect(9.2, 13.6, 14.8, 17.8, 0.8, jitter=0.08), accent=True)
 
 
+def guide(pen: Pen) -> None:
+    """The user guide: an open book, its ribbon in the accent."""
+    pen.stroke([(12.0, 7.4), (8.6, 5.6), (3.4, 5.8), (3.4, 18.4), (8.6, 18.0), (12.0, 19.6)], taper=(0.75, 0.75))
+    pen.stroke([(12.0, 7.4), (15.4, 5.6), (20.6, 5.8), (20.6, 18.4), (15.4, 18.0), (12.0, 19.6)], taper=(0.75, 0.75))
+    pen.stroke([(12.0, 8.4), (12.0, 13.4), (12.0, 18.4)], weight=0.85, taper=(0.8, 0.8))
+    pen.blob([(15.6, 5.4), (17.6, 5.4), (17.6, 12.4), (16.6, 11.2), (15.6, 12.4)], accent=True)
+
+
+def developer(pen: Pen) -> None:
+    """The developer documentation: `< / >`, the slash in the accent."""
+    pen.stroke([(8.0, 6.6), (3.6, 12.0), (8.0, 17.4)], taper=(0.75, 0.75))
+    pen.stroke([(16.0, 6.6), (20.4, 12.0), (16.0, 17.4)], taper=(0.75, 0.75))
+    pen.stroke([(13.6, 4.4), (12.0, 12.0), (10.4, 19.6)], taper=(0.8, 0.8), accent=True)
+
+
 ICONS = {
     "timeline": (timeline, 7),
     "agents": (agents, 19),
     "review": (review, 23),
     "local": (local, 31),
+    "guide": (guide, 41),
+    "developer": (developer, 43),
 }

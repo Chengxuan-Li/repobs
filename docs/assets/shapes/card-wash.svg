@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" width="240" height="200" preserveAspectRatio="none">
+  <!-- The hover wash of the landing page's documentation cards: a rectangle with hand-torn edges, used as a CSS mask. -->
+  <path fill="#ffffff" d="M7 6 C30 4 52 8 76 5 C101 3 126 7 150 4 C174 6 198 3 222 6 L233 7 C235 30 232 55 236 80 C233 104 237 129 234 153 C236 168 233 182 235 193 L226 195 C202 192 178 197 153 194 C128 197 104 193 79 196 C55 193 31 197 9 194 L5 191 C7 168 3 144 6 120 C3 96 7 72 4 47 C6 30 3 16 6 8 Z"/>
+</svg>

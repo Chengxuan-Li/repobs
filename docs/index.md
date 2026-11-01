@@ -1,10 +1,14 @@
 ---
+template: home.html
 hide:
   - navigation
   - toc
+  - footer
 ---
 
 <div class="ui-product" markdown>
+
+<div class="ui-hero-stage" markdown>
 
 <div class="ui-hero" markdown>
 
@@ -19,24 +23,15 @@ A read-only dashboard for developers who run many coding agents across Git workt
 
 </div>
 
-<div id="film" class="ui-film-block" markdown>
-
-<video class="ui-film" controls preload="none" playsinline width="1920" height="1080" poster="assets/repobs-film-poster.jpg" aria-label="The repobs film, 25 seconds, with sound">
-  <source src="assets/repobs-film.mp4" type="video/mp4">
-  <a href="assets/repobs-film.mp4">Download the repobs film (MP4, 25 seconds)</a>
-</video>
-
-*A 25-second film, animated: the repositories, branches and agents in it are invented. The pictures below are the real application on demo data.*
-
 </div>
 
-## Features { #features .ui-strip data-index="01" data-note="What repobs shows" }
+<div id="features" class="ui-features" markdown>
 
 ### See every branch { .ui-feature-title }
 
 <div class="ui-feature" markdown>
 
-![The timeline of one repository: branches, commits and the agents that worked on them](assets/feature-timeline.png){ .ui-feature__media }
+![The timeline: branches, commits and the agents that worked on them](assets/feature-timeline.png){ .ui-feature__media }
 
 <div class="ui-feature__text" markdown>
 
@@ -57,7 +52,7 @@ A read-only dashboard for developers who run many coding agents across Git workt
 
 <div class="ui-feature" markdown>
 
-![An agent's card on the timeline and its details: status, evidence and the plan it keeps](assets/feature-agent.png){ .ui-feature__media }
+![An agent's details: its status, the evidence and the plan it keeps](assets/feature-agent.png){ .ui-feature__media }
 
 <div class="ui-feature__text" markdown>
 
@@ -95,7 +90,7 @@ A read-only dashboard for developers who run many coding agents across Git workt
 
 </div>
 
-## Local and read-only { .ui-strip data-index="02" data-note="By design" }
+### Local and read-only { #local-and-read-only .ui-feature-title }
 
 <div class="ui-feature ui-feature--plain" markdown>
 
@@ -116,33 +111,21 @@ See [Privacy & security](privacy-security.md).
 
 </div>
 
-## Support { .ui-strip data-index="03" data-note="Platforms and agents" }
+</div>
 
-| | Status |
-| --- | --- |
-| Windows 11, Git for Windows | Primary platform, tested |
-| macOS / Linux | Expected to work (CI runs the suite on Ubuntu); not the primary target |
-| Claude Code, terminal and desktop app (2.1.x session files) | Supported, verified against local data |
-| OpenAI Codex CLI and desktop (0.165 rollout files) | Supported, verified against local data |
-| Node.js | 24 LTS (24.11 or newer) |
-| GitHub pull requests | Optional, read-only, off by default (GitHub CLI) |
-
-## Documentation { .ui-strip data-index="04" data-note="Two parts" }
-
-<div class="grid cards" markdown>
-
--   [User guide](guide/index.md)
-
-    For people who use repobs: installing it, the dashboard and its agent cards, review states, notes and checklists, automation, what each status means, what is read from Claude Code and Codex, and what stays private.
-
-    [Open the user guide](guide/index.md){ .md-button }
-
--   [Developer](developer/index.md)
-
-    For people who change repobs itself: the architecture, the HTTP API, testing, the progress log and the architecture decision records.
-
-    [Open the developer documentation](developer/index.md){ .md-button }
-
+<div id="documentation" class="ui-cards">
+  <a class="ui-card" href="guide/">
+    <span class="ui-icon" data-icon="guide"></span>
+    <span class="ui-card__title">User guide <span class="ui-card__mark" aria-hidden="true">→</span></span>
+    <span class="ui-card__text">For people who use repobs: installing it, the dashboard and its agent cards, review states, notes and checklists, automation, what each status means, and what stays private.</span>
+    <span class="ui-card__wash" aria-hidden="true"><span class="ui-icon-backdrop" data-icon="guide"></span></span>
+  </a>
+  <a class="ui-card" href="developer/">
+    <span class="ui-icon" data-icon="developer"></span>
+    <span class="ui-card__title">Developer <span class="ui-card__mark" aria-hidden="true">→</span></span>
+    <span class="ui-card__text">For people who change repobs itself: the architecture, the HTTP API, testing, the progress log and the architecture decision records.</span>
+    <span class="ui-card__wash" aria-hidden="true"><span class="ui-icon-backdrop" data-icon="developer"></span></span>
+  </a>
 </div>
 
 <div class="ui-closing" markdown>
