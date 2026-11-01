@@ -27,7 +27,7 @@ A survey of the owner's machine counted tool names and field shapes only, no tex
   | Claude desktop task list: `mcp__ccd_turn__update_plan` with `items`, `advance`, or `done` plus `start` | full lists replace the plan; *advance* and *done/start* are replayed |
   | `mcp__ccd_turn__wrap_up` | completes the step in progress; open steps stay open |
   | Claude Code `TodoWrite` | each call is a full list |
-  | Claude Code `TaskCreate` / `TaskUpdate` (local fix under review, 2026-11-01) | correlate calls with successful structured tool results; create by returned id, then replay confirmed status/subject changes and deletions |
+  | Claude Code `TaskCreate` / `TaskUpdate` (owner approved local fix, 2026-11-01) | correlate calls with successful structured tool results; create by returned id, then replay confirmed status/subject changes and deletions |
   | Codex `update_plan` | each call is a full list |
 
 - **No guessing:**

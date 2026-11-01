@@ -4,7 +4,7 @@ Dated implementation checkpoints against the [product handoff](product-handoff.m
 
 ## Checkpoint 27 — 2026-11-01: Claude task checklist fix ready for local review
 
-Branch `codex/claude-task-checklists` implements the follow-up to checkpoint 26. The owner requested a local branch first and a PR only after checking it. No PR or push has been made.
+Branch `codex/claude-task-checklists` implements the follow-up to checkpoint 26. The owner requested a local branch first and a PR only after checking it. The owner checked the preview, approved the result and authorized opening the PR on 2026-11-01. Local implementation commit: `72fc7e4`.
 
 - `sessions/claude-plan.ts` matches `TaskCreate`/`TaskUpdate` calls to successful structured results, takes returned task ids, and replays confirmed statuses, subject changes, deletions and reused ids. Failed, unrelated, malformed and unconfirmed results are ignored. Task text stays in memory; human overrides retain their existing keys. Contracts and the UI identify this source as *Claude Code tasks*.
 - The Claude adapter recovers creations and results across skipped transcript regions, including large appends and subagents; truncation/replacement resets the child's accumulator too. Existing full-list formats remain supported.
@@ -39,7 +39,7 @@ try {
 }
 ```
 
-Remaining limits: plan-mode documents and free-text plan parsing remain unsupported; creations beyond the 64 MB recovery bound or in other sessions cannot be reconstructed, so only known tasks appear. Next action: owner checks the local result; open a PR only after the owner says it is OK.
+Remaining limits: plan-mode documents and free-text plan parsing remain unsupported; creations beyond the 64 MB recovery bound or in other sessions cannot be reconstructed, so only known tasks appear. Next action: publish the approved branch and open the PR against `main`; GitHub CI results are pending.
 
 ## Checkpoint 26 — 2026-11-01: missing automatic plan tracking investigated
 
