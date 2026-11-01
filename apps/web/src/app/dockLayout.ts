@@ -110,6 +110,19 @@ function readStored(): string | null {
 
 const tabOf = (model: Model, panel: PanelId) => model.getNodeById(PANELS[panel].id) as TabNode | undefined
 
+/**
+ * Whether a panel is shown, read from the model rather than TabNode.isVisible(): flexlayout
+ * updates that only when it next renders, so controls drawn right after a toggle showed the old state.
+ */
+export function panelShown(model: Model, panel: PanelId): boolean {
+  const tab = tabOf(model, panel)
+  const parent = tab?.getParent()
+  if (!tab || !(parent instanceof BorderNode || parent instanceof TabSetNode) || parent.getSelectedNode() !== tab) return false
+  // A maximized tab set hides the other docked tab sets; side bars stay.
+  const maximized = model.getMaximizedTabset()
+  return parent instanceof BorderNode || !maximized || maximized === parent
+}
+
 export interface DockLayout {
   model: Model
   /** Changes on every model change, so controls depending on the layout re-render. */
@@ -191,7 +204,7 @@ export function useDockLayout({ onRejected, onViewSelected, onViewsChanged }: Do
       }
       return action
     }
-    const isPanelVisible = (panel: PanelId) => tabOf(model, panel)?.isVisible() ?? false
+    const isPanelVisible = (panel: PanelId) => panelShown(model, panel)
     const showPanel = (panel: PanelId) => {
       const tab = tabOf(model, panel)
       if (!tab) {

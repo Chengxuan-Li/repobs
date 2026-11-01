@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Actions, DockLocation, Model, type TabNode } from 'flexlayout-react'
-import { defaultLayout, MAIN_TABSET, nextViewName, PANELS, restoreLayout, viewTabs } from './dockLayout'
+import { defaultLayout, MAIN_TABSET, nextViewName, panelShown, PANELS, restoreLayout, viewTabs } from './dockLayout'
 
 describe('dock layout', () => {
   it('starts with one view, "View 0", in the centre and the panels in their side bars', () => {
@@ -42,6 +42,19 @@ describe('dock layout', () => {
     expect(viewTabs(restoreLayout('{not json'))).toHaveLength(1)
     const noView = { ...defaultLayout(), layout: { type: 'row' as const, children: [] } }
     expect(viewTabs(restoreLayout(JSON.stringify(noView)))).toHaveLength(1)
+  })
+
+  it('reports a side panel as hidden as soon as its side bar is collapsed, before any render', () => {
+    const model = restoreLayout(null)
+    expect(panelShown(model, 'details')).toBe(true) // open by default
+    model.doAction(Actions.selectTab(PANELS.details.id)) // selecting the open tab collapses its side bar
+    expect(panelShown(model, 'details')).toBe(false)
+    model.doAction(Actions.selectTab(PANELS.details.id))
+    expect(panelShown(model, 'details')).toBe(true)
+    model.doAction(Actions.moveNode(PANELS.details.id, MAIN_TABSET, DockLocation.RIGHT, -1))
+    expect(panelShown(model, 'details')).toBe(true)
+    model.doAction(Actions.maximizeToggle(viewTabs(model)[0]!.getParent()!.getId())) // the view's tab set fills the workspace
+    expect(panelShown(model, 'details')).toBe(false)
   })
 
   it('widens side bars narrower than the panels need', () => {
