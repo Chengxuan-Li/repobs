@@ -6,13 +6,14 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
-- A 25-second product film (an animated illustration, with sound) that opens the documentation landing page, and is linked from the README. It plays by itself, muted, without player controls, and the page waits for it; trying to scroll offers *Skip*, which fades it out and shows the title, as its end does. Scrolling back up plays it again. The page waits only once per session; the film starts by itself whatever the motion preference.
+- A 25-second product film (an animated illustration, with sound) that opens the documentation landing page. It plays by itself, muted, without player controls, and the page waits for it; trying to scroll offers *Skip*, which fades it out and shows the title, as its end does. Scrolling back up plays it again. The page waits only once per session; the film starts by itself whatever the motion preference.
 - The documentation landing page is a product page, in the manner of energyatlas.io: it opens on the film, full window; the header, the product name, a serif tagline and the buttons appear as the page scrolls; then feature rows with real screenshots (rounded, with a glow) and hand-drawn icons, privacy, documentation cards and a closing call to action. No frame, strips or tabs on that page; the header shows section links instead (ADR 0007, amended).
 
 ### Changed
 
 - The documentation site takes the shape of the EnergyAtlas documentation sites: two parts (*User guide*, *Developer*), each with an index page in reading order; a landing page with a serif italic line in the headline, two cells and fewer sections; the tab bar and section strips on the page's own surface (ADR 0007, amended).
 - The demo repositories have realistic names (`git-status-kit`, `storefront-web`), and the overview screenshot shows the dashboard alone, without side panels or legend.
+- Every screenshot also comes in the dark theme: the landing page and the README show the one matching the reader's theme.
 
 ### Fixed
 

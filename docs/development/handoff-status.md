@@ -2,6 +2,15 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 27 — 2026-11-01: dark-theme screenshots; no film in the README (branch `docs/dark-screenshots`)
+
+| Request | Implementation |
+| --- | --- |
+| Remove the video and its caption from the README | The poster link to the MP4 and its caption removed; the film stays on the landing page |
+| Dark-theme equivalents of the screenshots | `docs-screenshot.spec.ts` captures each picture twice from the same state: light, then dark (`emulateMedia`; the app follows the system theme), with transitions fast-forwarded (controls fade their colours over 150 ms, so a capture right after the switch caught them half-way). New: `repobs-overview-dark.png`, `feature-{timeline,agent,review}-dark.png`; the light ones regenerated. The landing page lists both with `#only-light` / `#only-dark`, and `site.css` hides the other theme's one (its `display: block` outranks Material's rule). The README shows the overview through `<picture>` with a `prefers-color-scheme: dark` source |
+
+Verification (2026-11-01): `npm run build`, then `REPOBS_DOCS_SCREENSHOT=1 npx playwright test docs-screenshot` (1 passed); all eight pictures inspected. `npm run docs:build` (strict) passes. The built site in headless Edge at 1440 × 900: in light (`default`) the three light pictures show and load, in dark (`slate`) the three dark ones, the other three hidden each time; a capture of the dark page showed the dark pictures with the white glow. Not checked: GitHub's README rendering of `<picture>` (not pushed).
+
 ## Checkpoint 25 — 2026-11-01: the landing page as a product page (branch `docs/product-landing`, ADR 0007 amended)
 
 Built on `docs/product-film` (checkpoint 24, PR #1), which the film session finished before this started.

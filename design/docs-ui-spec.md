@@ -124,7 +124,9 @@ page" rule, the film's earlier place under *What repobs shows*, and its caption.
   `tests/e2e/docs-screenshot.spec.ts` on the synthetic demo, temporary paths replaced by `C:\src\<name>`), shown as on
   energyatlas.io: rounded top corners (1rem; the one exception to radius 0, 0.11), a soft glow (white at 22 % in dark,
   black at 35 % in light, blurred 3rem), and a fade to transparent towards the bottom. The glow's room (4rem) is at least
-  its blur, so the fade's mask never cuts it.
+  its blur, so the fade's mask never cuts it. Each comes in both themes (`feature-<name>.png` and
+  `feature-<name>-dark.png`, the same state captured in light and in dark); the page shows the one of its own theme
+  (`#only-light` / `#only-dark`).
 - **Documentation (`#documentation`):** two cards in the manner of energyatlas.io's product cards: no rules; a 4rem
   hand-drawn icon (`guide`, `developer`), an underlined title with an accent arrow, a short text; the whole card is the
   link. On hover a torn-paper wash (`docs/assets/shapes/card-wash.svg`, a mask drawn for this site) sweeps in from the

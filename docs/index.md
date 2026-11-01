@@ -31,7 +31,8 @@ A read-only dashboard for developers who run many coding agents across Git workt
 
 <div class="ui-feature" markdown>
 
-![The timeline: branches, commits and the agents that worked on them](assets/feature-timeline.png){ .ui-feature__media }
+![The timeline: branches, commits and the agents that worked on them](assets/feature-timeline.png#only-light){ .ui-feature__media }
+![The timeline: branches, commits and the agents that worked on them](assets/feature-timeline-dark.png#only-dark){ .ui-feature__media }
 
 <div class="ui-feature__text" markdown>
 
@@ -52,7 +53,8 @@ A read-only dashboard for developers who run many coding agents across Git workt
 
 <div class="ui-feature" markdown>
 
-![An agent's details: its status, the evidence and the plan it keeps](assets/feature-agent.png){ .ui-feature__media }
+![An agent's details: its status, the evidence and the plan it keeps](assets/feature-agent.png#only-light){ .ui-feature__media }
+![An agent's details: its status, the evidence and the plan it keeps](assets/feature-agent-dark.png#only-dark){ .ui-feature__media }
 
 <div class="ui-feature__text" markdown>
 
@@ -73,7 +75,8 @@ A read-only dashboard for developers who run many coding agents across Git workt
 
 <div class="ui-feature" markdown>
 
-![An agent's checklist: the agent's plan first, then your own items](assets/feature-review.png){ .ui-feature__media }
+![An agent's checklist: the agent's plan first, then your own items](assets/feature-review.png#only-light){ .ui-feature__media }
+![An agent's checklist: the agent's plan first, then your own items](assets/feature-review-dark.png#only-dark){ .ui-feature__media }
 
 <div class="ui-feature__text" markdown>
 
