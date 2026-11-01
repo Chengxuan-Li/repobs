@@ -9,7 +9,9 @@ Dated implementation checkpoints against the [product handoff](product-handoff.m
 
 Verification (2026-11-01, this machine): `npm run typecheck`, `npm run lint`, `npm test` (167 tests), `npm run test:integration` (86), `npm run build`, `npx playwright test` (34 passed, 1 skipped), `npm run docs:build` and `npm run package` (`release\repobs-0.3.0.zip`, 817 files) all succeeded. The zip unpacked with `Expand-Archive`; its server started on an empty data folder reported version 0.3.0 at `/api/v1/health`, served `/`, and returned 401 for an unpaired `/api/v1/snapshot`.
 
-Next action: with the owner's approval, push `main` and the `v0.3.0` tag; the release workflow then publishes the zip, its checksum and these notes.
+Published (owner approval): `main` and the annotated tag `v0.3.0` pushed; the release workflow succeeded and published *repobs 0.3.0* with `repobs-0.3.0.zip` and `SHA256SUMS.txt`. The published checksum differs from the local test package, which was built before the release commit.
+
+Afterwards, on `main`: the README rewritten for readers (shorter introduction; quick start from the latest release with an upgrade note; features grouped as see, follow, review and organise; privacy in plain promises first; a *Supported* section; links to the documentation site; a development section), and `docs/assets/repobs-overview.png` regenerated from the demo (`REPOBS_DOCS_SCREENSHOT=1 npx playwright test docs-screenshot`) to show checklist pills and an agent plan. The 0.3.0 zip keeps the earlier README.
 
 ## Checkpoint 20 — 2026-11-01: agent plans in checklists (ADR 0009, merged into `main`)
 
