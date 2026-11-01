@@ -1,0 +1,11 @@
+{#- Section links of the product landing page, in the header line like energyatlas.io. Every page carries them, so
+    instant navigation (which swaps only the content) never leaves a stale header; CSS shows them only while the
+    content holds the product page (`.ui-product`), and hides the tabs then (design/docs-ui-spec.md, 0.7). -#}
+{% set home = nav.homepage.url | url %}
+<nav class="ui-product-nav" aria-label="Product">
+  <a href="{{ home }}#film">Film</a>
+  <a href="{{ home }}#features">Features</a>
+  <a href="{{ home }}#local-and-read-only">Privacy</a>
+  <a href="{{ 'guide/' | url }}">Documentation</a>
+  <a href="https://github.com/Chengxuan-Li/repobs/releases/latest" class="ui-product-nav__download">Download</a>
+</nav>

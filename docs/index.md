@@ -4,17 +4,130 @@ hide:
   - toc
 ---
 
+<div class="ui-product" markdown>
+
 <div class="ui-hero" markdown>
 
-# Observe worktrees and agents<br>*locally, on one timeline.*
+# repobs
 
-repobs is a local, read-only dashboard: each repository's branches on one timeline, with the Claude Code and Codex agents that worked on them, what they are doing now, and what you still need to review.
+*every worktree and coding agent,<br>on one local timeline.*
+{ .ui-tagline }
 
-[Get started](getting-started.md){ .md-button .md-button--primary } [Download](https://github.com/Chengxuan-Li/repobs/releases/latest){ .md-button }
+A read-only dashboard for developers who run many coding agents across Git worktrees and branches: each repository's branches on one timeline, with the Claude Code and Codex agents that worked on them, what they are doing now, and what you still need to review.
+
+[Download](https://github.com/Chengxuan-Li/repobs/releases/latest){ .md-button .md-button--primary } [Get started](getting-started.md){ .md-button }
 
 </div>
 
-## Documentation { .ui-strip data-index="01" data-note="Two parts" }
+<div id="film" class="ui-film-block" markdown>
+
+<video class="ui-film" controls preload="none" playsinline width="1920" height="1080" poster="assets/repobs-film-poster.jpg" aria-label="The repobs film, 25 seconds, with sound">
+  <source src="assets/repobs-film.mp4" type="video/mp4">
+  <a href="assets/repobs-film.mp4">Download the repobs film (MP4, 25 seconds)</a>
+</video>
+
+*A 25-second film, animated: the repositories, branches and agents in it are invented. The pictures below are the real application on demo data.*
+
+</div>
+
+## Features { #features .ui-strip data-index="01" data-note="What repobs shows" }
+
+### See every branch { .ui-feature-title }
+
+<div class="ui-feature" markdown>
+
+![The timeline of one repository: branches, commits and the agents that worked on them](assets/feature-timeline.png){ .ui-feature__media }
+
+<div class="ui-feature__text" markdown>
+
+<span class="ui-icon" data-icon="timeline"></span>
+
+*Your repositories, branches and worktrees on one timeline.*
+{ .ui-feature__lead }
+
+- Forks, merges, unpushed commits and uncommitted changes.
+- Scratch branches, detached HEADs and missing worktrees.
+- Commit order or calendar time; zoom, pan and fold quiet history.
+
+</div>
+
+</div>
+
+### Follow every agent { .ui-feature-title }
+
+<div class="ui-feature" markdown>
+
+![An agent's card on the timeline and its details: status, evidence and the plan it keeps](assets/feature-agent.png){ .ui-feature__media }
+
+<div class="ui-feature__text" markdown>
+
+<span class="ui-icon" data-icon="agents"></span>
+
+*Each Claude Code and Codex agent, on the branch it worked on.*
+{ .ui-feature__lead }
+
+- Its status with the evidence behind it, and *Unknown* when there is none.
+- The sub-agents it spawned and its latest message.
+- The plan it keeps with its planning tool, step by step.
+
+</div>
+
+</div>
+
+### Review on your terms { .ui-feature-title }
+
+<div class="ui-feature" markdown>
+
+![An agent's checklist: the agent's plan first, then your own items](assets/feature-review.png){ .ui-feature__media }
+
+<div class="ui-feature__text" markdown>
+
+<span class="ui-icon" data-icon="review"></span>
+
+*Your notes on the agents, kept apart from their work.*
+{ .ui-feature__lead }
+
+- Review states, tags, aliases and notes.
+- Checklists: the agent's plan first, then your own items.
+- Automation rules, for example *idle for 7 days → Outdated*.
+
+</div>
+
+</div>
+
+## Local and read-only { .ui-strip data-index="02" data-note="By design" }
+
+<div class="ui-feature ui-feature--plain" markdown>
+
+<span class="ui-icon" data-icon="local"></span>
+
+<div class="ui-feature__text" markdown>
+
+*Nothing leaves your machine, and nothing is written to your repositories.*
+{ .ui-feature__lead }
+
+- repobs listens on `127.0.0.1` only, has no telemetry and calls no model API.
+- Git is used only through read-only commands; agent files and configuration are never edited.
+- Message excerpts and plan steps stay in memory; your notes live under `%LOCALAPPDATA%\repobs`.
+
+See [Privacy & security](privacy-security.md).
+
+</div>
+
+</div>
+
+## Support { .ui-strip data-index="03" data-note="Platforms and agents" }
+
+| | Status |
+| --- | --- |
+| Windows 11, Git for Windows | Primary platform, tested |
+| macOS / Linux | Expected to work (CI runs the suite on Ubuntu); not the primary target |
+| Claude Code, terminal and desktop app (2.1.x session files) | Supported, verified against local data |
+| OpenAI Codex CLI and desktop (0.165 rollout files) | Supported, verified against local data |
+| Node.js | 24 LTS (24.11 or newer) |
+| GitHub pull requests | Optional, read-only, off by default (GitHub CLI) |
+
+## Documentation { .ui-strip data-index="04" data-note="Two parts" }
 
 <div class="grid cards" markdown>
 
@@ -32,34 +145,13 @@ repobs is a local, read-only dashboard: each repository's branches on one timeli
 
 </div>
 
-## What repobs shows { .ui-strip data-index="02" data-note="At a glance" }
+<div class="ui-closing" markdown>
 
-- **Your repositories:** branches, worktrees and commits on one timeline, with forks, merges, unpushed commits and uncommitted changes.
-- **Your agents:** Claude Code and Codex sessions on the branches they worked on, with their status and the evidence behind it, and the plan an agent keeps with its planning tool.
-- **Your review:** review states, tags, notes, checklists and automation rules, kept by repobs and never written to your repositories.
+*See your agents on one timeline.*
+{ .ui-tagline }
 
-<video class="ui-film" controls preload="none" playsinline width="1920" height="1080" poster="assets/repobs-film-poster.jpg" aria-label="The repobs film, 25 seconds, with sound">
-  <source src="assets/repobs-film.mp4" type="video/mp4">
-  <a href="assets/repobs-film.mp4">Download the repobs film (MP4, 25 seconds)</a>
-</video>
+[Download](https://github.com/Chengxuan-Li/repobs/releases/latest){ .md-button .md-button--primary } [Get started](getting-started.md){ .md-button }
 
-*A 25-second film, animated: the repositories, branches and agents in it are invented. Below, the real application.*
+</div>
 
-![repobs dashboard with synthetic demo data](assets/repobs-overview.png)
-
-*The real application on synthetic demo data (`npm run demo`): no real repositories or sessions.*
-
-## Local and read-only { .ui-strip data-index="03" data-note="By design" }
-
-repobs runs on your machine and listens on `127.0.0.1` only. It never runs `git fetch`, checkout, commit or any other command that changes a repository, never edits agent files or configuration, never installs hooks and never calls a model API. From session files it reads structural metadata and, unless you turn them off, a short redacted excerpt of each agent's latest message and the agent's plan steps; these stay in memory and are never saved. Your annotations live under `%LOCALAPPDATA%\repobs`. Nothing is sent anywhere unless you turn on the optional GitHub pull request lookup. See [Privacy & security](privacy-security.md).
-
-## Support { .ui-strip data-index="04" data-note="Platforms and agents" }
-
-| | Status |
-| --- | --- |
-| Windows 11, Git for Windows | Primary platform, tested |
-| macOS / Linux | Expected to work (CI runs the suite on Ubuntu); not the primary target |
-| Claude Code, terminal and desktop app (2.1.x session files) | Supported, verified against local data |
-| OpenAI Codex CLI and desktop (0.165 rollout files) | Supported, verified against local data |
-| Node.js | 24 LTS (24.11 or newer) |
-| GitHub pull requests | Optional, read-only, off by default (GitHub CLI) |
+</div>

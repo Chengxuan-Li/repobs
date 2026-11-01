@@ -15,7 +15,7 @@ test('dashboard screenshot for the documentation', async ({ page }) => {
   await page.goto(`/#pair=${mintPairingToken(state.dataDir) as string}`)
   await page.getByRole('button', { name: 'Add repositories' }).first().click()
   const dialog = page.getByRole('dialog', { name: 'Add repositories' })
-  await expect(dialog.getByRole('list', { name: 'Repositories to add' }).getByRole('checkbox')).toHaveCount(2)
+  await expect(dialog.getByRole('list', { name: 'Repositories to add' }).getByRole('checkbox')).toHaveCount(2, { timeout: 15_000 })
   await dialog.getByLabel('Select all').check()
   await dialog.getByRole('button', { name: 'Add 2 repositories' }).click()
   await expect(dialog).toBeHidden()
@@ -55,4 +55,58 @@ test('dashboard screenshot for the documentation', async ({ page }) => {
     }),
   )
   await page.screenshot({ path: path.resolve('docs/assets/repobs-overview.png') })
+
+  // Feature pictures for the landing page (design/docs-ui-spec.md, 0.7), from the same demo.
+  const shot = (name: string, clip: { x: number; y: number; width: number; height: number }) =>
+    page.screenshot({ path: path.resolve(`docs/assets/feature-${name}.png`), clip })
+  const box = async (locator: ReturnType<typeof page.locator>) => {
+    const b = await locator.boundingBox()
+    if (!b) throw new Error('not visible')
+    return b
+  }
+
+  // 1. The timeline: one repository's branches, commits and agents.
+  const repo = await box(page.getByRole('region', { name: 'git-status-kit repository' }))
+  await shot('timeline', { x: repo.x, y: repo.y, width: repo.width, height: Math.min(repo.height, 540) })
+
+  // 2. An agent: its card on the timeline and its details, with the plan it keeps.
+  const toolbar2 = page.getByRole('toolbar', { name: 'Workbench commands' })
+  await toolbar2.getByRole('button', { name: 'Details panel' }).click()
+  await page.getByRole('listitem', { name: /^Tighten status parser/ }).getByText('Tighten status parser', { exact: true }).click()
+  const panel = page.getByRole('complementary', { name: 'Details panel' })
+  await expect(panel.getByRole('region', { name: 'Agent plan' })).toBeVisible()
+  await panel.getByText(/^(Worktree|Working directory)$/).locator('xpath=following-sibling::dd[1]').evaluateAll((els) =>
+    els.forEach((el) => {
+      el.textContent = 'C:\\src\\git-status-kit'
+      el.setAttribute('title', el.textContent)
+    }),
+  )
+  // One item of your own, so the checklist below shows both parts: the agent's plan, then yours.
+  await panel.getByLabel('New checklist item').fill('Review the detached HEAD handling')
+  await panel.getByLabel('New checklist item').press('Enter')
+  await expect(panel.getByRole('list', { name: 'Checklist' })).toContainText('Review the detached HEAD handling')
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  await page.mouse.move(0, 0)
+  await expect(page.getByRole('dialog', { name: 'Agent details' })).toBeHidden()
+  // Adding the item scrolled the panel to its input: back to the agent's name and status.
+  await panel.evaluate((el) => [el, ...el.querySelectorAll('*')].forEach((e) => (e.scrollTop = 0)))
+  const details = await box(panel)
+  await shot('agent', { x: Math.max(0, details.x - 520), y: details.y, width: details.x + details.width - Math.max(0, details.x - 520), height: Math.min(details.height, 560) })
+
+  // 3. Your review: the checklist of an agent, its plan first and your items after.
+  await toolbar2.getByRole('button', { name: 'Details panel' }).click()
+  await expect(panel).toBeHidden()
+  const pill = page.getByRole('listitem', { name: /^Tighten status parser/ }).first().getByRole('button', { name: /^Checklist of Tighten status parser/ })
+  await pill.click()
+  const dialog2 = page.getByRole('dialog', { name: 'Checklist of Tighten status parser' })
+  await expect(dialog2.getByRole('region', { name: 'Your items' })).toBeVisible()
+  // Rest the pointer on the list (opened by a click, it stays) so the row's agent card closes.
+  await dialog2.hover()
+  await expect(page.getByRole('dialog', { name: 'Agent details' })).toBeHidden()
+  const list = await box(dialog2)
+  const row = await box(page.getByRole('listitem', { name: /^Tighten status parser/ }).first())
+  const left = Math.max(0, row.x - 10)
+  const top = Math.max(0, row.y - 120)
+  await shot('review', { x: left, y: top, width: Math.min(1440 - left, list.x + list.width - left + 260), height: Math.min(800 - top, list.y + list.height - top + 80) })
+  await page.keyboard.press('Escape')
 })

@@ -6,7 +6,8 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
-- A 25-second product film (an animated illustration, with sound) on the documentation landing page, above the screenshot, and linked from the README.
+- A 25-second product film (an animated illustration, with sound) on the documentation landing page, directly under the hero, and linked from the README.
+- The documentation landing page is a product page, in the manner of energyatlas.io: the product name and a serif tagline, the film, three feature rows with real screenshots and hand-drawn icons, then privacy, support, the documentation and a closing call to action; on that page the header shows section links instead of tabs (ADR 0007, amended).
 
 ### Changed
 

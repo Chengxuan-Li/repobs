@@ -43,8 +43,9 @@ clarifications.
 ### 0.4 Fonts
 
 - Families: Geist (interface and prose) and Geist Mono (code, identifiers, numeric indices).
-- *2026-11-01:* Cormorant Garamond italic 500 for the second line of the landing headline only, as on the EnergyAtlas
-  sites; nowhere else. Its two WOFF2 subsets and OFL licence are the files the BEMGen documentation vendors.
+- *2026-11-01:* Cormorant Garamond italic 500, as on the EnergyAtlas sites, on the product landing page only: its
+  tagline, its feature leads and its closing line (0.7); nowhere else. Its two WOFF2 subsets and OFL licence are the
+  files the BEMGen documentation vendors.
 - Self-hosted in `docs/assets/fonts/` (copied from the `@fontsource-variable` 5.3.0 packages the app already pins, Latin
   and Latin Extended subsets, with their OFL licences), declared in `docs/assets/stylesheets/fonts.css`;
   `theme.font: false`. The browser contacts no font host.
@@ -78,24 +79,35 @@ Targets (WCAG 2.2 AA): text below 24 px at least 4.5:1 on every surface it sits 
 | `--ui-border-subtle` | both | `#404040` / `#cfd8e5` | decorative only (2.03 / 1.44) |
 | Warning text | light | `#946300` | 5.19 on `#ffffff` |
 
-### 0.7 Landing page
+### 0.7 Landing page: a product page
 
-- A restrained hero followed immediately by a shared-border grid of the documentation pages; not a marketing page.
-- Headline (*2026-11-01*): "Observe worktrees and agents" in Geist bold, then on its own line
-  "*locally, on one timeline.*" in Cormorant Garamond italic; one sentence of supporting copy; a primary *Get
-  started* button and a *Download* button (the releases page).
-- *2026-11-01:* the first strip, *Documentation*, holds a two-cell grid, one cell per part (*User guide*,
-  *Developer*), each with a short description and an *Open …* button.
-- The landing page hides both sidebars but keeps their widths as empty margins, without their rules, so its text starts
-  where every other page's text starts. Strips and grid rules still run from frame to frame.
-- The headline is sized to the hero's width (container query units) so it stays on at most two lines on desktop.
-- *2026-11-01:* the other sections are fewer and shorter, each under a numbered strip: what repobs shows (with the
-  screenshot), local and read-only (what repobs is not, and privacy), and support.
-- *2026-11-01:* *What repobs shows* holds the product film above the screenshot, never in the hero: a `<video>` with
-  controls, a poster frame and no autoplay (`video.ui-film`: full column width, square, a 1 px subtle frame). Its
-  caption says it is an animated illustration with invented names; the screenshot stays the real application. The film
-  is made in a separate repository (`repobs-video`); only the web encode (`repobs-film.mp4`, H.264 CRF 27, AAC) and its
-  poster (`repobs-film-poster.jpg`) are copied here.
+Revised on 2026-11-01 (second time): the landing page is a **product page** in the manner of energyatlas.io, not a
+documentation index. This replaces the earlier "restrained hero, not a marketing page" rule and the film's earlier
+place under *What repobs shows*.
+
+- **Header (landing only):** section links *Film*, *Features*, *Privacy*, *Documentation* and a *Download* button sit in
+  the header line, and the tab bar is hidden. Every page carries the links (`overrides/partials/product-nav.html`, from a
+  copy of Material 9.7.7's `partials/header.html` in `overrides/partials/header.html`: refresh it when the pinned
+  Material version changes); CSS shows them, and hides the tabs, only while the content holds `.ui-product`, so instant
+  navigation, which swaps only the content, never leaves the header out of step. Below 60em the links are hidden; the
+  menu button opens the navigation.
+- **Hero:** the product name `repobs` as the headline in Geist bold, sized to the hero's width; the tagline "*every
+  worktree and coding agent, / on one local timeline.*" in Cormorant Garamond italic; one paragraph of copy; a primary
+  *Download* button (the latest release) and *Get started*.
+- **Film (`#film`):** directly under the hero, full column width: a `<video>` with controls, a poster frame and no
+  autoplay (`video.ui-film`: square, a 1 px subtle frame, black behind the poster). Its caption says it is an animated
+  illustration with invented names and that the pictures below are the real application. The film is made in a
+  separate repository (`repobs-video`); only the web encode (`repobs-film.mp4`, H.264 CRF 27, AAC) and its poster
+  (`repobs-film-poster.jpg`) are copied here, replaced at the same paths when the film changes.
+- **Features (`#features`, strip 01):** three rows, *See every branch*, *Follow every agent*, *Review on your terms*. Each
+  has a title, then a real screenshot (left, about 63 %) beside its hand-drawn icon, a lead line in the serif italic and
+  three points. The screenshots are `docs/assets/feature-*.png`, made by `tests/e2e/docs-screenshot.spec.ts` on the
+  synthetic demo with the overview screenshot; temporary paths in them are replaced by `C:\src\<name>`.
+- **Local and read-only (strip 02):** the same row without a picture: the icon beside the lead and three points.
+- **Support (strip 03)**, **Documentation (strip 04**, the two-cell grid of the two parts), then a closing call to action:
+  a serif italic line and the two buttons.
+- The page hides both sidebars and keeps their widths as empty margins, so its text starts where every other page's
+  text starts. Strips and grid rules run from frame to frame.
 
 ### 0.8 Numbered section strips
 
@@ -144,7 +156,8 @@ container; the page never overflows horizontally.
 - Cell text is padded by the article gutter, so it lines up with strips and prose.
 - Every cell is closed on all four sides; where an empty sidebar margin moves a grid in from the frame, the grid draws its
   own outer rules.
-- Cells are indexed `A`, `B`, … in mono, muted, or `01`, `02`, … in a numbered list (a reading order). No icons.
+- Cells are indexed `A`, `B`, … in mono, muted, or `01`, `02`, … in a numbered list (a reading order). No icons in
+  cells; the hand-drawn icons belong to the landing page's feature rows (0.16).
 - *2026-11-01:* columns fit the width (at least 14rem each), so two cells share a row on desktop and a reading order
   runs three or four to a row.
 
@@ -163,6 +176,19 @@ container; the page never overflows horizontally.
 Decided by the owner on 2026-10-31, for the docs and the application alike: no card, callout, quote or message is marked
 by a heavy stroke on one side (the "left border accent" pattern). State colour goes in the title, an icon, a dot or the
 text; boxes are ruled evenly or not at all. Structural lines (tree guides, table column rules) are not stripes.
+
+### 0.16 Hand-drawn feature icons
+
+Decided by the owner on 2026-11-01, after approving a pilot.
+
+- Four editorial ink icons, one per feature row of the landing page: `timeline` (a commit ring, the main line, a branch
+  curving up to its head), `agents` (a card with a pulse line, its status light), `review` (a three-row checklist, the
+  first ticked), `local` (a house with a lock on its door).
+- Drawn by the editorial-icons skill from `design/icons/repobs_icons.py` (the source; never edit the SVGs), rendered to
+  `docs/assets/icons/<name>.svg` (regular, used at about 3.6rem) and `<name>-bold.svg` (for sizes below about 26 px,
+  unused so far). Validated with `--require-matching-canvas`.
+- `hooks/icons.py` replaces `<span class="ui-icon" data-icon="name"></span>` with the inline SVG at build time, so CSS
+  colours it: ink `currentColor` (the text colour), the one accent mark `--ui-accent`, in both themes.
 
 ---
 

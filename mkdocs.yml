@@ -60,6 +60,9 @@ markdown_extensions:
   - pymdownx.inlinehilite
 plugins:
   - search
+# Inlines the hand-drawn feature icons of the landing page (docs/assets/icons/), so CSS colours them with the theme.
+hooks:
+  - hooks/icons.py
 # Two parts, like the EnergyAtlas documentation sites; each opens with its index page (design/docs-ui-spec.md, 0.14).
 nav:
   - Home: index.md

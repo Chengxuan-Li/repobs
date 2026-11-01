@@ -949,34 +949,70 @@ html {
   color: var(--ui-accent);
 }
 
-/* ------------------------------------------------------------ Landing hero */
+/* ------------------------------------------------------ Product landing page */
 
-.md-typeset .ui-hero {
-  container-type: inline-size;
-  padding: 1.6rem 0 2.4rem;
+/*
+ * The landing page is a product page in the manner of energyatlas.io (design/docs-ui-spec.md, 0.7): the product name, a
+ * serif italic tagline, the film, feature rows with real screenshots and hand-drawn icons, then the documentation.
+ * Its content is wrapped in .ui-product; the header shows its section links and hides the tabs only while that content
+ * is on the page, so instant navigation (which swaps only the content) never leaves the header out of step.
+ */
+.ui-product-nav {
+  display: none;
 }
 
-/* Sized to the hero's own width so the headline keeps its line breaks (design/docs-ui-spec.md, 0.7). */
+@media screen and (min-width: 60em) {
+  body:has(.ui-product) .ui-product-nav {
+    align-items: center;
+    display: flex;
+    gap: 1.2rem;
+    margin: 0 0.8rem;
+  }
+}
+
+body:has(.ui-product) .md-tabs {
+  display: none;
+}
+
+.ui-product-nav a {
+  color: var(--ui-text-muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+  transition: color var(--ui-transition), border-color var(--ui-transition);
+  white-space: nowrap;
+}
+
+.ui-product-nav a:is(:focus, :hover) {
+  color: var(--ui-text-primary);
+}
+
+.ui-product-nav a.ui-product-nav__download {
+  border: 1px solid var(--ui-border-interactive);
+  color: var(--ui-text-primary);
+  padding: 0.25rem 0.6rem;
+}
+
+.ui-product-nav a.ui-product-nav__download:is(:focus, :hover) {
+  border-color: var(--ui-accent);
+}
+
+/* The hero: the product name sized to the hero's width, then the tagline in the serif italic of the EnergyAtlas sites. */
+.md-typeset .ui-hero {
+  container-type: inline-size;
+  padding: 2.8rem 0 2rem;
+}
+
 .md-typeset .ui-hero h1 {
-  font-size: clamp(1.5rem, 5.6cqi, 2.8rem);
+  font-size: clamp(2.6rem, 11cqi, 4.6rem);
   font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  margin: 0 0 1.2rem;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin: 0 0 0.8rem;
   max-width: none;
 }
 
 .md-typeset .ui-hero h1 .headerlink {
   display: none;
-}
-
-/* The headline's second line, in the serif italic of the EnergyAtlas sites (spec 0.4, 0.7). */
-.md-typeset .ui-hero h1 em {
-  font-family: var(--font-serif);
-  font-size: 1.1em;
-  font-style: italic;
-  font-weight: 500;
-  letter-spacing: -0.01em;
 }
 
 .md-typeset .ui-hero p {
@@ -987,11 +1023,138 @@ html {
   max-width: 36rem;
 }
 
-.md-typeset .ui-hero p:last-child {
+/* The serif italic (spec 0.4): the hero's tagline, the closing line and the feature leads. */
+.md-typeset p.ui-tagline {
+  color: var(--ui-text-primary);
+  font-family: var(--font-serif);
+  font-size: clamp(1.4rem, 4.4cqi, 2.1rem);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin: 0 0 1.4rem;
+  max-width: none;
+}
+
+.md-typeset p.ui-tagline em {
+  font-style: inherit;
+}
+
+.md-typeset :is(.ui-hero, .ui-closing) p:last-child {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 0;
+}
+
+/* The film directly under the hero, its caption small and muted. */
+.md-typeset .ui-film-block {
+  margin: 0 0 1rem;
+  scroll-margin-top: 4rem;
+}
+
+.md-typeset .ui-film-block > p {
+  color: var(--ui-text-muted);
+  font-size: 0.65rem;
+  margin: 0.6rem 0 0;
+}
+
+/* Feature rows: a title, then a real screenshot beside its icon, lead and three points. */
+.md-typeset h2.ui-strip {
+  scroll-margin-top: 4rem;
+}
+
+.md-typeset h3.ui-feature-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin: 2.4rem 0 1rem;
+}
+
+.md-typeset h3.ui-feature-title .headerlink {
+  display: none;
+}
+
+.md-typeset .ui-feature {
+  align-items: center;
+  display: grid;
+  gap: 1.2rem 2rem;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0 0 1.2rem;
+}
+
+@media screen and (min-width: 60em) {
+  .md-typeset .ui-feature {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  }
+
+  /* The local-and-read-only row has no picture: its icon stands beside the text. */
+  .md-typeset .ui-feature--plain {
+    align-items: start;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+.md-typeset .ui-feature > p {
+  margin: 0;
+}
+
+.md-typeset img.ui-feature__media {
+  border: 1px solid var(--ui-border-subtle);
+  display: block;
+  width: 100%;
+}
+
+.md-typeset .ui-feature__text ul {
+  margin: 0.4rem 0 0;
+}
+
+.md-typeset .ui-feature__text li {
+  font-size: 0.75rem;
+  margin-bottom: 0.3rem;
+}
+
+.md-typeset p.ui-feature__lead {
+  color: var(--ui-text-primary);
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.2;
+  margin: 0.8rem 0 0.6rem;
+}
+
+.md-typeset p.ui-feature__lead em {
+  font-style: inherit;
+}
+
+/* The hand-drawn icons (design/icons/): ink in the text colour, the one accent mark in the theme's accent. */
+.md-typeset .ui-icon {
+  color: var(--ui-text-primary);
+  display: block;
+  height: 3.6rem;
+  width: 3.6rem;
+}
+
+.md-typeset .ui-icon svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.md-typeset .ui-icon .ink {
+  fill: currentColor;
+}
+
+.md-typeset .ui-icon .accent {
+  fill: var(--ui-accent);
+}
+
+/* The closing call to action. */
+.md-typeset .ui-closing {
+  container-type: inline-size;
+  padding: 2.8rem 0 1.6rem;
 }
 
 /* -------------------------------------------------------------- Motion */

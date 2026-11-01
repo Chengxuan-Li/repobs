@@ -2,12 +2,27 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 25 — 2026-11-01: the landing page as a product page (branch `docs/product-landing`, ADR 0007 amended)
+
+Built on `docs/product-film` (checkpoint 24, PR #1), which the film session finished before this started.
+
+| Request | Implementation |
+| --- | --- |
+| A product page rather than a docs page, like energyatlas.io (read from its local build, `D:\EnergyAtlasWebsite\dist`, read only) | `docs/index.md` wrapped in `.ui-product`: hero (`repobs`, serif tagline, *Download* and *Get started*), the film (`#film`), *Features* (three rows), *Local and read-only*, *Support*, *Documentation*, a closing call to action. Design in `design/docs-ui-spec.md` 0.7 |
+| Prepare for the product film | The film is the hero's media: the same `<video class="ui-film">` and asset paths, so a re-export at the same paths needs no page change |
+| Three new screenshots | `tests/e2e/docs-screenshot.spec.ts` also writes `docs/assets/feature-timeline.png`, `feature-agent.png` (details panel with the agent plan) and `feature-review.png` (the checklist with the agent's plan and one item of yours, added by the test); paths replaced by `C:\src\<name>`. The candidate-list wait is 15 s (it timed out once at 5 s) |
+| Hand-drawn icons | Pilot (`timeline`) approved by the owner; `agents`, `review`, `local` in the same grammar. Source `design/icons/repobs_icons.py`, rendered by the editorial-icons skill to `docs/assets/icons/`, all eight files valid (`--require-matching-canvas`); inlined by `hooks/icons.py`; ink `currentColor`, accent `--ui-accent` (0.16) |
+| Product-style header | `overrides/partials/header.html` (copy of Material 9.7.7's, plus `partials/product-nav.html`); CSS shows the links and hides the tabs only with `.ui-product` on the page |
+
+Verification (2026-11-01): `npm run docs:build` (strict) passes. The built site served locally: in the browser pane, the product links show and the tabs hide on the landing page, the reverse on `/guide/`; four inline icons, ink and accent in the theme colours; the serif loaded; no horizontal overflow. Screenshots with Edge (headless Playwright, the pane was hidden): 1440 × 900 dark and light, and 375 px, the feature rows stacking on the phone. Not checked: the published Pages site (not pushed).
+
 ## Checkpoint 24 — 2026-11-01: product film in the README and on the landing page
 
 | Request | Implementation |
 | --- | --- |
-| Put the product film into the README and the docs site | The film is made in a separate local repository (`D:epobs-video`, Remotion; not part of this repository's build). Copied here: `docs/assets/repobs-film.mp4` (1920×1080, 60 fps, 24.8 s, H.264 CRF 27, AAC 160 kb/s, 6.9 MB, from the CRF 16 master) and `docs/assets/repobs-film-poster.jpg` (the frame at 7.9 s) |
-| Landing page | *What repobs shows* holds a `<video class="ui-film">` with controls, the poster and no autoplay, above the screenshot; its caption says it is animated, with invented names, and that the screenshot is the real application. Recorded in `design/docs-ui-spec.md` section 0.7; one rule in `site.css` |
+| Put the product film into the README and the docs site | The film is made in a separate local repository (`D:
+epobs-video`, Remotion; not part of this repository's build). Copied here: `docs/assets/repobs-film.mp4` (1920×1080, 60 fps, 24.8 s, H.264 CRF 27, AAC 160 kb/s, 6.9 MB, from the CRF 16 master) and `docs/assets/repobs-film-poster.jpg` (the frame at 7.9 s) |
+| Landing page (moved into the hero in checkpoint 25) | *What repobs shows* holds a `<video class="ui-film">` with controls, the poster and no autoplay, above the screenshot; its caption says it is animated, with invented names, and that the screenshot is the real application. Recorded in `design/docs-ui-spec.md` section 0.7; one rule in `site.css` |
 | README | The poster links to the MP4 (GitHub does not play videos embedded from repository paths in a README; it plays the file on its page), after the real screenshot |
 
 Verification (2026-11-01, this machine): `npm run docs:build` passes (strict); in the browser pane (built site served locally): the film fills the column at 16:9 (975×548 px at a 1024 px window, 343 px on a 375 px phone) with no horizontal overflow; it plays (1920×1080, 24.8 s, no media error; checked muted, as autoplay with sound is blocked); dark and light themes take the matching frame token; no console errors. Not checked: the published Pages site and GitHub's README rendering (not pushed).
