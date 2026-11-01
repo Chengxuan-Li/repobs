@@ -70,14 +70,15 @@ export interface GitFixture {
  * checked out in a linked worktree), claude/scratch-a8de (local-only), gone-branch (upstream
  * removed), origin/remote-only (remote-only), a detached worktree, a worktree whose path has spaces
  * and Unicode, a merge conflict, a rebase stopped on a conflict, and a removed worktree directory.
+ * `names` sets the two repositories' folder names (shown as their display names).
  */
-export function buildGitFixture(root: string): GitFixture {
+export function buildGitFixture(root: string, names = { a: 'repo-a', b: 'repo-b' }): GitFixture {
   fs.mkdirSync(root, { recursive: true })
   const origin = path.join(root, 'origin.git')
-  const repoA = path.join(root, 'repo-a')
-  const repoB = path.join(root, 'repo-b')
+  const repoA = path.join(root, names.a)
+  const repoB = path.join(root, names.b)
   const other = path.join(root, 'other-clone')
-  const wtRoot = path.join(root, 'repo-a-worktrees')
+  const wtRoot = path.join(root, `${names.a}-worktrees`)
   const worktrees = {
     feature: path.join(wtRoot, 'feature'),
     detached: path.join(wtRoot, 'detached'),

@@ -43,7 +43,7 @@ A view is a dashboard tab with its own settings: filters, display options, axis 
 
 ```text
 COMMITS IN ORDER →       Oct 25        Oct 26        Oct 27   now
-repo-a
+git-status-kit
 main                     ●─────────────────────────────────◇    branch row: commits in order
  [› C Tighten status parser   Needs input ⌄]              ▮    one card per agent
  [› X Review ref grouping     Needs review ⌄]             ▮

@@ -27,17 +27,20 @@ export interface Demo {
   codexHome: string
 }
 
+/** Folder (and display) names of the demo repositories: a Git tooling project and an unrelated web app. */
+export const DEMO_REPOS = { a: 'git-status-kit', b: 'storefront-web' }
+
 export function buildDemo(root: string, now = Date.now()): Demo {
   const ago = (m: number) => now - m * 60_000
   fs.mkdirSync(root, { recursive: true })
-  const git = buildGitFixture(path.join(root, 'src'))
+  const git = buildGitFixture(path.join(root, 'src'), DEMO_REPOS)
   const claudeHome = path.join(root, 'claude-home')
   const codexHome = path.join(root, 'codex-home')
   const dataDir = path.join(root, 'repobs-data')
   const { repoA, repoB, worktrees } = git
 
   // A branch with a run of uneventful history, so "Collapse quiet commits" has something to fold.
-  const scratch = path.join(root, 'src', 'repo-a-worktrees', 'scratch-history')
+  const scratch = path.join(path.dirname(worktrees.feature), 'scratch-history')
   fixtureGit(repoA, ['worktree', 'add', scratch, 'claude/scratch-a8de'])
   for (let i = 1; i <= 10; i++) {
     fs.writeFileSync(path.join(scratch, 'notes.txt'), `scratch step ${i}\n`)

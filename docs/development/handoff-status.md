@@ -2,6 +2,14 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 22 — 2026-11-01: dashboard-only screenshot, realistic demo names, toolbar fix
+
+| Request | Implementation |
+| --- | --- |
+| The screenshot should show as much dashboard as possible: no legend, no side panels | `docs-screenshot.spec.ts` closes the Repositories and Details panels from the toolbar, leaves the legend closed, sets *Flagged*, *Complete* and *Reviewed* on three agents so the state colours show, uses a 1440 × 800 viewport, and replaces the temporary-folder paths with `C:\src\<name>` instead of masking them |
+| Realistic repository names instead of *repo-a* / *repo-b* | `buildGitFixture(root, names)` takes the folder names (default still `repo-a` / `repo-b` for unit and integration tests); the demo uses `DEMO_REPOS` = `git-status-kit` and `storefront-web`; the e2e tests use the new names |
+| Found while doing it: a toolbar panel button stayed pressed after closing its panel | `isPanelVisible` read `TabNode.isVisible()`, which flexlayout updates only on its next render. `panelShown(model, panel)` reads the model (selected tab of its border or tab set, and the maximized tab set); unit-tested in `dockLayout.test.ts`, and the screenshot test asserts both buttons end unpressed |
+
 ## Checkpoint 21 — 2026-11-01: release preparation, v0.3.0
 
 - Version 0.3.0 in all package manifests, the lockfile's workspace entries and `APP_VERSION` (reported by `/health`).

@@ -6,7 +6,7 @@ It only reads. It never changes your repositories or agent files, needs no API k
 
 ![repobs dashboard with synthetic demo data](docs/assets/repobs-overview.png)
 
-*Synthetic demo data: agents on their branches with their review states and checklist pills; the details panel shows an agent's own plan.*
+*Synthetic demo data: one repository's branches on the timeline, with each agent's status, review state and checklist pill.*
 
 ## Quick start (Windows)
 

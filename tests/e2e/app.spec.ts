@@ -58,8 +58,8 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await dialog.getByLabel('Select all').check()
     await dialog.getByRole('button', { name: 'Add 2 repositories' }).click()
     await expect(dialog).toBeHidden()
-    await expect(board(page, 'repo-a')).toBeVisible()
-    await expect(board(page, 'repo-b')).toBeVisible()
+    await expect(board(page, 'git-status-kit')).toBeVisible()
+    await expect(board(page, 'storefront-web')).toBeVisible()
     await expect(page.getByText('2 repos')).toBeVisible()
   })
 
@@ -91,7 +91,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('branches are drawn as a commit graph with local-only commits and pending changes', async ({ page }) => {
     await pair(page)
-    const a = board(page, 'repo-a')
+    const a = board(page, 'git-status-kit')
     await expect(row(page, /^main branch, \d+ uncommitted changes/)).toBeVisible()
     await expect(row(page, /^feature\/tracked branch/)).toBeVisible()
     const svg = a.locator('svg[data-lanes]')
@@ -118,7 +118,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     // Compressed calendar: no two commits on the axis closer than the minimum spacing.
     await setOption(page, 'Timeline', 'Calendar, compressed')
     await expect(page.getByText('Calendar, compressed →')).toBeVisible()
-    const xs = await board(page, 'repo-a')
+    const xs = await board(page, 'git-status-kit')
       .locator('svg[data-lanes]')
       .locator('circle[class*="commit"]')
       .evaluateAll((els) => els.map((e) => Number(e.getAttribute('cx'))))
@@ -130,7 +130,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('hovering a commit shows its message; the legend explains the marks', async ({ page }) => {
     await pair(page)
-    const svg = board(page, 'repo-a').locator('svg[data-lanes]')
+    const svg = board(page, 'git-status-kit').locator('svg[data-lanes]')
     // The newest end is shown first; the first local commit can sit under the sticky label column.
     await page.getByLabel(/^Branches and agents. Use the arrow keys/).evaluate((el) => (el.scrollLeft = 0))
     const node = svg.locator('circle[class*="local"]').first()
@@ -150,7 +150,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('branch connectors are orthogonal with rounded corners', async ({ page }) => {
     await pair(page)
-    const svg = board(page, 'repo-a').locator('svg[data-lanes]')
+    const svg = board(page, 'git-status-kit').locator('svg[data-lanes]')
     const paths = await svg.locator('path[class*="edgeCross"]').evaluateAll((els) => els.map((e) => e.getAttribute('d') ?? ''))
     expect(paths.length).toBeGreaterThan(0)
     // Only axis-aligned straight segments joined by small quadratic corners; no free-form curves.
@@ -165,7 +165,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('connectors leaving one commit run on separate parallel tracks', async ({ page }) => {
     await pair(page)
-    const svg = board(page, 'repo-a').locator('svg[data-lanes]')
+    const svg = board(page, 'git-status-kit').locator('svg[data-lanes]')
     // Every fork from main's commit gets its own vertical track until the tracks run out.
     const xs = await svg.locator('path[class*="edgeCross"]').evaluateAll((els) =>
       els.map((e) => (e.getAttribute('d') ?? '').match(/Q([\d.-]+),/)?.[1]).filter((x): x is string => !!x),
@@ -175,7 +175,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('quiet commits collapse into a group you can hover, inspect and expand', async ({ page }) => {
     await pair(page)
-    const svg = board(page, 'repo-a').locator('svg[data-lanes]')
+    const svg = board(page, 'git-status-kit').locator('svg[data-lanes]')
     const commitsBefore = await svg.locator('circle[class*="commit"]').count()
     await setOption(page, 'Branches', 'Collapse quiet commits')
     const group = svg.locator('g[class*="group"]').first()
@@ -422,7 +422,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('hovering an agent card on the timeline shows the same agent details as the list', async ({ page }) => {
     await pair(page)
-    const cards = board(page, 'repo-a').getByRole('group', { name: 'Agents on the timeline of repo-a' })
+    const cards = board(page, 'git-status-kit').getByRole('group', { name: 'Agents on the timeline of git-status-kit' })
     await cards.locator('[data-bar-label]', { hasText: 'Tighten status parser' }).getByText('Tighten status parser').hover()
     const hover = page.getByRole('dialog', { name: 'Agent details' })
     await expect(hover).toContainText('Last activity')
@@ -474,7 +474,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await menu.getByRole('menuitemcheckbox', { name: /Details panel/ }).click()
     await expect(details(page)).toBeHidden()
     await page.reload()
-    await expect(board(page, 'repo-a')).toBeVisible()
+    await expect(board(page, 'git-status-kit')).toBeVisible()
     await expect(details(page)).toBeHidden()
 
     // Ctrl+B toggles the repositories panel; the quick button shows its state.
@@ -506,7 +506,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('agent labels on the timeline and names in the list toggle independently', async ({ page }) => {
     await pair(page)
-    const cards = board(page, 'repo-a').getByRole('group', { name: 'Agents on the timeline of repo-a' })
+    const cards = board(page, 'git-status-kit').getByRole('group', { name: 'Agents on the timeline of git-status-kit' })
     const label = cards.locator('[data-bar-label^="claude:c3d2e4f6"]').first()
     await expect(label).toContainText('Claude session c3d2e4f6')
     await expect(label).toContainText('Working')
@@ -533,7 +533,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     // Names only in the list.
     await setOption(page, 'Agents', 'Agent names in list')
     await setOption(page, 'Agents', 'Agent labels on timeline', false)
-    await expect(board(page, 'repo-a').locator('[data-bar-label]')).toHaveCount(0)
+    await expect(board(page, 'git-status-kit').locator('[data-bar-label]')).toHaveCount(0)
     await expect(parent).toContainText('Claude session c3d2e4f6')
     await setOption(page, 'Agents', 'Agent labels on timeline')
   })
@@ -565,7 +565,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('the history zooms horizontally', async ({ page }) => {
     await pair(page)
-    const svg = board(page, 'repo-a').locator('svg[data-lanes]')
+    const svg = board(page, 'git-status-kit').locator('svg[data-lanes]')
     const width = async () => Number(await svg.getAttribute('width'))
     const before = await width()
     await page.getByRole('button', { name: 'Zoom in' }).click()
@@ -577,11 +577,11 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('long agent lists collapse behind "show more"', async ({ page }) => {
     await pair(page)
-    const more = board(page, 'repo-b').getByRole('listitem', { name: /^Show \d+ more agents/ })
+    const more = board(page, 'storefront-web').getByRole('listitem', { name: /^Show \d+ more agents/ })
     await expect(more).toBeVisible()
     await more.click()
     await expect(more).toBeHidden()
-    expect(await board(page, 'repo-b').getByRole('listitem', { name: /Bulk session/ }).count()).toBeGreaterThan(300)
+    expect(await board(page, 'storefront-web').getByRole('listitem', { name: /Bulk session/ }).count()).toBeGreaterThan(300)
   })
 
   test('external Git and agent changes appear without a browser refresh', async ({ page }) => {
@@ -641,12 +641,12 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await runMenu(page, 'View', 'Open new view')
     await expect(view(page, 'View 1')).toBeVisible()
     // The repository panel lists every repository; its ticks are the current view's selection.
-    await page.getByRole('checkbox', { name: 'Show repo-b in View 1' }).uncheck()
-    await expect(view(page, 'View 1').getByRole('region', { name: 'repo-b repository' })).toBeHidden()
+    await page.getByRole('checkbox', { name: 'Show storefront-web in View 1' }).uncheck()
+    await expect(view(page, 'View 1').getByRole('region', { name: 'storefront-web repository' })).toBeHidden()
     await expect(view(page, 'View 1').getByRole('button', { name: 'Repositories: 1 of 2' })).toBeVisible()
     await viewTab(page, 'View 0').click()
-    await expect(view(page, 'View 0').getByRole('region', { name: 'repo-b repository' })).toBeVisible()
-    await expect(page.getByRole('checkbox', { name: 'Show repo-b in View 0' })).toBeChecked()
+    await expect(view(page, 'View 0').getByRole('region', { name: 'storefront-web repository' })).toBeVisible()
+    await expect(page.getByRole('checkbox', { name: 'Show storefront-web in View 0' })).toBeChecked()
 
     // Renaming View 0 frees its number for the next new view.
     await page.keyboard.press('Control+K')
@@ -662,8 +662,8 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     // Names, settings and the arrangement survive a reload.
     await page.reload()
     await viewTab(page, 'View 1').click()
-    await expect(view(page, 'View 1').getByRole('region', { name: 'repo-a repository' })).toBeVisible()
-    await expect(view(page, 'View 1').getByRole('region', { name: 'repo-b repository' })).toBeHidden()
+    await expect(view(page, 'View 1').getByRole('region', { name: 'git-status-kit repository' })).toBeVisible()
+    await expect(view(page, 'View 1').getByRole('region', { name: 'storefront-web repository' })).toBeHidden()
 
     // Views close from their tabs, except the last one.
     for (const name of ['View 1', 'View 0']) await viewTab(page, name).locator('.flexlayout__tab_button_trailing').click()
@@ -736,11 +736,11 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
 
   test('removing a repository only removes it from repobs', async ({ page }) => {
     await pair(page)
-    await page.getByRole('button', { name: 'Remove repo-b from repobs' }).click()
+    await page.getByRole('button', { name: 'Remove storefront-web from repobs' }).click()
     const dialog = page.getByRole('dialog', { name: 'Remove repository from repobs' })
     await expect(dialog).toContainText('no files, branches or worktrees are deleted')
     await dialog.getByRole('button', { name: 'Remove from repobs' }).click()
-    await expect(board(page, 'repo-b')).toBeHidden()
+    await expect(board(page, 'storefront-web')).toBeHidden()
     expect(fs.existsSync(path.join(state().git.repoB, 'b.txt'))).toBe(true)
   })
 })

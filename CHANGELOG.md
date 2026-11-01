@@ -4,6 +4,14 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+### Fixed
+
+- After closing a side panel from the toolbar, its button stayed pressed until something else redrew the page.
+
+### Changed
+
+- The demo repositories have realistic names (`git-status-kit`, `storefront-web`), and the overview screenshot shows the dashboard alone, without side panels or legend.
+
 ## [0.3.0] — 2026-11-01
 
 ### Added

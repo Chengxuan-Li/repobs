@@ -10,7 +10,7 @@ test.skip(!process.env.REPOBS_DOCS_SCREENSHOT, 'documentation screenshot only on
 
 test('dashboard screenshot for the documentation', async ({ page }) => {
   const state = readE2EState(Number(process.env.REPOBS_E2E_PORT ?? 47399))
-  await page.setViewportSize({ width: 1440, height: 860 })
+  await page.setViewportSize({ width: 1440, height: 800 })
   await page.emulateMedia({ colorScheme: 'light' })
   await page.goto(`/#pair=${mintPairingToken(state.dataDir) as string}`)
   await page.getByRole('button', { name: 'Add repositories' }).first().click()
@@ -20,20 +20,39 @@ test('dashboard screenshot for the documentation', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Add 2 repositories' }).click()
   await expect(dialog).toBeHidden()
   // Collapse the bulk-session repository so the screenshot shows the interesting one.
-  await page.getByRole('button', { name: 'Collapse repo-b' }).click()
-  const card = page.getByRole('listitem', { name: /^Review ref grouping/ })
-  await card.getByRole('button', { name: /change review state/ }).click()
-  await page.getByRole('menuitemradio', { name: 'Flagged' }).click()
-  await page.getByRole('button', { name: 'Legend' }).click()
-  await page.getByRole('listitem', { name: /^Tighten status parser/ }).getByText('Tighten status parser', { exact: true }).click()
-  await expect(page.getByRole('complementary', { name: 'Details panel' }).getByLabel('Review state')).toBeVisible()
+  await page.getByRole('button', { name: 'Collapse storefront-web' }).click()
+  // A few review states, so their colours show.
+  for (const [agent, state] of [
+    ['Review ref grouping', 'Flagged'],
+    ['Resolve merge plan', 'Complete'],
+    ['Document worktree states', 'Reviewed'],
+  ]) {
+    await page.getByRole('listitem', { name: new RegExp(`^${agent}`) }).getByRole('button', { name: /change review state/ }).click()
+    await page.getByRole('menuitemradio', { name: state, exact: true }).click()
+  }
+  // The dashboard alone: no side panels, no legend.
+  const toolbar = page.getByRole('toolbar', { name: 'Workbench commands' })
+  for (const panel of ['Repositories panel', 'Details panel']) {
+    const toggle = toolbar.getByRole('button', { name: panel })
+    if ((await toggle.getAttribute('aria-pressed')) === 'true') await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  }
+  await expect(page.getByRole('complementary', { name: 'Repositories panel' })).toBeHidden()
+  await expect(page.getByRole('complementary', { name: 'Details panel' })).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Hide legend' })).toBeHidden()
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
   await page.mouse.move(0, 0)
   await expect(page.getByRole('dialog', { name: 'Agent details' })).toBeHidden()
   await page.getByLabel(/^Branches and agents\. Use the arrow keys/).evaluate((el) => (el.scrollTop = 0))
-  // Temporary-folder paths contain the local user name: mask them in the published image.
-  await page.screenshot({
-    path: path.resolve('docs/assets/repobs-overview.png'),
-    maskColor: '#cfd8e5',
-    mask: [page.locator('header span.mono[title]'), page.getByText(/^(Worktree|Working directory)$/).locator('xpath=following-sibling::dd[1]')],
-  })
+  // Temporary-folder paths contain the local user name: show a neutral path in the published image instead.
+  const paths = page.locator('header span.mono[title]')
+  await expect(paths).toHaveCount(2)
+  await paths.evaluateAll((els) =>
+    els.forEach((el) => {
+      const name = el.closest('[aria-label$=" repository"]')?.getAttribute('aria-label')?.replace(/ repository$/, '') ?? 'project'
+      el.textContent = `C:\\src\\${name}`
+      el.setAttribute('title', el.textContent)
+    }),
+  )
+  await page.screenshot({ path: path.resolve('docs/assets/repobs-overview.png') })
 })
