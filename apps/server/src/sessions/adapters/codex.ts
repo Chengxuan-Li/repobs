@@ -4,7 +4,8 @@ import path from 'node:path'
 import { redactHome } from '../../platform/paths.ts'
 import type { LastMessage } from '@repobs/contracts'
 import { makeExcerpt, toolExcerpt } from '../excerpt.ts'
-import { JsonlCursor } from '../jsonl.ts'
+import { JsonlCursor, scanBackward } from '../jsonl.ts'
+import { codexRecordPlanEvent, PLAN_MARKERS, PlanTracker } from '../plan.ts'
 import { isActivePhase, type Lifecycle, resolveState } from '../status.ts'
 import {
   type AdapterConfig,
@@ -42,9 +43,12 @@ export class CodexAccumulator {
   nickname?: string
   lastMessage?: LastMessage
   readonly excerpts: boolean
+  /** Replays update_plan calls when plans are read (ADR 0009). */
+  readonly plan?: PlanTracker
 
-  constructor(excerpts = true) {
+  constructor(excerpts = true, plans = false) {
     this.excerpts = excerpts
+    if (plans) this.plan = new PlanTracker()
   }
 
   feedHead = (rec: unknown) => {
@@ -77,6 +81,8 @@ export class CodexAccumulator {
       return
     }
     if (this.excerpts && payload) this.captureExcerpt(rec.type, payload, ts)
+    const planEvent = this.plan ? codexRecordPlanEvent(rec) : undefined
+    if (planEvent) this.plan!.feed(planEvent)
     if (rec.type === 'turn_context' && payload) {
       this.cwd = asString(payload.cwd) ?? this.cwd
       return
@@ -155,9 +161,9 @@ export class CodexAdapter implements SessionAdapter {
 
   configure(config: AdapterConfig): void {
     const before = resolveCodexHome(this.config).root
-    const excerptsBefore = this.config.excerpts !== false
+    const readsBefore = `${this.config.excerpts !== false}|${this.config.plans !== false}`
     this.config = config
-    if (resolveCodexHome(config).root !== before || excerptsBefore !== (config.excerpts !== false)) {
+    if (resolveCodexHome(config).root !== before || readsBefore !== `${config.excerpts !== false}|${config.plans !== false}`) {
       this.files.clear()
       this.known.clear()
       this.titles.clear()
@@ -226,7 +232,7 @@ export class CodexAdapter implements SessionAdapter {
       if (!tracked) {
         tracked = {
           cursor: new JsonlCursor(file),
-          acc: new CodexAccumulator(this.config.excerpts !== false),
+          acc: new CodexAccumulator(this.config.excerpts !== false, this.config.plans !== false),
           statKey: '',
           archived: file.startsWith(archivedRoot),
         }
@@ -288,6 +294,11 @@ export class CodexAdapter implements SessionAdapter {
         parentSessionId: parent ? `codex:${parent}` : undefined,
         agentType: parent ? acc.nickname : undefined,
         lastMessage: this.config.excerpts === false ? undefined : acc.lastMessage,
+        // The newest rollout file of the thread that holds a plan.
+        plan: [...files]
+          .sort((a, b) => Date.parse(b.acc.lastTs ?? '') - Date.parse(a.acc.lastTs ?? ''))
+          .map((f) => f.acc.plan?.plan())
+          .find(Boolean),
         firstSeenAt: files.reduce<string | undefined>((m, f) => earlierIso(m, f.acc.firstTs), undefined),
         lastActivityAt: files.reduce<string | undefined>((m, f) => laterIso(m, f.acc.lastTs), undefined),
         providerVersion: acc.version,
@@ -317,11 +328,17 @@ export class CodexAdapter implements SessionAdapter {
     try {
       const stats = await tracked.cursor.read(tracked.acc.feed, tracked.acc.feedHead)
       if (stats?.reset) {
-        tracked.acc = new CodexAccumulator(this.config.excerpts !== false)
+        tracked.acc = new CodexAccumulator(this.config.excerpts !== false, this.config.plans !== false)
         tracked.cursor = new JsonlCursor(tracked.cursor.file)
         tracked.statKey = ''
         await this.refreshFile(tracked)
         return
+      }
+      // The middle of a long rollout was skipped: look back for the latest plan.
+      const plan = tracked.acc.plan
+      if (stats?.jumped && stats.jumpedFrom && plan && !plan.hasList()) {
+        const earlier = await scanBackward(tracked.cursor.file, stats.jumpedFrom, PLAN_MARKERS, (rec) => !!codexRecordPlanEvent(rec))
+        plan.prepend(earlier.flatMap((rec) => codexRecordPlanEvent(rec) ?? []))
       }
       if (stats && stats.badLines > 0) this.problems.add('bad_jsonl_lines', 'Some rollout lines were not valid JSON (partial write or unknown format)')
     } catch {

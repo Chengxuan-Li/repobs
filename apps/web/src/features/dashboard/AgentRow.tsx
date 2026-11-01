@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { type AgentSession, type AnnotationSummary, type ReviewState, workflowStatus } from '@repobs/contracts'
 import type { TreeGuide } from './layout'
+import { type ChecklistEntry, checklistEntries, PLAN_SOURCE_LABELS } from './checklistEntries'
 import { ChecklistPill } from './ChecklistPill'
 import { ReviewMenu } from './ReviewMenu'
 import styles from './board.module.css'
@@ -43,7 +44,7 @@ export function AgentRow({
   showName?: boolean
   onToggle: () => void
   onReview: (review: ReviewState) => void
-  onChecklist: (itemId: string, done: boolean) => Promise<boolean>
+  onChecklist: (entry: ChecklistEntry, done: boolean) => Promise<boolean>
   onHide?: () => void
   /** The checklist list opened: the row's hover card closes. */
   onPopover?: () => void
@@ -51,6 +52,7 @@ export function AgentRow({
   const status = workflowStatus(session, annotation)
   const title = annotation?.displayAlias || session.title
   const depth = guides.length
+  const entries = checklistEntries(session, annotation)
   return (
     <div className={`${styles.agent} ${session.historical ? styles.historical : ''}`} data-status={status}>
       {guides.map((g, i) =>
@@ -83,7 +85,16 @@ export function AgentRow({
           </span>
           {showName ? <span className={styles.agentName}>{title}</span> : <span className={styles.agentName} />}
           <ReviewMenu status={status} review={annotation?.review ?? 'unreviewed'} title={title} focusable={focusable} onReview={onReview} onHide={onHide} />
-          {annotation?.checklist.length ? <ChecklistPill items={annotation.checklist} title={title} focusable={focusable} onToggle={onChecklist} onOpen={onPopover} /> : null}
+          {entries.length ? (
+            <ChecklistPill
+              entries={entries}
+              planSource={session.plan ? PLAN_SOURCE_LABELS[session.plan.source] : undefined}
+              title={title}
+              focusable={focusable}
+              onToggle={onChecklist}
+              onOpen={onPopover}
+            />
+          ) : null}
         </div>
       </div>
     </div>

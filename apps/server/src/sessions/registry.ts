@@ -133,6 +133,7 @@ export function buildSessions(input: BuildSessionsInput): BuildSessionsOutput {
       parentSessionId: d.parentSessionId,
       agentType: d.agentType,
       lastMessage: d.lastMessage,
+      plan: d.plan,
     }
     sessions.push(session)
     if (assoc.repoId) {

@@ -49,6 +49,16 @@ export function buildDemo(root: string, now = Date.now()): Demo {
   writeClaudeSession(claudeHome, repoA, 'a1f0c2d4-1111-4aaa-8bbb-000000000001', [
     claude.title('a1f0c2d4-1111-4aaa-8bbb-000000000001', 'Tighten status parser'),
     claude.prompt('a1f0c2d4-1111-4aaa-8bbb-000000000001', repoA, ago(4)),
+    // The agent's own plan (ADR 0009): a task list, then one step advanced.
+    claude.planCall('a1f0c2d4-1111-4aaa-8bbb-000000000001', repoA, ago(3.8), 'mcp__ccd_turn__update_plan', {
+      items: [
+        { content: 'Read the status parser', status: 'in_progress' },
+        { content: 'Handle detached HEAD', status: 'pending' },
+        { content: 'Add parser tests', status: 'pending' },
+      ],
+      scope: 'first_task',
+    }),
+    claude.planCall('a1f0c2d4-1111-4aaa-8bbb-000000000001', repoA, ago(3), 'mcp__ccd_turn__update_plan', { advance: true }),
     claude.toolUse('a1f0c2d4-1111-4aaa-8bbb-000000000001', repoA, ago(2)),
   ])
   writeClaudeSession(claudeHome, repoA, 'b2e1d3c5-2222-4aaa-8bbb-000000000002', [
@@ -95,6 +105,16 @@ export function buildDemo(root: string, now = Date.now()): Demo {
     writeCodexRollout(codexHome, codexRolloutPath(codexHome, id, ago(at)), [
       codex.meta(id, cwd, ago(at)),
       codex.turnContext(cwd, ago(at)),
+      // One thread keeps a plan with Codex's update_plan tool.
+      ...(id.endsWith('c0d1')
+        ? [
+            codex.updatePlan(ago(at) + 200, [
+              { step: 'List the ref groups', status: 'completed' },
+              { step: 'Compare with git branch -a', status: 'completed' },
+              { step: 'Note remote-only refs', status: 'in_progress' },
+            ]),
+          ]
+        : []),
       ...events.map((e, i) => codex.event(e, ago(at) + i * 1000)),
     ])
   }

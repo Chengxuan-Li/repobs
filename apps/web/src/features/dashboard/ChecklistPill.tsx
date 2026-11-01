@@ -1,10 +1,11 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { AnnotationSummary } from '@repobs/contracts'
 import { boxOf, placeFloating } from '../../components/placement'
+import type { ChecklistEntry } from './checklistEntries'
 import styles from './checklistPill.module.css'
 
-// Your checklist of an agent, as a pill beside its review state: a pie filled clockwise by the
+// The checklist of an agent — the agent's own plan first, then your items (ADR 0009) — as a pill
+// beside its review state: a pie filled clockwise by the
 // share of items done, then done / total, in the theme's info colour (success once all are done,
 // neutral before any is). Hovering or clicking opens one popover with the items, where you tick or
 // untick them. Opened by hover it stays while the pointer is on the pill or the popover; opened by
@@ -14,43 +15,27 @@ import styles from './checklistPill.module.css'
 /** How long the popover waits before closing after the pointer leaves it (to cross the gap). */
 const LEAVE_MS = 200
 
-type Item = AnnotationSummary['checklist'][number]
-
 export function ChecklistPill({
-  items,
+  entries: items,
+  planSource,
   title,
   focusable = true,
   onToggle,
   onOpen,
 }: {
-  items: Item[]
+  entries: ChecklistEntry[]
+  /** Where the agent's plan came from (shown above its items). */
+  planSource?: string
   title: string
   focusable?: boolean
   /** Resolves to whether the change was saved. */
-  onToggle: (itemId: string, done: boolean) => Promise<boolean>
+  onToggle: (entry: ChecklistEntry, done: boolean) => Promise<boolean>
   /** The list opened (hover cards of the row give way to it). */
   onOpen?: () => void
 }) {
   const [mode, setMode] = useState<'closed' | 'hover' | 'open'>('closed')
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  // Ticks show at once; they give way to the saved list when it arrives, and are undone if saving fails.
-  const [ticks, setTicks] = useState<Record<string, boolean>>({})
-  const [saved, setSaved] = useState(items)
-  if (saved !== items) {
-    setSaved(items)
-    setTicks({})
-  }
-  const shown = items.map((i) => (ticks[i.id] === undefined ? i : { ...i, done: ticks[i.id]! }))
-  const toggle = (itemId: string, done: boolean) => {
-    setTicks((t) => ({ ...t, [itemId]: done }))
-    void onToggle(itemId, done).then((ok) => {
-      if (!ok)
-        setTicks((t) => {
-          const { [itemId]: _, ...rest } = t
-          return rest
-        })
-    })
-  }
+  const [shown, toggle] = useOptimisticTicks(items, onToggle)
   const [pos, setPos] = useState<{ left: number; top: number }>()
   const trigger = useRef<HTMLButtonElement>(null)
   const pop = useRef<HTMLDivElement>(null)
@@ -153,22 +138,55 @@ export function ChecklistPill({
                   {done} of {items.length} done
                 </span>
               </div>
-              <ul className={styles.items}>
-                {shown.map((item) => (
-                  <li key={item.id}>
-                    <label className={styles.item}>
-                      <input type="checkbox" checked={item.done} onChange={(e) => toggle(item.id, e.target.checked)} />
-                      <span className={item.done ? styles.done : undefined}>{item.text}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
+              {sections(shown, planSource).map((sec) => (
+                <section key={sec.key} className={styles.section} aria-label={sec.label}>
+                  {sec.heading ? <div className={`label ${styles.sectionHead}`}>{sec.heading}</div> : null}
+                  <ul className={styles.items}>
+                    {sec.items.map((item) => (
+                      <li key={item.id}>
+                        <label className={styles.item}>
+                          <input type="checkbox" checked={item.done} onChange={(e) => toggle(item, e.target.checked)} />
+                          <span className={item.done ? styles.done : undefined}>{item.text}</span>
+                          {entryNote(item) ? <span className={styles.note}>{entryNote(item)}</span> : null}
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
             </div>,
             document.body,
           )
         : null}
     </span>
   )
+}
+
+/**
+ * Ticks show at once; they give way to the saved list when it arrives, and are undone if saving
+ * fails. Returns the entries as shown and the toggle to call.
+ */
+export function useOptimisticTicks(items: ChecklistEntry[], onToggle: (entry: ChecklistEntry, done: boolean) => Promise<boolean>) {
+  const [ticks, setTicks] = useState<Record<string, boolean>>({})
+  const signature = items.map((i) => `${i.id}:${i.done}`).join('|')
+  const [saved, setSaved] = useState(signature)
+  if (saved !== signature) {
+    setSaved(signature)
+    setTicks({})
+  }
+  const shown = items.map((i) => (ticks[i.id] === undefined ? i : { ...i, done: ticks[i.id]! }))
+  const toggle = (entry: ChecklistEntry, done: boolean) => {
+    const itemId = entry.id
+    setTicks((t) => ({ ...t, [itemId]: done }))
+    void onToggle(entry, done).then((ok) => {
+      if (!ok)
+        setTicks((t) => {
+          const { [itemId]: _, ...rest } = t
+          return rest
+        })
+    })
+  }
+  return [shown, toggle] as const
 }
 
 /** A pie filled clockwise from 12 o'clock by `fraction` (0–1), inside a thin ring. */
@@ -189,4 +207,22 @@ export function Pie({ fraction, size = 10 }: { fraction: number; size?: number }
       ) : null}
     </svg>
   )
+}
+
+/** The agent's items, then yours; headed only when both kinds exist or the plan has a source. */
+function sections(items: ChecklistEntry[], planSource?: string) {
+  const agent = items.filter((i) => i.section === 'agent')
+  const human = items.filter((i) => i.section === 'human')
+  const out: Array<{ key: string; label: string; heading?: string; items: ChecklistEntry[] }> = []
+  if (agent.length) out.push({ key: 'agent', label: 'Agent plan', heading: `Agent plan${planSource ? ` · ${planSource}` : ''}`, items: agent })
+  if (human.length) out.push({ key: 'human', label: 'Your items', heading: agent.length ? 'Yours' : undefined, items: human })
+  return out
+}
+
+/** "in progress", or that your tick differs from the agent's status. */
+export function entryNote(e: ChecklistEntry): string | undefined {
+  if (e.section !== 'agent') return undefined
+  if (e.overridden) return e.done ? 'ticked by you' : 'unticked by you'
+  if (e.agentStatus === 'in_progress') return 'in progress'
+  return undefined
 }

@@ -312,3 +312,31 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* The agent's plan in the details panel. */
+.planList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--font-size-small);
+}
+.planList label {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+.planList input {
+  margin: 2px 0 0;
+}
+.planList .muted {
+  flex: none;
+  margin-left: auto;
+}
+.planDone {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}

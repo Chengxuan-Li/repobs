@@ -15,6 +15,7 @@ import { Badge, formatAge } from '../../components/primitives'
 import { AgentRow } from './AgentRow'
 import { AgentHover, BranchHover, CommitHover, GroupHover, PendingHover, type ShowHover } from './HoverCard'
 import type { BoardRow, BranchRow, RepoLayout, SessionRow } from './layout'
+import { type ChecklistEntry, checklistEntries, PLAN_SOURCE_LABELS } from './checklistEntries'
 import { ChecklistPill } from './ChecklistPill'
 import { ReviewMenu } from './ReviewMenu'
 import { type RouteInput, routeEdges } from './routing'
@@ -63,7 +64,7 @@ export interface RepoBoardProps {
   onSelect: (id: string) => void
   onReview: (sessionId: string, review: ReviewState) => void
   /** Resolves to whether the change was saved. */
-  onChecklist: (sessionId: string, itemId: string, done: boolean) => Promise<boolean>
+  onChecklist: (sessionId: string, entry: ChecklistEntry, done: boolean) => Promise<boolean>
   /** Hides an agent from this view. */
   onHide: (sessionId: string) => void
   onExpandBranch: (branchRowId: string) => void
@@ -479,10 +480,11 @@ function BarCard(props: { row: SessionRow; top: number; span: { x1: number; x2: 
   const status = workflowStatus(s, row.annotation)
   const title = row.annotation?.displayAlias || s.title
   const name = clip(title, 40)
+  const entries = checklistEntries(s, row.annotation)
   const ageText = s.lastActivityAt ? formatAge(s.lastActivityAt, now) : ''
   const age = ageText ? (ageText === 'now' ? 'now' : `${ageText} ago`) : ''
   // Estimated width (the card is laid out by the browser; this only decides the side).
-  const w = 54 + name.length * 7 + age.length * 6 + WORKFLOW_LABELS[status].length * 6.5 + (row.annotation?.checklist.length ? 52 : 0)
+  const w = 54 + name.length * 7 + age.length * 6 + WORKFLOW_LABELS[status].length * 6.5 + (entries.length ? 52 : 0)
   const after = span.x2 + 8 + w <= width - 4
   const before = !after && span.x1 - 8 - w >= 4
   const place = after ? { left: span.x2 + 8 } : before ? { right: width - (span.x1 - 8) } : { right: 4 }
@@ -504,8 +506,15 @@ function BarCard(props: { row: SessionRow; top: number; span: { x1: number; x2: 
       </span>
       {age ? <span className={styles.barCardAge}>{age}</span> : null}
       <ReviewMenu status={status} review={row.annotation?.review ?? 'unreviewed'} title={title} focusable={false} onReview={(r) => onReview(s.id, r)} onHide={() => onHide(s.id)} />
-      {row.annotation?.checklist.length ? (
-        <ChecklistPill items={row.annotation.checklist} title={title} focusable={false} onToggle={(item, done) => onChecklist(s.id, item, done)} onOpen={hideHover} />
+      {entries.length ? (
+        <ChecklistPill
+          entries={entries}
+          planSource={s.plan ? PLAN_SOURCE_LABELS[s.plan.source] : undefined}
+          title={title}
+          focusable={false}
+          onToggle={(entry, done) => onChecklist(s.id, entry, done)}
+          onOpen={hideHover}
+        />
       ) : null}
     </div>
   )

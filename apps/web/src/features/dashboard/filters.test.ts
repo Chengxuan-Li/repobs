@@ -14,6 +14,7 @@ const ann = (sessionId: string, over: Partial<AnnotationSummary> = {}): Annotati
   checklistOpen: 0,
   checklistDone: 0,
   checklist: [],
+  planOverrides: {},
   updatedAt: 'x',
   ...over,
 })

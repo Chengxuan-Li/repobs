@@ -4,7 +4,8 @@ import path from 'node:path'
 import { redactHome } from '../../platform/paths.ts'
 import type { LastMessage } from '@repobs/contracts'
 import { makeExcerpt, toolExcerpt } from '../excerpt.ts'
-import { JsonlCursor, readSmallJson } from '../jsonl.ts'
+import { JsonlCursor, readSmallJson, scanBackward } from '../jsonl.ts'
+import { claudeRecordPlanEvents, PLAN_MARKERS, PlanTracker } from '../plan.ts'
 import { isActivePhase, type Lifecycle, type RegistryEvidence, resolveState } from '../status.ts'
 import {
   type AdapterConfig,
@@ -43,9 +44,12 @@ export class ClaudeAccumulator {
   unrecognized = 0
   lastMessage?: LastMessage
   readonly excerpts: boolean
+  /** Replays plan tool calls when plans are read (ADR 0009). */
+  readonly plan?: PlanTracker
 
-  constructor(excerpts = true) {
+  constructor(excerpts = true, plans = false) {
     this.excerpts = excerpts
+    if (plans) this.plan = new PlanTracker()
   }
 
   feedHead = (rec: unknown) => {
@@ -94,6 +98,7 @@ export class ClaudeAccumulator {
     const phase = claudePhase(rec)
     if (phase) this.lifecycle = { phase, at: ts ?? this.lifecycle.at }
     if (this.excerpts && rec.type === 'assistant') this.lastMessage = assistantExcerpt(rec, ts) ?? this.lastMessage
+    if (this.plan) for (const ev of claudeRecordPlanEvents(rec)) this.plan.feed(ev)
   }
 }
 
@@ -196,9 +201,9 @@ export class ClaudeAdapter implements SessionAdapter {
 
   configure(config: AdapterConfig): void {
     const before = resolveClaudeHome(this.config).root
-    const excerptsBefore = this.config.excerpts !== false
+    const readsBefore = `${this.config.excerpts !== false}|${this.config.plans !== false}`
     this.config = config
-    if (resolveClaudeHome(config).root !== before || excerptsBefore !== (config.excerpts !== false)) {
+    if (resolveClaudeHome(config).root !== before || readsBefore !== `${config.excerpts !== false}|${config.plans !== false}`) {
       this.files.clear()
       this.subagentFiles.clear()
     }
@@ -270,7 +275,7 @@ export class ClaudeAdapter implements SessionAdapter {
     for (const file of seen) {
       let tracked = this.files.get(file)
       if (!tracked) {
-        tracked = { cursor: new JsonlCursor(file), acc: new ClaudeAccumulator(this.config.excerpts !== false), statKey: '' }
+        tracked = { cursor: new JsonlCursor(file), acc: new ClaudeAccumulator(this.config.excerpts !== false, this.config.plans !== false), statKey: '' }
         this.files.set(file, tracked)
       }
       await this.refreshFile(tracked)
@@ -312,6 +317,7 @@ export class ClaudeAdapter implements SessionAdapter {
         providerVersion: acc.version,
         recordedBranch: acc.gitBranch,
         lastMessage: this.config.excerpts === false ? undefined : acc.lastMessage,
+        plan: acc.plan?.plan(),
         lifecycle: acc.lifecycle,
         state,
         live: reg?.alive === true,
@@ -344,11 +350,19 @@ export class ClaudeAdapter implements SessionAdapter {
       const stats = await tracked.cursor.read(tracked.acc.feed, tracked.acc.feedHead)
       if (stats?.reset) {
         // File replaced or truncated: rebuild the accumulator from scratch on the next read.
-        tracked.acc = new ClaudeAccumulator(this.config.excerpts !== false)
+        tracked.acc = new ClaudeAccumulator(this.config.excerpts !== false, this.config.plans !== false)
         tracked.cursor = new JsonlCursor(tracked.cursor.file)
         tracked.statKey = ''
         await this.refreshFile(tracked)
         return
+      }
+      // The middle of a long transcript was skipped: look back for the latest full plan list.
+      const plan = tracked.acc.plan
+      if (stats?.jumped && stats.jumpedFrom && plan && !plan.hasList()) {
+        const earlier = await scanBackward(tracked.cursor.file, stats.jumpedFrom, PLAN_MARKERS, (rec) =>
+          claudeRecordPlanEvents(rec).some((e) => e.op.kind === 'replace'),
+        )
+        plan.prepend(earlier.flatMap((rec) => (isRecord(rec) && rec.isSidechain !== true ? claudeRecordPlanEvents(rec) : [])))
       }
       if (stats && stats.badLines > 0) this.problems.add('bad_jsonl_lines', 'Some transcript lines were not valid JSON (partial write or unknown format)')
       if (stats && stats.skippedLongLines > 0) this.problems.add('long_lines_skipped', 'Very long transcript lines were skipped')
@@ -382,7 +396,7 @@ export class ClaudeAdapter implements SessionAdapter {
       if (!sub) {
         sub = {
           cursor: new JsonlCursor(file, { headBytes: 16 * 1024, tailBytes: 64 * 1024 }),
-          acc: new ClaudeAccumulator(this.config.excerpts !== false),
+          acc: new ClaudeAccumulator(this.config.excerpts !== false, this.config.plans !== false),
           statKey: '',
           mtimeMs: 0,
         }
@@ -435,6 +449,7 @@ export class ClaudeAdapter implements SessionAdapter {
         parentSessionId: `claude:${parent.sid}`,
         agentType: sub.meta?.agentType,
         lastMessage: this.config.excerpts === false ? undefined : acc.lastMessage,
+        plan: acc.plan?.plan(),
         lifecycle: acc.lifecycle,
         state,
         live: false,

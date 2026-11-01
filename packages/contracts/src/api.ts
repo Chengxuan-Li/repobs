@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ErrorInfo, LIMITS, ReviewState, SessionAnnotation, ChecklistItem, IsoDate } from './domain.ts'
+import { ErrorInfo, LIMITS, ReviewState, SessionAnnotation, ChecklistItem, IsoDate, PlanOverrides } from './domain.ts'
 
 export const API_PREFIX = '/api/v1'
 export const CSRF_HEADER = 'x-repobs-csrf'
@@ -78,6 +78,8 @@ export const AnnotationInput = z.object({
       }),
     )
     .max(LIMITS.checklistItems),
+  /** Omitted: the stored overrides are kept (most edits do not touch them). */
+  planOverrides: PlanOverrides.optional(),
 })
 export type AnnotationInput = z.infer<typeof AnnotationInput>
 

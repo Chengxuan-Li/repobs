@@ -6,6 +6,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Added
 
+- **Agent plans in checklists** (experimental, ADR 0009). The steps agents keep with their planning tools (Claude desktop app task list, Claude Code `TodoWrite`, Codex `update_plan`) are replayed from the session files into the first section of each checklist, ahead of your own items. You can tick or untick the agent's steps in repobs. Plan text stays in memory. Settings → Privacy turns reading off.
 - **Automation panel** (View → Panels, Ctrl+Alt+U): rules that set the review state, tags, alias, note or checklist of agents matching conditions on last activity, keywords (title, alias, note, tags, repository, branch, agent type, latest message), review state, tags, harness, activity, checklist and spawning. Each rule applies once per agent and version, shows its matches before saving, and is named in the agent's details (ADR 0008).
 - **Outdated** review state.
 - **Hidden** filter per view: hide agents by review state, or one at a time with *Hide from this view* in the status menu; list and show them again.

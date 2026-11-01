@@ -20,6 +20,8 @@ export interface ReadStats {
   skippedLongLines: number
   reset: boolean
   jumped: boolean
+  /** After a jump: byte offset of the first line that was read; everything before it was skipped (except the head). */
+  jumpedFrom?: number
 }
 
 export class JsonlCursor {
@@ -89,6 +91,10 @@ export class JsonlCursor {
         const data = this.remainder.length ? Buffer.concat([this.remainder, chunk]) : chunk
         const lines = splitLines(data, true)
         const complete = stats.jumped ? lines.complete.slice(1) : lines.complete
+        if (stats.jumped) {
+          const firstLf = data.indexOf(0x0a)
+          stats.jumpedFrom = firstLf >= 0 ? start + firstLf + 1 : st.size
+        }
         for (const line of complete) this.parseLine(line, onRecord, stats)
         this.remainder = lines.partial.length <= this.limits.maxLineBytes ? lines.partial : Buffer.alloc(0)
         this.offset = st.size
@@ -149,6 +155,58 @@ export function splitLines(data: Buffer, mayBePartial: boolean): { complete: Buf
   const rest = data.subarray(start)
   if (!mayBePartial && rest.length) return { complete: [...complete, rest], partial: Buffer.alloc(0) }
   return { complete, partial: Buffer.from(rest) }
+}
+
+/**
+ * Scan a file backwards from `end`, chunk by chunk, for lines that contain one of `markers`
+ * (a cheap prefilter), parse them, and stop at the first (latest) record for which `isBase` holds,
+ * at the start of the file, or after `maxBytes`. Returns the matching records in file order.
+ */
+export async function scanBackward(
+  file: string,
+  end: number,
+  markers: string[],
+  isBase: (rec: unknown) => boolean,
+  maxBytes = 64 * 1024 * 1024,
+  chunkBytes = 1024 * 1024,
+): Promise<unknown[]> {
+  const found: unknown[] = []
+  let handle: fs.FileHandle
+  try {
+    handle = await fs.open(file, 'r')
+  } catch {
+    return found
+  }
+  try {
+    let pos = end
+    let carry: Buffer = Buffer.alloc(0)
+    while (pos > 0 && end - pos < maxBytes) {
+      const start = Math.max(0, pos - chunkBytes)
+      const chunk = await readRange(handle, start, pos - start)
+      const data = carry.length ? Buffer.concat([chunk, carry]) : chunk
+      // The first line of the chunk may continue in the previous chunk: keep it for the next round.
+      const firstLf = start > 0 ? data.indexOf(0x0a) : -1
+      carry = firstLf >= 0 ? Buffer.from(data.subarray(0, firstLf)) : start > 0 ? Buffer.from(data) : Buffer.alloc(0)
+      const body = firstLf >= 0 ? data.subarray(firstLf + 1) : start > 0 ? Buffer.alloc(0) : data
+      const lines = splitLines(body, false).complete
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const text = lines[i]!.toString('utf8')
+        if (!markers.some((m) => text.includes(m))) continue
+        let rec: unknown
+        try {
+          rec = JSON.parse(text)
+        } catch {
+          continue
+        }
+        found.unshift(rec)
+        if (isBase(rec)) return found
+      }
+      pos = start
+    }
+  } finally {
+    await handle.close()
+  }
+  return found
 }
 
 /** Read a small JSON file with a size cap. */

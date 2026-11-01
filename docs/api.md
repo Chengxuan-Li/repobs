@@ -235,6 +235,56 @@ JSON Schema generated from the shared zod contracts.
         "text"
       ],
       "additionalProperties": false
+    },
+    "plan": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "claude_task_list",
+            "claude_todo",
+            "codex_update_plan"
+          ]
+        },
+        "updatedAt": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "in_progress",
+                  "completed"
+                ]
+              }
+            },
+            "required": [
+              "key",
+              "text",
+              "status"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "source",
+        "items"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
@@ -352,6 +402,17 @@ JSON Schema generated from the shared zod contracts.
               "additionalProperties": false
             }
           },
+          "planOverrides": {
+            "default": {},
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{16}$"
+            },
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          },
           "createdAt": {
             "type": "string",
             "maxLength": 64
@@ -367,6 +428,7 @@ JSON Schema generated from the shared zod contracts.
           "tags",
           "note",
           "checklist",
+          "planOverrides",
           "createdAt",
           "updatedAt"
         ],
@@ -459,6 +521,16 @@ JSON Schema generated from the shared zod contracts.
           "order"
         ],
         "additionalProperties": false
+      }
+    },
+    "planOverrides": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{16}$"
+      },
+      "additionalProperties": {
+        "type": "boolean"
       }
     }
   },
@@ -2603,6 +2675,17 @@ JSON Schema generated from the shared zod contracts.
         "additionalProperties": false
       }
     },
+    "planOverrides": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{16}$"
+      },
+      "additionalProperties": {
+        "type": "boolean"
+      }
+    },
     "createdAt": {
       "type": "string",
       "maxLength": 64
@@ -2618,6 +2701,7 @@ JSON Schema generated from the shared zod contracts.
     "tags",
     "note",
     "checklist",
+    "planOverrides",
     "createdAt",
     "updatedAt"
   ],
@@ -2753,10 +2837,14 @@ JSON Schema generated from the shared zod contracts.
       "properties": {
         "showMessageExcerpts": {
           "type": "boolean"
+        },
+        "readAgentPlans": {
+          "type": "boolean"
         }
       },
       "required": [
-        "showMessageExcerpts"
+        "showMessageExcerpts",
+        "readAgentPlans"
       ],
       "additionalProperties": false
     },
@@ -2896,6 +2984,9 @@ JSON Schema generated from the shared zod contracts.
       "type": "object",
       "properties": {
         "showMessageExcerpts": {
+          "type": "boolean"
+        },
+        "readAgentPlans": {
           "type": "boolean"
         }
       },
@@ -3447,6 +3538,56 @@ JSON Schema generated from the shared zod contracts.
               "text"
             ],
             "additionalProperties": false
+          },
+          "plan": {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "enum": [
+                  "claude_task_list",
+                  "claude_todo",
+                  "codex_update_plan"
+                ]
+              },
+              "updatedAt": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "text",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "source",
+              "items"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -3531,6 +3672,15 @@ JSON Schema generated from the shared zod contracts.
               "additionalProperties": false
             }
           },
+          "planOverrides": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          },
           "updatedAt": {
             "type": "string",
             "maxLength": 64
@@ -3545,6 +3695,7 @@ JSON Schema generated from the shared zod contracts.
           "checklistOpen",
           "checklistDone",
           "checklist",
+          "planOverrides",
           "updatedAt"
         ],
         "additionalProperties": false
@@ -4334,6 +4485,56 @@ JSON Schema generated from the shared zod contracts.
                   "text"
                 ],
                 "additionalProperties": false
+              },
+              "plan": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "claude_task_list",
+                      "claude_todo",
+                      "codex_update_plan"
+                    ]
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "in_progress",
+                            "completed"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "text",
+                        "status"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "source",
+                  "items"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [
@@ -4418,6 +4619,15 @@ JSON Schema generated from the shared zod contracts.
                   "additionalProperties": false
                 }
               },
+              "planOverrides": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "boolean"
+                }
+              },
               "updatedAt": {
                 "type": "string",
                 "maxLength": 64
@@ -4432,6 +4642,7 @@ JSON Schema generated from the shared zod contracts.
               "checklistOpen",
               "checklistDone",
               "checklist",
+              "planOverrides",
               "updatedAt"
             ],
             "additionalProperties": false

@@ -110,7 +110,7 @@ export function sampleSnapshot(): Snapshot {
       session('claude:gone', { repoId: r.id, association: 'unassigned', unassignedReason: 'worktree_removed', title: 'Removed worktree work' }),
     ],
     annotations: [
-      { sessionId: 'claude:s3', review: 'flagged', tags: ['perf'], hasNote: true, note: 'Check the allocation spike', checklistOpen: 1, checklistDone: 1, checklist: [{ id: 'i1', text: 'Profile the allocator', done: true }, { id: 'i2', text: 'Compare with main', done: false }], updatedAt: 'x', displayAlias: 'Perf spike' },
+      { sessionId: 'claude:s3', review: 'flagged', tags: ['perf'], hasNote: true, note: 'Check the allocation spike', checklistOpen: 1, checklistDone: 1, checklist: [{ id: 'i1', text: 'Profile the allocator', done: true }, { id: 'i2', text: 'Compare with main', done: false }], planOverrides: {}, updatedAt: 'x', displayAlias: 'Perf spike' },
     ],
   })
 }

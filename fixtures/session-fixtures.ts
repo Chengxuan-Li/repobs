@@ -60,6 +60,12 @@ export const claude = {
   title: (sid: string, title: string) => ({ type: 'custom-title', customTitle: title, sessionId: sid }),
   relocated: (sid: string, cwd: string) => ({ type: 'relocated', sessionId: sid, relocatedCwd: cwd }),
   futureRecord: (sid: string) => ({ type: 'some-future-record', sessionId: sid, payload: { x: 1 } }),
+  /** A plan tool call (ADR 0009): the Claude app's task list, `TodoWrite`, or the app's wrap-up. */
+  planCall: (sid: string, cwd: string, at: number, name: 'mcp__ccd_turn__update_plan' | 'mcp__ccd_turn__wrap_up' | 'TodoWrite', input: Record<string, unknown>) => ({
+    ...claudeCommon(sid, cwd, at),
+    type: 'assistant',
+    message: { role: 'assistant', stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `plan-${at}`, name, input }] },
+  }),
 }
 
 export function writeClaudeSession(home: string, cwd: string, sessionId: string, records: unknown[]) {
@@ -145,6 +151,12 @@ export const codex = {
   turnContext: (cwd: string, at: number) => ({ timestamp: iso(at), type: 'turn_context', payload: { cwd, model: 'synthetic' } }),
   event: (type: string, at: number) => ({ timestamp: iso(at), type: 'event_msg', payload: { type } }),
   item: (at: number) => ({ timestamp: iso(at), type: 'response_item', payload: { type: 'function_call', name: 'shell', arguments: '{}' } }),
+  /** An update_plan call (ADR 0009); Codex passes the arguments as a JSON string. */
+  updatePlan: (at: number, plan: Array<{ step: string; status: string }>) => ({
+    timestamp: iso(at),
+    type: 'response_item',
+    payload: { type: 'function_call', name: 'update_plan', arguments: JSON.stringify({ explanation: 'synthetic', plan }) },
+  }),
 }
 
 export function writeCodexRollout(home: string, file: string, records: unknown[]) {

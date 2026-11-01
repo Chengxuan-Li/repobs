@@ -134,12 +134,20 @@ export function SettingsPanel({ onClose, onSaved }: { onClose: () => void; onSav
       <fieldset className={styles.group}>
         <legend className="label">Privacy</legend>
         <label className={styles.check}>
-          <input type="checkbox" checked={settings.privacy.showMessageExcerpts} onChange={(e) => set({ privacy: { showMessageExcerpts: e.target.checked } })} />
+          <input type="checkbox" checked={settings.privacy.showMessageExcerpts} onChange={(e) => set({ privacy: { ...settings.privacy, showMessageExcerpts: e.target.checked } })} />
           Show latest message excerpts on agent cards
         </label>
         <p className="small muted">
           Excerpts are read from the provider session files, truncated to a few lines with obvious secrets (keys, tokens, passwords) redacted, and kept in memory
           only — never stored, logged or exported. Turn this off to show only structural activity labels.
+        </p>
+        <label className={styles.check}>
+          <input type="checkbox" checked={settings.privacy.readAgentPlans} onChange={(e) => set({ privacy: { ...settings.privacy, readAgentPlans: e.target.checked } })} />
+          Read agents’ plans into their checklists
+        </label>
+        <p className="small muted">
+          The step lists agents keep with their planning tools (Claude’s task list or to-do list, Codex’s plan) are read from the session files and kept in
+          memory only. Your ticks on them are stored by item key, without their text.
         </p>
       </fieldset>
 

@@ -404,6 +404,7 @@ export class Monitor extends EventEmitter {
         home: cfg.home,
         staleAfterMs: this.settings.status.staleAfterMinutes * 60_000,
         excerpts: this.settings.privacy.showMessageExcerpts,
+        plans: this.settings.privacy.readAgentPlans,
       })
     }
   }

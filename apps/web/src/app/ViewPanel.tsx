@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Plus } from 'lucide-react'
 import type { AnnotationSummary, ReviewState, Snapshot } from '@repobs/contracts'
 import { EmptyState } from '../components/primitives'
+import type { ChecklistEntry } from '../features/dashboard/checklistEntries'
 import { Dashboard } from '../features/dashboard/Dashboard'
 import { sessionMatches } from '../features/dashboard/filters'
 import { type LayoutOptions, layoutRepository, type RepoLayout } from '../features/dashboard/layout'
@@ -85,7 +86,7 @@ export function ViewPanel({
   onSelect: (id: string) => void
   onReview: (sessionId: string, review: ReviewState) => void
   /** Resolves to whether the change was saved. */
-  onChecklist: (sessionId: string, itemId: string, done: boolean) => Promise<boolean>
+  onChecklist: (sessionId: string, entry: ChecklistEntry, done: boolean) => Promise<boolean>
   onAdd: () => void
 }) {
   const { filtered, repos, layouts } = useViewData(snapshot, view, annotations, summaries, now)

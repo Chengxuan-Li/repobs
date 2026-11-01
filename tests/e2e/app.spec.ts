@@ -391,6 +391,35 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(list).toBeHidden()
   })
 
+  test("the agent's own plan comes first in its checklist; your ticks override it in repobs only", async ({ page }) => {
+    await pair(page)
+    const card = row(page, /^Tighten status parser/)
+    const pill = card.getByRole('button', { name: /^Checklist of Tighten status parser/ })
+    // Task list of three steps, one advanced: step 1 done, step 2 in progress.
+    await expect(pill).toHaveText('1/3')
+    await pill.click()
+    const list = page.getByRole('dialog', { name: 'Checklist of Tighten status parser' })
+    const agent = list.getByRole('region', { name: 'Agent plan' })
+    await expect(agent).toContainText('Agent plan · Claude task list')
+    await expect(agent).toContainText('in progress')
+    await agent.getByRole('checkbox', { name: /Add parser tests/ }).check()
+    await expect(pill).toHaveText('2/3')
+    await expect(agent).toContainText('ticked by you')
+    await page.keyboard.press('Escape')
+
+    // The details panel shows the same plan above your notes; unticking returns to the agent's status.
+    await openCard(page, 'Tighten status parser')
+    const plan = details(page).getByRole('region', { name: 'Agent plan' })
+    await expect(plan).toContainText('Claude task list')
+    await expect(plan.getByRole('checkbox', { name: /Add parser tests/ })).toBeChecked()
+    await plan.getByRole('checkbox', { name: /Add parser tests/ }).uncheck()
+    await expect(pill).toHaveText('1/3')
+    await expect(plan).not.toContainText('unticked by you')
+
+    // Codex plans too: two of three steps done, plus the ticked item you added in the notes test.
+    await expect(row(page, /^Review ref grouping/).getByRole('button', { name: /^Checklist of Review ref grouping/ })).toHaveText('3/4')
+  })
+
   test('hovering an agent card on the timeline shows the same agent details as the list', async ({ page }) => {
     await pair(page)
     const cards = board(page, 'repo-a').getByRole('group', { name: 'Agents on the timeline of repo-a' })

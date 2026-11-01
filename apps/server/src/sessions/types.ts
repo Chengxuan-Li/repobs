@@ -1,4 +1,4 @@
-import type { LastMessage, ObservedAgentState, Provider } from '@repobs/contracts'
+import type { AgentPlan, LastMessage, ObservedAgentState, Provider } from '@repobs/contracts'
 import type { Lifecycle } from './status.ts'
 
 export interface AdapterConfig {
@@ -8,6 +8,8 @@ export interface AdapterConfig {
   staleAfterMs: number
   /** Extract latest-message excerpts (Settings → Privacy). */
   excerpts?: boolean
+  /** Replay agents' plan tool calls (Settings → Privacy, ADR 0009). */
+  plans?: boolean
 }
 
 /** Provider-neutral result of discovery; contains structural metadata only. */
@@ -25,6 +27,8 @@ export interface DiscoveredSession {
   parentSessionId?: string
   agentType?: string
   lastMessage?: LastMessage
+  /** The agent's own step list (ADR 0009), when plans are read. */
+  plan?: AgentPlan
   lifecycle: Lifecycle
   state: ObservedAgentState
   /** Provider reports a live process for this session. */

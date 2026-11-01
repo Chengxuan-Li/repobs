@@ -30,6 +30,8 @@ export const Settings = z.object({
   privacy: z.object({
     /** Show truncated, redacted excerpts of the latest agent message (ADR 0003). Never stored. */
     showMessageExcerpts: z.boolean(),
+    /** Read the step lists agents keep with their planning tools (ADR 0009); in memory only. */
+    readAgentPlans: z.boolean(),
   }),
   github: z.object({
     /** Opt-in: read open pull requests with the GitHub CLI. Off by default. */
@@ -52,7 +54,7 @@ export const DEFAULT_SETTINGS: Settings = {
     watchWorkingTrees: true,
   },
   status: { staleAfterMinutes: 30, historicalAfterHours: 24 },
-  privacy: { showMessageExcerpts: true },
+  privacy: { showMessageExcerpts: true, readAgentPlans: true },
   github: { enabled: false, pollMinutes: 10 },
 }
 

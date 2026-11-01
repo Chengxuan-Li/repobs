@@ -83,7 +83,7 @@ Each Claude Code or Codex session is a **one-line card** under the branch whose 
 
 **Click the status** to set your review state from a menu (Unreviewed, Needs review, Reviewed, Complete, Flagged, Outdated; each with a dot in its colour, hollow for Outdated); the same menu is in the agent's hover card. A finished agent you have not reviewed shows *Unreviewed*, never a success colour. The menu's last item, **Hide from this view**, hides the agent from the current view (see *Hidden* under [Filters and view options](#filters-and-view-options)).
 
-When an agent has a checklist, a rounded pill follows its status, on the card and on the timeline label. It shows a small pie that fills clockwise with the share of items done, then the **done/total** count (for example *1/3*). The pill is blue while items are open, green when all are done and grey before any is. Hover or click it to open its list, where you tick or untick items. Opened by hover, the list closes shortly after the pointer leaves the pill and the list. Opened by a click, it stays until Escape or a click elsewhere.
+When an agent has a checklist — its own plan, your items, or both — a rounded pill follows its status, on the card and on the timeline label. It shows a small pie that fills clockwise with the share of items done, then the **done/total** count (for example *1/3*). The pill is blue while items are open, green when all are done and grey before any is. Hover or click it to open its list, where you tick or untick items. The list has two parts: first the **agent's plan**, the steps the agent keeps with its planning tool (Claude's task list or to-do list, Codex's plan), synced as it works and marked *in progress* where it says so; then **your items**. The agent never changes your items. You can tick or untick the agent's steps by your own judgement (*ticked by you*); that stays in repobs and never reaches the agent, and choosing the agent's own status again clears it. Opened by hover, the list closes shortly after the pointer leaves the pill and the list. Opened by a click, it stays until Escape or a click elsewhere.
 
 Cards never grow on the dashboard; the details are a hover or a click away:
 
@@ -109,6 +109,7 @@ Select an agent (click its name, or use the keyboard) to open it in the details 
 - **Display alias**.
 - **Tags** with autocomplete: start typing and existing tags are suggested (most used first); **Tab** or **Enter** takes the highlighted one, **↑/↓** move, **Backspace** in an empty field removes the last tag.
 - **Notes**: plain text; Enter starts a new line, and line breaks are shown on the card.
+- **Agent plan** (above your notes, when the agent keeps one): its steps, where they came from and when the agent last updated them; tick or untick a step to override it in repobs.
 - **Checklist**: add, tick, untick, reorder, delete. Ticked items stay in the list, struck through, also when every item is done. Nothing is deleted unless you delete it.
 
 When an [automation rule](#automation) changed the agent, a line under your notes names the rule and when it ran.

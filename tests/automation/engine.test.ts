@@ -118,13 +118,13 @@ describe('workflow status', () => {
   it('shows every review state as itself once the agent is not live', () => {
     const idle = session()
     const status = (review: AnnotationInput['review']) =>
-      workflowStatus(idle, { sessionId: idle.id, review, tags: [], hasNote: false, note: '', checklistOpen: 0, checklistDone: 0, checklist: [], updatedAt: 'x' })
+      workflowStatus(idle, { sessionId: idle.id, review, tags: [], hasNote: false, note: '', checklistOpen: 0, checklistDone: 0, checklist: [], planOverrides: {}, updatedAt: 'x' })
     expect(status('reviewed')).toBe('reviewed')
     expect(status('flagged')).toBe('flagged')
     expect(status('complete')).toBe('complete')
     expect(status('outdated')).toBe('outdated')
     expect(status('unreviewed')).toBe('unreviewed')
     // Live activity still wins over the review state.
-    expect(workflowStatus(session({ state: { kind: 'running', confidence: 'direct', source: 'test' } }), { sessionId: idle.id, review: 'flagged', tags: [], hasNote: false, note: '', checklistOpen: 0, checklistDone: 0, checklist: [], updatedAt: 'x' })).toBe('working')
+    expect(workflowStatus(session({ state: { kind: 'running', confidence: 'direct', source: 'test' } }), { sessionId: idle.id, review: 'flagged', tags: [], hasNote: false, note: '', checklistOpen: 0, checklistDone: 0, checklist: [], planOverrides: {}, updatedAt: 'x' })).toBe('working')
   })
 })

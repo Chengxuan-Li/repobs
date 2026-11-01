@@ -74,6 +74,11 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    version: 3,
+    name: 'agent plan overrides',
+    sql: `ALTER TABLE annotations ADD COLUMN plan_overrides_json TEXT NOT NULL DEFAULT '{}';`,
+  },
 ]
 
 export const SCHEMA_VERSION = MIGRATIONS.at(-1)!.version

@@ -65,6 +65,18 @@ describe('persistence', () => {
     expect(store.getAnnotation('claude:s2')!.note).toBe('other')
   })
 
+  it('keeps your ticks on agent plan items across edits that do not mention them', () => {
+    const { db } = openDatabase(':memory:')
+    const store = new AppStore(db)
+    store.putAnnotation('claude:p', { ...baseInput, planOverrides: { '0123456789abcdef': true } })
+    store.putAnnotation('claude:p', { ...baseInput, note: 'edited elsewhere' })
+    expect(store.getAnnotation('claude:p')!.planOverrides).toEqual({ '0123456789abcdef': true })
+    store.putAnnotation('claude:p', { ...baseInput, planOverrides: {} })
+    expect(store.getAnnotation('claude:p')!.planOverrides).toEqual({})
+    // Only keys are stored, never the agent's text.
+    expect(JSON.stringify(db.prepare('SELECT plan_overrides_json FROM annotations').all())).not.toContain('Read diff')
+  })
+
   it('unregistering a repository keeps annotations and session records', () => {
     const { db } = openDatabase(':memory:')
     const store = new AppStore(db)

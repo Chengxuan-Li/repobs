@@ -38,9 +38,22 @@ Lifecycle mapping: `event_msg` `task_started` → turn in progress; `task_comple
 
 On by default (owner decision, [ADR 0003](decisions/0003-dashboard-commit-graph-and-excerpts.md)); Settings → Privacy turns them off, after which adapters stop extracting them. Excerpts are capped at 280 characters, have whitespace collapsed and obvious secrets (private keys, `sk-`/`ghp_`/`github_pat_`/`xox*-` tokens, AWS keys, JWTs, `Bearer` values, `password=…`-style assignments) redacted, and exist only in memory and in the live snapshot sent to your paired browser — never in the database, logs, diagnostics or exports.
 
+## Agent plans
+
+On by default ([ADR 0009](decisions/0009-agent-plans-in-checklists.md)); Settings → Privacy turns them off. Only structured plan tool calls are read, replayed in transcript order; free text is never interpreted.
+
+| Source | Tool call | Treatment |
+| --- | --- | --- |
+| Claude desktop app task list | `mcp__ccd_turn__update_plan` with `items` (full list), `advance`, or `done` + `start` (1-based) | Full lists replace; steps are replayed; without a full list there is no plan |
+| Claude desktop app wrap-up | `mcp__ccd_turn__wrap_up` | Completes the step in progress |
+| Claude Code to-do list | `TodoWrite` with `todos` | Each call is a full list |
+| Codex | `update_plan` function call with `plan` | Each call is a full list |
+
+Observed on the owner's machine (November 2026) for the Claude desktop task list. `TodoWrite` and Codex `update_plan` follow their published shapes and are covered by synthetic fixtures only. Plan text stays in memory.
+
 ## Reading strategy
 
-Transcripts can be tens of megabytes. On first sight repobs reads a bounded head (256 KB, for metadata) and tail (512 KB, for the latest state); afterwards only appended bytes. Partial last lines wait for completion; lines are split on newline bytes so multi-byte UTF-8 characters are never cut; truncated or replaced files are re-read from scratch; over-long lines (> 4 MB) are skipped. Directories are watched (`fs.watch`) and re-listed on a timer, so missed events are recovered.
+Transcripts can be tens of megabytes. On first sight repobs reads a bounded head (256 KB, for metadata) and tail (512 KB, for the latest state); afterwards only appended bytes. Partial last lines wait for completion; lines are split on newline bytes so multi-byte UTF-8 characters are never cut; truncated or replaced files are re-read from scratch; over-long lines (> 4 MB) are skipped. When the tail of a long transcript holds no full plan list, repobs scans backwards from the skipped part (lines prefiltered by the plan tool names, at most 64 MB) for the latest one. Directories are watched (`fs.watch`) and re-listed on a timer, so missed events are recovered.
 
 ## GitHub pull requests (optional)
 

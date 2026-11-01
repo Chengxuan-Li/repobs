@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   type AgentSession,
+  type AnnotationSummary,
   type AutomationApplication,
   type BranchClassification,
   CONFIDENCE_LABELS,
@@ -10,6 +11,8 @@ import {
 } from '@repobs/contracts'
 import { api } from '../../app/api'
 import { AnnotationEditor } from '../annotations/AnnotationEditor'
+import { type ChecklistEntry, checklistEntries, PLAN_SOURCE_LABELS } from './checklistEntries'
+import { entryNote, useOptimisticTicks } from './ChecklistPill'
 import { Badge, CopyButton, formatAge, formatTime, InlineAlert, shortOid, StatusIndicator } from '../../components/primitives'
 import type { BranchRow } from './layout'
 import styles from './dashboard.module.css'
@@ -64,7 +67,61 @@ function AutomationHistory({ sessionId, changeKey, now }: { sessionId: string; c
   )
 }
 
-export function SessionDetails({ snapshot, session, now, knownTags, onSelect }: { snapshot: Snapshot; session: AgentSession; now: number; knownTags: string[]; onSelect: (rowId: string) => void }) {
+/** The agent's own plan (ADR 0009): its steps as it reports them; your ticks override them in repobs only. */
+function AgentPlanSection({
+  session,
+  annotation,
+  now,
+  onChecklist,
+}: {
+  session: AgentSession
+  annotation?: AnnotationSummary
+  now: number
+  onChecklist: (sessionId: string, entry: ChecklistEntry, done: boolean) => Promise<boolean>
+}) {
+  const plan = session.plan
+  const [shown, toggle] = useOptimisticTicks(
+    checklistEntries(session, annotation).filter((e) => e.section === 'agent'),
+    (entry, done) => onChecklist(session.id, entry, done),
+  )
+  if (!plan) return null
+  return (
+    <section className={styles.detailsSection} aria-label="Agent plan">
+      <div className="label">Agent plan</div>
+      <p className="small muted">
+        {PLAN_SOURCE_LABELS[plan.source]}
+        {plan.updatedAt ? `, updated ${formatAge(plan.updatedAt, now)} ago` : ''}. Reported by the agent; your ticks stay in repobs.
+      </p>
+      <ul className={styles.planList}>
+        {shown.map((e) => (
+          <li key={e.id}>
+            <label>
+              <input type="checkbox" checked={e.done} onChange={(ev) => toggle(e, ev.target.checked)} />
+              <span className={e.done ? styles.planDone : undefined}>{e.text}</span>
+              {entryNote(e) ? <span className="small muted">{entryNote(e)}</span> : null}
+            </label>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+export function SessionDetails({
+  snapshot,
+  session,
+  now,
+  knownTags,
+  onSelect,
+  onChecklist,
+}: {
+  snapshot: Snapshot
+  session: AgentSession
+  now: number
+  knownTags: string[]
+  onSelect: (rowId: string) => void
+  onChecklist: (sessionId: string, entry: ChecklistEntry, done: boolean) => Promise<boolean>
+}) {
   const worktree = snapshot.worktrees.find((w) => w.id === session.worktreeId)
   const parent = session.parentSessionId ? snapshot.sessions.find((s) => s.id === session.parentSessionId) : undefined
   const children = snapshot.sessions.filter((s) => s.parentSessionId === session.id)
@@ -104,6 +161,7 @@ export function SessionDetails({ snapshot, session, now, knownTags, onSelect }: 
           </div>
         ) : null}
       </section>
+      <AgentPlanSection session={session} annotation={snapshot.annotations.find((a) => a.sessionId === session.id)} now={now} onChecklist={onChecklist} />
       <section className={styles.detailsSection}>
         <div className="label">Your notes</div>
         <AnnotationEditor key={session.id} session={session} summary={snapshot.annotations.find((a) => a.sessionId === session.id)} knownTags={knownTags} />

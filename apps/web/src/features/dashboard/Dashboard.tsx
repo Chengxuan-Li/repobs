@@ -3,6 +3,7 @@ import { Minus, Plus } from 'lucide-react'
 import { type AgentSession, type AnnotationSummary, type ReviewState, type Snapshot, statusNeedsAttention, workflowStatus } from '@repobs/contracts'
 import { clamp, MAX_ZOOM, MIN_ZOOM, RANGE_MS, type ViewPatch, type ViewState } from '../../app/viewState'
 import { AgentRow } from './AgentRow'
+import type { ChecklistEntry } from './checklistEntries'
 import { FilterBar } from './FilterBar'
 import { AgentHover, HoverCard, hoverAt, type HoverState, type ShowHover } from './HoverCard'
 import type { RepoLayout } from './layout'
@@ -49,7 +50,7 @@ export function Dashboard({
   onSelect: (id: string) => void
   onReview: (sessionId: string, review: ReviewState) => void
   /** Resolves to whether the change was saved. */
-  onChecklist: (sessionId: string, itemId: string, done: boolean) => Promise<boolean>
+  onChecklist: (sessionId: string, entry: ChecklistEntry, done: boolean) => Promise<boolean>
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [viewport, setViewport] = useState(0)

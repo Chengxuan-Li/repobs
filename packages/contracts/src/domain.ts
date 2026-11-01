@@ -178,6 +178,24 @@ export const LastMessage = z.object({
 })
 export type LastMessage = z.infer<typeof LastMessage>
 
+export const PlanItemStatus = z.enum(['pending', 'in_progress', 'completed'])
+export type PlanItemStatus = z.infer<typeof PlanItemStatus>
+
+/** Which planning tool a plan came from (ADR 0009). */
+export const AgentPlanSource = z.enum(['claude_task_list', 'claude_todo', 'codex_update_plan'])
+export type AgentPlanSource = z.infer<typeof AgentPlanSource>
+
+/**
+ * The step list an agent keeps with its own planning tool, as the agent last reported it. Text is
+ * the agent's: held in memory only, never stored. `key` identifies an item for your ticks.
+ */
+export const AgentPlan = z.object({
+  source: AgentPlanSource,
+  updatedAt: IsoDate.optional(),
+  items: z.array(z.object({ key: z.string(), text: z.string(), status: PlanItemStatus })),
+})
+export type AgentPlan = z.infer<typeof AgentPlan>
+
 export const AgentSession = z.object({
   id: z.string(),
   provider: Provider,
@@ -208,6 +226,8 @@ export const AgentSession = z.object({
   agentType: z.string().optional(),
   /** Truncated, redacted excerpt of the latest agent message or tool activity (ADR 0003). In memory only. */
   lastMessage: LastMessage.optional(),
+  /** The agent's own step list (ADR 0009). In memory only. */
+  plan: AgentPlan.optional(),
 })
 export type AgentSession = z.infer<typeof AgentSession>
 
@@ -235,6 +255,11 @@ export const ChecklistItem = z.object({
 })
 export type ChecklistItem = z.infer<typeof ChecklistItem>
 
+export const PlanOverrides = z
+  .record(z.string().regex(/^[0-9a-f]{16}$/), z.boolean())
+  .refine((r) => Object.keys(r).length <= LIMITS.checklistItems, 'Too many plan overrides')
+export type PlanOverrides = z.infer<typeof PlanOverrides>
+
 export const SessionAnnotation = z.object({
   sessionId: z.string(),
   displayAlias: z.string().max(LIMITS.aliasChars).optional(),
@@ -242,6 +267,8 @@ export const SessionAnnotation = z.object({
   tags: z.array(z.string().min(1).max(LIMITS.tagChars)).max(LIMITS.tags),
   note: z.string().max(LIMITS.noteChars),
   checklist: z.array(ChecklistItem).max(LIMITS.checklistItems),
+  /** Your ticks (true) and unticks (false) of agent plan items, by item key; they win over the agent's status. */
+  planOverrides: PlanOverrides.default({}),
   createdAt: IsoDate,
   updatedAt: IsoDate,
 })
@@ -259,6 +286,8 @@ export const AnnotationSummary = z.object({
   checklistDone: z.number().int(),
   /** The checklist itself, for the dashboard's checklist pill. */
   checklist: z.array(z.object({ id: z.string(), text: z.string(), done: z.boolean() })),
+  /** Your ticks and unticks of agent plan items, by item key. */
+  planOverrides: z.record(z.string(), z.boolean()),
   updatedAt: IsoDate,
 })
 export type AnnotationSummary = z.infer<typeof AnnotationSummary>

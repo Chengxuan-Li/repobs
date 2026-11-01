@@ -2,6 +2,21 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 20 — 2026-11-01: agent plans in checklists (branch `feature/chat-extraction`, ADR 0009)
+
+| Request | Implementation |
+| --- | --- |
+| Extract sequenced steps from sessions into checklists without an LLM | `sessions/plan.ts` replays planning tool calls: Claude desktop task list (full lists, *advance*, *done/start*, wrap-up), `TodoWrite`, Codex `update_plan`. Adapters feed it; `scanBackward` (jsonl.ts) finds the latest full list behind a skipped middle |
+| Agent section first, fully synced; your items after; the agent never ticks yours; you can override the agent's | `checklistEntries.ts` merges both; the pill, its list (two sections), the hover card and the details panel's *Agent plan* show them; overrides stored by item key in `planOverrides` (migration 3), never the text |
+| Privacy | Plan text in memory only; Settings → Privacy → *Read agents' plans into their checklists* |
+
+Verification (2026-11-01, this machine):
+
+- typecheck, lint, `npm test` (167 tests), `npm run test:integration` (86), and `npx playwright test` (34 passed, 1 skipped) all pass.
+- Run against the owner's real Claude transcripts, counting only: 62 of 874 sessions have a plan, all from the desktop task list (194 steps completed, 9 in progress, 97 pending). The 4 transcripts with a full list but no plan under their own id are forked sessions, which repobs lists under their parent's id.
+
+Not done: plan-mode documents, `- [ ]` parsing of messages, timeline marks for step changes, chapter marks as phases. Real `TodoWrite` and Codex `update_plan` transcripts were not available here.
+
 ## Checkpoint 19 — 2026-11-01: timeline card details, one checklist popover, no completion banner
 
 | Request | Implementation |

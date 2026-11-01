@@ -134,6 +134,7 @@ export class AppStore {
       tags: JSON.parse(String(r.tags_json)),
       note: String(r.note),
       checklist: JSON.parse(String(r.checklist_json)),
+      planOverrides: JSON.parse(String(r.plan_overrides_json ?? '{}')),
       createdAt: String(r.created_at),
       updatedAt: String(r.updated_at),
     })
@@ -158,6 +159,7 @@ export class AppStore {
       tags,
       note: input.note,
       checklist,
+      planOverrides: input.planOverrides ?? existing?.planOverrides ?? {},
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     })
@@ -168,11 +170,11 @@ export class AppStore {
   writeAnnotation(a: SessionAnnotation): void {
     this.db
       .prepare(
-        `INSERT INTO annotations (session_id, display_alias, review, tags_json, note, checklist_json, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO annotations (session_id, display_alias, review, tags_json, note, checklist_json, plan_overrides_json, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(session_id) DO UPDATE SET display_alias = excluded.display_alias, review = excluded.review,
            tags_json = excluded.tags_json, note = excluded.note, checklist_json = excluded.checklist_json,
-           updated_at = excluded.updated_at`,
+           plan_overrides_json = excluded.plan_overrides_json, updated_at = excluded.updated_at`,
       )
       .run(
         a.sessionId,
@@ -181,6 +183,7 @@ export class AppStore {
         JSON.stringify(a.tags),
         a.note,
         JSON.stringify(a.checklist),
+        JSON.stringify(a.planOverrides),
         a.createdAt,
         a.updatedAt,
       )
@@ -342,6 +345,7 @@ export function summarizeAnnotation(a: SessionAnnotation): AnnotationSummary {
     checklistOpen: a.checklist.filter((i) => !i.done).length,
     checklistDone: a.checklist.filter((i) => i.done).length,
     checklist: a.checklist.map((i) => ({ id: i.id, text: i.text, done: i.done })),
+    planOverrides: a.planOverrides,
     updatedAt: a.updatedAt,
   }
 }

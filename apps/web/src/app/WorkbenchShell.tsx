@@ -18,6 +18,7 @@ import {
   workflowStatus,
 } from '@repobs/contracts'
 import { Dialog, InlineAlert, useNow } from '../components/primitives'
+import { type ChecklistEntry, planKeyOf } from '../features/dashboard/checklistEntries'
 import { BranchDetails, SessionDetails } from '../features/dashboard/DetailsPanel'
 import { knownTags as collectTags } from '../features/dashboard/filters'
 import { type BranchRow, type RepoLayout, repositoryLastActivity } from '../features/dashboard/layout'
@@ -119,7 +120,14 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     try {
       const path = `/sessions/${encodeURIComponent(sessionId)}/annotation`
       const { annotation: a } = await api<{ annotation: SessionAnnotation | null }>('GET', path)
-      const current: AnnotationInput = { displayAlias: a?.displayAlias, review: a?.review ?? 'unreviewed', tags: a?.tags ?? [], note: a?.note ?? '', checklist: a?.checklist ?? [] }
+      const current: AnnotationInput = {
+        displayAlias: a?.displayAlias,
+        review: a?.review ?? 'unreviewed',
+        tags: a?.tags ?? [],
+        note: a?.note ?? '',
+        checklist: a?.checklist ?? [],
+        planOverrides: a?.planOverrides ?? {},
+      }
       await api('PUT', path, change(current))
       return true
     } catch (e) {
@@ -128,9 +136,19 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     }
   }, [])
   const setReview = useCallback((sessionId: string, review: ReviewState) => updateAnnotation(sessionId, (a) => ({ ...a, review }), 'Could not update the review state'), [updateAnnotation])
+  /** Ticks one of your items, or overrides the agent's status of a plan item (kept in repobs only). */
   const setChecklistItem = useCallback(
-    (sessionId: string, itemId: string, done: boolean) =>
-      updateAnnotation(sessionId, (a) => ({ ...a, checklist: a.checklist.map((i) => (i.id === itemId ? { ...i, done } : i)) }), 'Could not update the checklist'),
+    (sessionId: string, entry: ChecklistEntry, done: boolean) =>
+      updateAnnotation(
+        sessionId,
+        (a) => {
+          if (entry.section === 'human') return { ...a, checklist: a.checklist.map((i) => (i.id === entry.id ? { ...i, done } : i)) }
+          const { [planKeyOf(entry)]: _, ...rest } = a.planOverrides ?? {}
+          // Back to the agent's own status: no override needed.
+          return { ...a, planOverrides: done === (entry.agentStatus === 'completed') ? rest : { ...rest, [planKeyOf(entry)]: done } }
+        },
+        'Could not update the checklist',
+      ),
     [updateAnnotation],
   )
 
@@ -286,7 +304,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
         </div>
         <div className={styles.sideBody}>
           {selected?.session ? (
-            <SessionDetails snapshot={snapshot} session={selected.session} now={now} knownTags={tags} onSelect={select} />
+            <SessionDetails snapshot={snapshot} session={selected.session} now={now} knownTags={tags} onSelect={select} onChecklist={setChecklistItem} />
           ) : selected?.branch ? (
             <BranchDetails snapshot={snapshot} row={selected.branch} />
           ) : (

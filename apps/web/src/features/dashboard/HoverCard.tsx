@@ -17,6 +17,7 @@ import {
 import { type Box, boxOf, type Placement, placeFloating, WIDE_ANCHOR } from '../../components/placement'
 import { Badge, formatAge } from '../../components/primitives'
 import type { BranchRow } from './layout'
+import { checklistEntries } from './checklistEntries'
 import { ReviewMenu } from './ReviewMenu'
 import styles from './hover.module.css'
 
@@ -136,7 +137,9 @@ export function AgentHover({
   onHide?: () => void
 }) {
   const status = workflowStatus(session, annotation)
-  const total = (annotation?.checklistOpen ?? 0) + (annotation?.checklistDone ?? 0)
+  const entries = checklistEntries(session, annotation)
+  const total = entries.length
+  const agentSteps = entries.filter((e) => e.section === 'agent').length
   const title = annotation?.displayAlias || session.title
   return (
     <>
@@ -185,7 +188,8 @@ export function AgentHover({
           <>
             <dt>Checklist</dt>
             <dd>
-              {annotation!.checklistDone}/{total} done
+              {entries.filter((e) => e.done).length}/{total} done
+              {agentSteps ? ` · ${agentSteps} from the agent's plan` : ''}
             </dd>
           </>
         ) : null}
