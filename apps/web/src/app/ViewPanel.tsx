@@ -102,7 +102,7 @@ export function ViewPanel({
               </button>
             }
           >
-            <p>Register local Git repositories to see their branches and commits on a timeline, with the Claude Code and Codex agents that worked on each branch.</p>
+            <p>Register local Git repositories to see their branches and commits on a timeline, with the Claude Code and Codex agents that worked on each branch. Folders without Git can be added too, to follow the agents working in them.</p>
             <p>repobs only reads: it never changes your repositories or agent histories, and needs no API keys.</p>
           </EmptyState>
         </div>

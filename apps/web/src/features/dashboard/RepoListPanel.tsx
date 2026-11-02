@@ -1,4 +1,4 @@
-import { ArrowUpDown, Plus } from 'lucide-react'
+import { ArrowUpDown, Folder, Plus } from 'lucide-react'
 import type { Repository } from '@repobs/contracts'
 import type { RepoSort } from '../../app/viewState'
 import { Dropdown } from '../../components/Dropdown'
@@ -65,7 +65,7 @@ export function RepoListPanel({
       </div>
       {summaries.length === 0 ? (
         <p className="small muted" style={{ padding: 12 }}>
-          No repositories yet.
+          No repositories or folders yet.
         </p>
       ) : (
         <p className={`small muted ${styles.repoHint}`}>
@@ -81,9 +81,12 @@ export function RepoListPanel({
               className={styles.repoJump}
               onClick={() => onJump(s.repo.id)}
               disabled={hidden.has(s.repo.id)}
-              title={hidden.has(s.repo.id) ? `Not shown in ${viewName}` : s.repo.primaryPath}
+              title={hidden.has(s.repo.id) ? `Not shown in ${viewName}` : s.repo.kind === 'folder' ? `Folder without Git: ${s.repo.primaryPath}` : s.repo.primaryPath}
             >
-              <span className={styles.repoItemName}>{s.repo.displayName}</span>
+              <span className={styles.repoItemName}>
+                {s.repo.kind === 'folder' ? <Folder size={12} aria-label="Folder without Git" className={styles.repoKind} /> : null}
+                {s.repo.displayName}
+              </span>
               <span className={`mono small muted ${styles.repoStats}`}>
                 {s.agents} agents{s.active ? ` · ${s.active} active` : ''} · {s.lastActivity ? formatAge(new Date(s.lastActivity).toISOString(), now) : '—'}
               </span>

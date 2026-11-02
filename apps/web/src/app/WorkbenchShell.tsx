@@ -404,7 +404,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     { id: 'current.zoomOut', label: 'Zoom out', group: 'Current view', paletteOnly: true, run: () => zoom(1 / 1.5) },
     { id: 'current.zoomReset', label: 'Reset zoom', group: 'Current view', paletteOnly: true, run: () => setCurrentView({ zoom: 1 }) },
 
-    { id: 'repos.add', label: 'Add repositories…', group: 'Repositories', paletteOnly: true, run: () => setDialog('add') },
+    { id: 'repos.add', label: 'Add repositories or folders…', group: 'Repositories', paletteOnly: true, run: () => setDialog('add') },
     ...(['activity', 'active', 'name', 'manual'] as RepoSort[]).map((sort) => ({
       id: `repos.sort.${sort}`,
       label: `Sort by ${{ activity: 'last activity', active: 'active agents', name: 'name', manual: 'manual order' }[sort]}`,
@@ -576,6 +576,8 @@ function GlobalStatusBar({
   connection: Connection
   onDiagnostics: () => void
 }) {
+  const folderIds = new Set(snapshot.repositories.filter((r) => r.kind === 'folder').map((r) => r.id))
+  const worktrees = snapshot.worktrees.filter((w) => !folderIds.has(w.repoId)).length
   const working = snapshot.sessions.filter((s) => workflowStatus(s, annotations.get(s.id)) === 'working').length
   const attention = snapshot.sessions.filter((s) => statusNeedsAttention(workflowStatus(s, annotations.get(s.id)))).length
   const synced = snapshot.monitor.lastSyncAt ? new Date(snapshot.monitor.lastSyncAt).toLocaleTimeString() : '—'
@@ -583,7 +585,8 @@ function GlobalStatusBar({
   return (
     <footer className={styles.statusbar} role="contentinfo">
       <span>
-        {snapshot.repositories.length} repos • {snapshot.worktrees.length} worktrees • {working} working • {attention} need attention
+        {snapshot.repositories.length - folderIds.size} repos{folderIds.size ? ` • ${folderIds.size} ${folderIds.size === 1 ? 'folder' : 'folders'}` : ''} • {worktrees} worktrees • {working} working •{' '}
+        {attention} need attention
       </span>
       <span className={styles.spacer} />
       {snapshot.monitor.state === 'degraded' ? (

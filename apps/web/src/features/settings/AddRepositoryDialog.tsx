@@ -1,16 +1,19 @@
 import { useEffect, useId, useMemo, useState } from 'react'
-import type { RegisterRepositoriesResponse, RepositorySuggestion } from '@repobs/contracts'
+import type { RegisterRepositoriesResponse, RepositoryKind, RepositorySuggestion } from '@repobs/contracts'
 import { api, ApiError } from '../../app/api'
-import { Dialog, formatAge, InlineAlert, useNow } from '../../components/primitives'
+import { Badge, Dialog, formatAge, InlineAlert, useNow } from '../../components/primitives'
 import styles from './settings.module.css'
 
-// Register several repositories at once: tick candidates found in agent session folders (no disk
-// indexing) and/or add paths by hand or with the native folder picker.
+// Register several repositories and folders without Git (ADR 0010) at once: tick candidates found
+// in agent session folders (no disk indexing) and/or add paths by hand or with the native folder
+// picker. A path is tried as a repository; when Git does not recognise it, the dialog offers to add
+// it as a folder instead of falling back silently.
 
 type Sort = 'activity' | 'sessions' | 'active' | 'name'
 
 interface Candidate {
   path: string
+  kind: RepositoryKind
   sessionCount?: number
   activeSessionCount?: number
   lastActivityAt?: string
@@ -55,7 +58,7 @@ export function AddRepositoryDialog({ onClose, onAdded }: { onClose: () => void;
   const addPath = (p: string) => {
     const value = p.trim()
     if (!value) return
-    setCandidates((prev) => (prev.some((c) => c.path.toLowerCase() === value.toLowerCase()) ? prev : [{ path: value, manual: true }, ...prev]))
+    setCandidates((prev) => (prev.some((c) => c.path.toLowerCase() === value.toLowerCase()) ? prev : [{ path: value, kind: 'git', manual: true }, ...prev]))
     setChecked((prev) => new Set(prev).add(value))
     setPath('')
   }
@@ -82,14 +85,24 @@ export function AddRepositoryDialog({ onClose, onAdded }: { onClose: () => void;
     }
   }
 
+  const asFolder = (p: string) => {
+    setCandidates((prev) => prev.map((c) => (c.path === p ? { ...c, kind: 'folder' } : c)))
+    setChecked((prev) => new Set(prev).add(p))
+    setResults((prev) => prev?.filter((r) => r.path !== p))
+  }
+
+  const kindOf = (p: string) => candidates.find((c) => c.path === p)?.kind ?? 'git'
+
   const submit = async () => {
-    const paths = [...checked]
-    if (path.trim() && !paths.includes(path.trim())) paths.push(path.trim())
-    if (!paths.length) return
+    const all = [...checked]
+    if (path.trim() && !all.includes(path.trim())) all.push(path.trim())
+    if (!all.length) return
+    const paths = all.filter((p) => kindOf(p) === 'git')
+    const folders = all.filter((p) => kindOf(p) === 'folder')
     setBusy(true)
     setError(undefined)
     try {
-      const res = await api<RegisterRepositoriesResponse>('POST', '/repositories/batch', { paths })
+      const res = await api<RegisterRepositoriesResponse>('POST', '/repositories/batch', { paths, folders })
       setResults(res.results)
       const added = res.results.filter((r) => r.ok).map((r) => r.repositoryId!)
       if (added.length) onAdded(added)
@@ -99,18 +112,21 @@ export function AddRepositoryDialog({ onClose, onAdded }: { onClose: () => void;
         setCandidates((prev) => prev.filter((c) => !res.results.some((r) => r.ok && r.path === c.path)))
       }
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not register the repositories')
+      setError(e instanceof ApiError ? e.message : 'Could not register the repositories and folders')
     } finally {
       setBusy(false)
     }
   }
 
-  const count = checked.size + (path.trim() && !checked.has(path.trim()) ? 1 : 0)
+  const typed = path.trim() && !checked.has(path.trim()) ? 1 : 0
+  const folderCount = [...checked].filter((p) => kindOf(p) === 'folder').length
+  const repoCount = checked.size - folderCount + typed
+  const count = repoCount + folderCount
   const failed = results?.filter((r) => !r.ok) ?? []
 
   return (
     <Dialog
-      title="Add repositories"
+      title="Add repositories or folders"
       onClose={onClose}
       wide
       footer={
@@ -119,7 +135,7 @@ export function AddRepositoryDialog({ onClose, onAdded }: { onClose: () => void;
             Cancel
           </button>
           <button type="button" className="btn btn-primary" disabled={!count || busy} onClick={() => void submit()}>
-            {busy ? 'Adding…' : count > 1 ? `Add ${count} repositories` : 'Add repository'}
+            {busy ? 'Adding…' : addLabel(repoCount, folderCount)}
           </button>
         </>
       }
@@ -132,7 +148,7 @@ export function AddRepositoryDialog({ onClose, onAdded }: { onClose: () => void;
         }}
       >
         <label className="visually-hidden" htmlFor={ids.path}>
-          Local repository path
+          Local repository or folder path
         </label>
         <input id={ids.path} className="input mono" value={path} placeholder="C:\src\my-project" onChange={(e) => setPath(e.target.value)} autoComplete="off" spellCheck={false} />
         <button type="submit" className="btn" disabled={!path.trim()}>
@@ -143,15 +159,22 @@ export function AddRepositoryDialog({ onClose, onAdded }: { onClose: () => void;
         </button>
       </form>
       <p className="small muted">
-        Any folder inside a repository works, including a linked worktree. Registering is read-only. Candidates below come from the working directories of your Claude
-        Code and Codex sessions; repobs never scans your disk.
+        Any folder inside a repository works, including a linked worktree. A folder without Git can be added too: repobs then shows the agents working in it, with no
+        commits. Registering is read-only. Candidates below come from the working directories of your Claude Code and Codex sessions; repobs never scans your disk.
       </p>
       {error ? <InlineAlert tone="danger">{error}</InlineAlert> : null}
       {failed.length ? (
         <InlineAlert tone="danger">
           {failed.map((r) => (
-            <div key={r.path}>
-              <span className="mono">{r.path}</span>: {r.error?.message}
+            <div key={r.path} className={styles.failure}>
+              <span>
+                <span className="mono">{r.path}</span>: {r.error?.message}
+              </span>
+              {r.error?.code === 'not_a_repository' && kindOf(r.path) === 'git' ? (
+                <button type="button" className="btn btn-quiet" onClick={() => asFolder(r.path)}>
+                  Add as folder
+                </button>
+              ) : null}
             </div>
           ))}
         </InlineAlert>
@@ -181,14 +204,21 @@ export function AddRepositoryDialog({ onClose, onAdded }: { onClose: () => void;
       {loading && !sorted.length ? (
         <p className="small muted">Looking at session working directories…</p>
       ) : !sorted.length ? (
-        <p className="small muted">No unregistered repositories found in session metadata. Add a path above.</p>
+        <p className="small muted">No unregistered repositories or folders found in session metadata. Add a path above.</p>
       ) : (
-        <ul className={styles.candidates} aria-label="Repositories to add">
+        <ul className={styles.candidates} aria-label="Repositories and folders to add">
           {sorted.map((c) => (
             <li key={c.path}>
               <label className={styles.candidate}>
                 <input type="checkbox" checked={checked.has(c.path)} onChange={(e) => toggle(c.path, e.target.checked)} />
-                <span className="mono">{c.path}</span>
+                <span>
+                  <span className="mono">{c.path}</span>
+                  {c.kind === 'folder' ? (
+                    <span className={styles.kind} title="Not a Git repository: added as a folder, with its agents and no commits">
+                      <Badge tone="neutral">folder</Badge>
+                    </span>
+                  ) : null}
+                </span>
                 <span className="small muted">
                   {c.manual
                     ? 'added by path'
@@ -201,4 +231,11 @@ export function AddRepositoryDialog({ onClose, onAdded }: { onClose: () => void;
       )}
     </Dialog>
   )
+}
+
+function addLabel(repos: number, folders: number): string {
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
+  if (repos && folders) return `Add ${n(repos, 'repository', 'repositories')} and ${n(folders, 'folder', 'folders')}`
+  if (folders) return folders > 1 ? `Add ${folders} folders` : 'Add folder'
+  return repos > 1 ? `Add ${repos} repositories` : 'Add repository'
 }

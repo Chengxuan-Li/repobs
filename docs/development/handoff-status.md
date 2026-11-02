@@ -2,6 +2,37 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 31 — 2026-11-02: folders without Git (ADR 0010, branch `feature/non-git-folders`)
+
+The owner asked for agents working in folders that are not Git repositories, approved the recommended design (explicit folder registrations, not an automatic group) and asked for the ADR and the implementation.
+
+| Area | Implementation |
+| --- | --- |
+| Contracts | `Repository.kind` (`git` / `folder`), `commonGitDir` optional, `gitDetected`; `RegisterRepositoryRequest.kind`; batch `folders`; `RepositorySuggestion.kind` |
+| Storage | Migration 4: `repositories.kind` (default `git`); folders store an empty `common_git_dir`. Backup before migrating as usual |
+| Server | `git/folder.ts`: id `folder_<hash>`, path checks (absolute, existing directory, not a root, not the home folder or a parent of it), refusal inside a repository (read-only `rev-parse`), the stand-in worktree (its own id, never colliding with a Git worktree). `monitor.ts`: no status scan, graph, pull requests or watchers for folders; the structure poll checks existence and whether Git now covers the folder (`gitDetected`). A missing folder is a scan error and its sessions become unassigned. Suggestions offer non-Git working directories as folders, skip plain subfolders of registered folders and still offer Git repositories inside them. `registry.ts`: a Git worktree wins a tie with a folder at the same path |
+| Web | One *Folder* row (`no Git`, folder icon, own hover card), *folder* badge and *now a Git repository* badge on the board, folder icon in the repositories panel, *Folder* in the details panel, folders counted separately in the status bar. The Add dialog marks folder suggestions and offers *Add as folder* when Git rejects a typed path |
+| Docs | ADR 0010; user guide *Folders without Git*; getting started, architecture, limitations, README; regenerated API reference; changelog |
+
+Verification (PowerShell, repository root, 2026-11-02):
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed (after fixing halved backslashes in a new test) |
+| `npm test` | 24 files, 190 tests passed (new: folder layout, folder registry ties, migration 3 → 4) |
+| `npm run test:integration` | 8 files, 93 tests passed (new `tests/api/folders.int.test.ts`: suggestions, refusals, matching next to a registered repository, batch, `git init` detection, a removed folder, removal) |
+| `npm run build` | Passed |
+| `npx playwright test` | 36 passed, 1 skipped (the opt-in docs screenshot); new test adds a suggested folder and a typed one through *Add as folder* |
+| `npm run docs:api`, then `npm run docs:build` | Strict build passed |
+| `git diff --check` | Passed |
+
+A screenshot of the e2e state (dark and light) showed the two folder boards under the Git repositories, each with its *Folder* row, and the agent hover card. Not checked: the owner's real data (the owner's instance is not migrated; schema v4 is not readable by 0.3.0, the automatic backup is), Linux/macOS root and home refusals (synthetic only on Windows). Next action: owner review of the branch; no commit pushed and no PR opened.
+
+## Checkpoint 30 — 2026-11-02: state correction
+
+[PR #4](https://github.com/Chengxuan-Li/repobs/pull/4) (Claude task checklists, checkpoint 29) and [PR #5](https://github.com/Chengxuan-Li/repobs/pull/5) (dark screenshots, checkpoint 27) were merged into `main` on 2026-11-01, after checkpoint 29 was written. All six feature branches are merged; 23 commits on `main` since `v0.3.0` are listed under *Unreleased* in the changelog. Checked with `git branch --no-merged main` (none) and `gh pr list --state all`.
+
 ## Checkpoint 29 — 2026-11-01: Claude task checklist fix ready for local review
 
 Branch `codex/claude-task-checklists` implements the follow-up to checkpoint 28. The owner requested a local branch first and a PR only after checking it. The owner checked the preview, approved the result and authorized opening the PR on 2026-11-01. Local implementation commit: `72fc7e4`. Published as [PR #4](https://github.com/Chengxuan-Li/repobs/pull/4) against `main`; the PR is open and ready for review.

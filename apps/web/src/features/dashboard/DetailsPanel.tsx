@@ -123,6 +123,7 @@ export function SessionDetails({
   onChecklist: (sessionId: string, entry: ChecklistEntry, done: boolean) => Promise<boolean>
 }) {
   const worktree = snapshot.worktrees.find((w) => w.id === session.worktreeId)
+  const inFolder = snapshot.repositories.find((r) => r.id === session.repoId)?.kind === 'folder'
   const parent = session.parentSessionId ? snapshot.sessions.find((s) => s.id === session.parentSessionId) : undefined
   const children = snapshot.sessions.filter((s) => s.parentSessionId === session.id)
   const st = session.state
@@ -190,7 +191,7 @@ export function SessionDetails({
               <dd>{children.length} agents</dd>
             </>
           ) : null}
-          <dt>Worktree</dt>
+          <dt>{inFolder ? 'Folder' : 'Worktree'}</dt>
           <dd className="mono">{worktree?.path ?? 'unassigned'}</dd>
           <dt>Working directory</dt>
           <dd className="mono">{session.observedCwd ?? '—'}</dd>

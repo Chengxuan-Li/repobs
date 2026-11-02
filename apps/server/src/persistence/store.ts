@@ -19,6 +19,8 @@ import {
 
 export interface StoredRepository {
   id: string
+  /** ADR 0010: `folder` registrations have no Git directory (stored as an empty string). */
+  kind: 'git' | 'folder'
   displayName: string
   registeredPath: string
   primaryPath: string
@@ -55,6 +57,7 @@ export class AppStore {
   listRepositories(): StoredRepository[] {
     return (this.db.prepare('SELECT * FROM repositories ORDER BY sort_order, added_at').all() as Row[]).map((r) => ({
       id: String(r.id),
+      kind: r.kind === 'folder' ? 'folder' : 'git',
       displayName: String(r.display_name),
       registeredPath: String(r.registered_path),
       primaryPath: String(r.primary_path),
@@ -70,11 +73,12 @@ export class AppStore {
     const stored: StoredRepository = { ...repo, order: max.m + 1, addedAt: new Date().toISOString() }
     this.db
       .prepare(
-        `INSERT INTO repositories (id, display_name, registered_path, primary_path, common_git_dir, is_bare, sort_order, added_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO repositories (id, kind, display_name, registered_path, primary_path, common_git_dir, is_bare, sort_order, added_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         stored.id,
+        stored.kind,
         stored.displayName,
         stored.registeredPath,
         stored.primaryPath,

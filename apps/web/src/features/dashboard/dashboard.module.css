@@ -100,6 +100,12 @@
   white-space: nowrap;
   max-width: 100%;
 }
+
+.repoKind {
+  margin-right: 4px;
+  vertical-align: -1px;
+  color: var(--text-muted);
+}
 .stripTitle {
   min-width: 0;
   overflow: hidden;

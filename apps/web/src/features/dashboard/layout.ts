@@ -18,6 +18,8 @@ export interface BranchRow {
   remoteOnly: boolean
   /** Pseudo-row for sessions of this repository that match no current worktree. */
   unassigned?: boolean
+  /** The single row of a registered folder without Git (ADR 0010). */
+  folder?: boolean
   headOid?: string
   /** Sum of working-tree changes over this row's worktrees (staged + unstaged + untracked + conflicted). */
   pendingChanges: number
@@ -200,6 +202,16 @@ export function layoutRepository(
     })
   }
   const reached = new Set(checkedOut.flatMap((b) => b.worktreeIds))
+  if (repo.kind === 'folder') {
+    // A folder without Git: one row for its agents, no commits (ADR 0010).
+    for (const w of input.worktrees) {
+      reached.add(w.id)
+      branchRows.push({
+        row: { kind: 'branch', id: `folder:${w.id}`, label: 'Folder', worktrees: [w], detached: false, remoteOnly: false, folder: true, pendingChanges: 0, conflicted: 0, mergedInto: [] },
+        sessions: sessionsForWorktrees(new Set([w.id])),
+      })
+    }
+  }
   for (const w of input.worktrees.filter((w) => !reached.has(w.id))) {
     branchRows.push({
       row: {

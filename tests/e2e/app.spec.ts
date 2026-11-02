@@ -53,7 +53,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(page.getByRole('heading', { name: /Observe your Git worktrees/ })).toBeVisible()
     await page.getByRole('button', { name: 'Add repositories' }).first().click()
     const dialog = page.getByRole('dialog', { name: 'Add repositories' })
-    const list = dialog.getByRole('list', { name: 'Repositories to add' })
+    const list = dialog.getByRole('list', { name: 'Repositories and folders to add' })
     await expect(list.getByRole('checkbox')).toHaveCount(2)
     await dialog.getByLabel('Select all').check()
     await dialog.getByRole('button', { name: 'Add 2 repositories' }).click()
@@ -68,7 +68,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await page.getByRole('complementary', { name: 'Repositories panel' }).getByRole('button', { name: 'Add', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Add repositories' })
     for (const p of [state().git.repoA, path.join(state().root, 'nowhere')]) {
-      await dialog.getByLabel('Local repository path').fill(p)
+      await dialog.getByLabel('Local repository or folder path').fill(p)
       await dialog.getByRole('button', { name: 'Add to list' }).click()
     }
     await dialog.getByRole('button', { name: 'Add 2 repositories' }).click()
@@ -765,6 +765,45 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await panel.getByRole('button', { name: 'Delete rule Flag merge work' }).click()
     await panel.getByRole('button', { name: 'Delete', exact: true }).click()
     await expect(panel.getByText('No rules yet.', { exact: false })).toBeVisible()
+  })
+
+  test('a folder without Git is offered as a folder and shows its agents without commits (ADR 0010)', async ({ page }) => {
+    const folder = path.join(state().root, 'scratch-notes')
+    const quiet = path.join(state().root, 'quiet-notes')
+    for (const dir of [folder, quiet]) fs.mkdirSync(dir, { recursive: true })
+    const id = 'f0f0f0f0-6666-4aaa-8bbb-000000000006'
+    writeClaudeSession(state().claudeHome, folder, id, [claude.title(id, 'Tidy meeting notes'), claude.endTurn(id, folder, Date.now() - 5 * 60_000)])
+    await pair(page)
+    // The dialog asks for suggestions when it opens: wait until the new session has been discovered.
+    await expect
+      .poll(async () => JSON.stringify(await (await page.request.get('/api/v1/repositories/suggestions')).json()), { timeout: 15_000 })
+      .toContain('scratch-notes')
+    await page.getByRole('complementary', { name: 'Repositories panel' }).getByRole('button', { name: 'Add', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Add repositories or folders' })
+    // The session's working directory is suggested as a folder.
+    const suggested = dialog.getByRole('list', { name: 'Repositories and folders to add' }).getByRole('listitem').filter({ hasText: 'scratch-notes' })
+    await expect(suggested).toContainText('folder')
+    await suggested.getByRole('checkbox').check()
+    // A typed path is tried as a repository; Git's refusal is shown with the choice, never a silent fallback.
+    await dialog.getByLabel('Local repository or folder path').fill(quiet)
+    await dialog.getByRole('button', { name: 'Add to list' }).click()
+    await dialog.getByRole('button', { name: 'Add 1 repository and 1 folder' }).click()
+    await expect(dialog.getByRole('alert')).toContainText('Not a Git repository')
+    await dialog.getByRole('button', { name: 'Add as folder' }).click()
+    await dialog.getByRole('button', { name: 'Add folder', exact: true }).click()
+    await expect(dialog).toBeHidden()
+
+    const b = board(page, 'scratch-notes')
+    await expect(b.locator('header')).toContainText('folder')
+    await expect(b.getByRole('listitem', { name: /^Folder without Git/ })).toBeVisible()
+    await expect(b.getByText('Tidy meeting notes').first()).toBeVisible()
+    expect(await b.locator('svg[data-lanes] circle').count()).toBe(0)
+    await expect(board(page, 'quiet-notes').getByRole('listitem', { name: /^Folder without Git/ })).toBeVisible()
+    await expect(page.getByRole('complementary', { name: 'Repositories panel' }).getByLabel('Folder without Git')).toHaveCount(2)
+    await expect(page.getByRole('contentinfo')).toContainText('2 repos • 2 folders • 8 worktrees')
+    // Nothing was written into the folders.
+    expect(fs.readdirSync(folder)).toEqual([])
+    expect(fs.readdirSync(quiet)).toEqual([])
   })
 
   test('removing a repository only removes it from repobs', async ({ page }) => {

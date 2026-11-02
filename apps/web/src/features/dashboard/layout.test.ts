@@ -127,6 +127,21 @@ describe('layoutRepository', () => {
     expect(l.commits.get('X')!.rowId).toBe('branch:r|refs/heads/topic')
   })
 
+  it('gives a folder without Git one row for its agents and no commits (ADR 0010)', () => {
+    const f = repo('folder_1', { kind: 'folder', commonGitDir: undefined })
+    const wt = worktree('folder_1', 'wt_f', { isPrimary: true, status: { state: 'unavailable', staged: 0, unstaged: 0, untracked: 0, conflicted: 0 } })
+    const inFolder = session('claude:f', { worktreeId: 'wt_f', repoId: 'folder_1' })
+    const lost = session('claude:lost', { repoId: 'folder_1', association: 'unassigned', unassignedReason: 'worktree_removed' })
+    const l = layoutRepository(f, { branches: [], worktrees: [wt], sessions: [inFolder, lost], annotations: new Map() })
+    expect(l.rows.map((r) => r.id)).toEqual(['folder:wt_f', 'session:claude:f', 'unassigned:folder_1', 'session:claude:lost'])
+    expect(l.rows[0]).toMatchObject({ kind: 'branch', label: 'Folder', folder: true, detached: false, pendingChanges: 0 })
+    expect(l.commits.size).toBe(0)
+    const idle = layoutRepository(f, { branches: [], worktrees: [wt], sessions: [], annotations: new Map() }, { ...DEFAULT_LAYOUT, branchMode: 'with_agents' })
+    expect(idle.rows).toEqual([])
+    const checkedOut = layoutRepository(f, { branches: [], worktrees: [wt], sessions: [], annotations: new Map() }, { ...DEFAULT_LAYOUT, branchMode: 'checked_out' })
+    expect(checkedOut.rows.map((r) => r.id)).toEqual(['folder:wt_f'])
+  })
+
   describe('collapsing quiet commits', () => {
     // main: Q1..Q4 - F0 (fork base) - Q5..Q7 - A - Q8 - M (merge) - Q9 - H (head); feature forks at F0.
     // An agent is active through Q5..A: that does not make those commits eventful.

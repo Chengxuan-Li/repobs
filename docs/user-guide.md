@@ -6,7 +6,7 @@
   - **File**: **Export…**, **Open…**, **Settings**, **Diagnostics**.
   - **View**: **Panels** (repositories panel, details panel, Maximize view, Reset layout), **Open new view**, **Styling** (match the system, light, dark), **Full screen**, **Refresh** (read every repository and agent session again now; normally changes arrive by themselves).
 - **Views** (centre tabs): each view is a dashboard — one section per repository with its branches, commits and agents on a shared timeline — with its own filters, display options and repositories. See [Views](#views).
-- **Repositories panel** (left side bar by default): every repository registered in repobs, with agent counts and last activity, sorted by the **Sort** dropdown (the ⇅ button beside **Add**). The ticks are the current view's selection (*Ticked repositories are shown in View 0*); click a name to jump to it in the current view, **×** to remove it from repobs (no files are touched).
+- **Repositories panel** (left side bar by default): every repository and folder registered in repobs (folders carry a folder icon), with agent counts and last activity, sorted by the **Sort** dropdown (the ⇅ button beside **Add**). The ticks are the current view's selection (*Ticked repositories are shown in View 0*); click a name to jump to it in the current view, **×** to remove it from repobs (no files are touched).
 - **Details panel** (right side bar by default): evidence and your notes for the selected agent, or upstream/worktree/status details for the selected branch. Selecting an agent or branch opens it if it is hidden.
 - **Status bar** (bottom): counts, last sync time, live connection state, and a *Monitoring degraded* link when something needs attention.
 
@@ -35,9 +35,18 @@ A view is a dashboard tab with its own settings: filters, display options, axis 
 
 **File → Export…** saves one JSON file with your annotations (aliases, review states, tags, notes and checklists, as in Settings → Annotations; no transcript content) and every view with its name, settings and the arrangement. **File → Open…** reads such a file: annotations are merged (older or already present ones are skipped) and its views replace the current ones. It also accepts an annotation export from Settings.
 
-## Adding repositories
+## Adding repositories and folders
 
-**Add repositories** opens a checklist of candidates: repositories found in the working directories of your existing Claude Code and Codex sessions (repobs never scans your disk), with their session count, active sessions and last activity. Sort by last activity, active sessions, session count or path; tick several (or *Select all*) and add them at once. You can also type a path (any folder inside a repository, including a linked worktree) and press **Add to list**, or use **Browse…** for the native Windows folder chooser. Each path reports success or its own error (not a repository, already registered, …).
+**Add** opens a checklist of candidates: repositories found in the working directories of your existing Claude Code and Codex sessions (repobs never scans your disk), with their session count, active sessions and last activity. Working directories outside any Git repository are offered too, marked *folder*. Sort by last activity, active sessions, session count or path; tick several (or *Select all*) and add them at once. You can also type a path (any folder inside a repository, including a linked worktree) and press **Add to list**, or use **Browse…** for the native Windows folder chooser. Each path reports success or its own error (not a repository, already registered, …). A typed path is tried as a repository; when Git does not recognise it, its error offers **Add as folder**.
+
+### Folders without Git
+
+A registered folder shows the agents working in it (and in its subfolders) on the shared timeline, under one **Folder** row marked *no Git*, with no commits, branches or uncommitted changes. repobs reads nothing in the folder: it only checks that the folder still exists. The rules ([ADR 0010](decisions/0010-folders-without-git.md)):
+
+- **Registered repositories inside a folder keep their own agents**: the deepest registration wins. Agents in an unregistered repository inside the folder appear under the folder.
+- **Not allowed:** a drive root, your home folder, or a folder containing it (agents often run there, so it would collect almost every session), and a folder inside a Git repository (add the repository instead).
+- **When a folder becomes a repository** (for example after `git init`), its board says *now a Git repository*. repobs does not convert it: add the repository, then remove the folder entry. Your notes and review states are kept, as they belong to the agents.
+- **When a folder disappears**, its board shows a scan error and its agents move to *Unassigned sessions* until the folder is back or removed from repobs.
 
 ## Reading a repository
 

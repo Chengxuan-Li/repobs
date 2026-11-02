@@ -19,7 +19,7 @@ The boundaries are deliberate: Git inspection, each provider adapter, the sessio
 
 Defined once in `packages/contracts` (see [HTTP API](api.md) for the generated schemas):
 
-- **Repository** — identified by its *common Git directory* (`git rev-parse --git-common-dir`), so a primary checkout and its linked worktrees are one repository while separate clones stay separate even with the same `origin`.
+- **Repository** — identified by its *common Git directory* (`git rev-parse --git-common-dir`), so a primary checkout and its linked worktrees are one repository while separate clones stay separate even with the same `origin`. `kind: folder` registers a folder without Git instead ([ADR 0010](decisions/0010-folders-without-git.md)): no Git directory, branches, commits or pull requests, and one stand-in worktree at its path so sessions match it like a checkout.
 - **BranchRef** — a local ref or remote-tracking ref with its classification (`checked_out`, `local_tracking`, `local_only`, `remote_tracking`, `remote_only`), configured upstream (with `gone`), ahead/behind and the worktrees where it is checked out. *Remote-only* is derived, not a Git ref type.
 - **Worktree** — a physical directory with HEAD, branch or detached state, locked/prunable/missing flags and working-tree status counts plus any operation in progress.
 - **AgentSession** — provider + provider session id, title (provider or fallback), observed cwd, association (matched worktree or *unassigned* with a reason), timestamps, **ObservedAgentState** (kind, confidence, source, evidence time, reason), historical flag, subagent counts.
@@ -27,7 +27,7 @@ Defined once in `packages/contracts` (see [HTTP API](api.md) for the generated s
 - **SessionAnnotation** — human-owned alias, review state, tags, note and checklist, keyed by session id and stored only in the app database.
 - Sessions also carry `parentSessionId` (spawned agents) and an optional in-memory `lastMessage` excerpt ([ADR 0003](decisions/0003-dashboard-commit-graph-and-excerpts.md)).
 
-Stable ids: `repo_<hash(common dir)>`, `wt_<hash(path)>`, `<repoId>|<full ref>`, `claude:<session-id>`, `codex:<thread-id>`. Paths are canonicalized Windows-aware (realpath for junctions, upper-case drive letters, native separators, case-insensitive keys) and compared on path boundaries.
+Stable ids: `repo_<hash(common dir)>`, `folder_<hash(path)>`, `wt_<hash(path)>` (a folder's stand-in worktree hashes a prefixed path, so it never collides with a Git worktree at the same place), `<repoId>|<full ref>`, `claude:<session-id>`, `codex:<thread-id>`. Paths are canonicalized Windows-aware (realpath for junctions, upper-case drive letters, native separators, case-insensitive keys) and compared on path boundaries.
 
 ## Git reader
 
@@ -45,7 +45,7 @@ interface SessionAdapter {
 }
 ```
 
-Adapters keep a cursor per file (`sessions/jsonl.ts`): bounded head/tail on first read, appended bytes afterwards, safe handling of partial lines, truncation and replacement. They extract structural facts into a lifecycle phase; `sessions/status.ts` turns facts into an `ObservedAgentState` with the rules in [Status semantics](status-semantics.md). `sessions/registry.ts` associates sessions with worktrees (longest canonical worktree root containing the cwd, which must still exist), keeps unassigned and source-missing sessions visible when they relate to a registered repository or carry annotations, and persists minimal records so annotations stay recoverable.
+Adapters keep a cursor per file (`sessions/jsonl.ts`): bounded head/tail on first read, appended bytes afterwards, safe handling of partial lines, truncation and replacement. They extract structural facts into a lifecycle phase; `sessions/status.ts` turns facts into an `ObservedAgentState` with the rules in [Status semantics](status-semantics.md). `sessions/registry.ts` associates sessions with worktrees (longest canonical worktree root containing the cwd, which must still exist; a Git worktree wins a tie with a registered folder at the same path), keeps unassigned and source-missing sessions visible when they relate to a registered repository or carry annotations, and persists minimal records so annotations stay recoverable.
 
 ## Monitoring and reconciliation
 

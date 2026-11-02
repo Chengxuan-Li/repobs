@@ -10,7 +10,8 @@
 - **Excerpt redaction is best effort.** It catches common secret formats, not every possible secret; turn excerpts off if your agents handle sensitive material.
 - **Remote refs may be stale.** They reflect your last fetch; repobs never fetches.
 - **Session association** uses the session's working directory. A session whose directory no longer exists, or that matches no current worktree, is listed as *unassigned* rather than guessed; the branch a provider recorded during a session is historical and not used for association.
-- **Sessions outside registered repositories** are counted in Diagnostics but not listed.
+- **Sessions outside registered repositories and folders** are counted in Diagnostics but not listed. repobs never groups them by folder on its own; register the folder to see them.
+- **Folders without Git** show agents only: no commits, branches or file changes. A folder that becomes a repository is reported, not converted ([ADR 0010](decisions/0010-folders-without-git.md)).
 - **Watchers.** On Windows, repobs watches each worktree recursively (one OS handle per worktree) plus the Git directories and provider folders; polling recovers missed events. Turn off *Watch working files* in Settings for very large worktrees.
 - **Docking.** Panels and views dock within the browser window; floating and pop-out windows are not available. On narrow windows (below about 1,100 px) the side panels stay docked rather than turning into overlays, so the dashboard gets narrow.
 - **Views are per browser.** Views, their settings and the arrangement are stored in the browser (localStorage), not on the server; use File → Export / Open to move them to another browser.

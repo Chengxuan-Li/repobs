@@ -1,5 +1,5 @@
 import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, Cloud, GitBranch, GitFork, Inbox } from 'lucide-react'
+import { ChevronDown, ChevronRight, Cloud, Folder, GitBranch, GitFork, Inbox } from 'lucide-react'
 import {
   type AgentSession,
   type AnnotationSummary,
@@ -103,10 +103,16 @@ export const RepoBoard = memo(function RepoBoard(props: RepoBoardProps) {
             {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
           </button>
           <h2 className={styles.repoName}>{repo.displayName}</h2>
-          <span className={`mono small muted ${styles.repoPath}`} title={repo.commonGitDir}>
+          {repo.kind === 'folder' ? <Badge tone="neutral">folder</Badge> : null}
+          <span className={`mono small muted ${styles.repoPath}`} title={repo.commonGitDir ?? repo.primaryPath}>
             {repo.primaryPath}
           </span>
           <span className={styles.spacer} />
+          {repo.gitDetected ? (
+            <span title="Git now reports this folder as inside a repository. Add the repository; then remove this folder entry.">
+              <Badge tone="info">now a Git repository</Badge>
+            </span>
+          ) : null}
           {repo.scanState === 'error' ? <Badge tone="danger">scan error: {repo.error?.message}</Badge> : null}
           {props.graph?.error ? <Badge tone="warning">commit graph unavailable</Badge> : null}
           {props.graph?.truncated ? <span className="small muted">latest {props.graph.commits.length} commits</span> : null}
@@ -228,7 +234,7 @@ function AgentDetailsHover({ row, now, sessionsById, childCount, hideHover, onRe
 }
 
 function BranchLabel({ row }: { row: BranchRow }) {
-  const Icon = row.unassigned ? Inbox : row.remoteOnly ? Cloud : row.detached ? GitFork : GitBranch
+  const Icon = row.unassigned ? Inbox : row.folder ? Folder : row.remoteOnly ? Cloud : row.detached ? GitFork : GitBranch
   const up = row.branch?.upstream
   const op = row.worktrees.find((w) => w.status.gitOperation)?.status.gitOperation
   return (
@@ -249,13 +255,14 @@ function BranchLabel({ row }: { row: BranchRow }) {
         </span>
       ) : null}
       {row.branch?.kind === 'local' && !up ? <span className={styles.dim}>local</span> : null}
+      {row.folder ? <span className={styles.dim}>no Git</span> : null}
       {row.remoteOnly ? <span className={styles.dim}>remote</span> : null}
     </div>
   )
 }
 
 function branchAriaLabel(row: BranchRow): string {
-  const kind = row.unassigned ? 'group' : row.remoteOnly ? 'remote branch' : row.detached ? 'detached worktree' : 'branch'
+  const kind = row.unassigned ? 'group' : row.folder ? 'without Git' : row.remoteOnly ? 'remote branch' : row.detached ? 'detached worktree' : 'branch'
   const pending = row.pendingChanges ? `, ${row.pendingChanges} uncommitted changes` : ''
   const rel = row.forkedFrom ? `, branched from ${row.forkedFrom}` : row.pointsAt ? `, at ${row.pointsAt}` : ''
   return `${row.label} ${kind}${pending}${rel}`

@@ -43,6 +43,7 @@ npm start
 **Follow your agents**
 
 - Claude Code sessions (terminal or Claude desktop app) and Codex sessions, found in their local files: including sessions started outside repobs, several per worktree, and the sub-agents they spawned.
+- Agents working in folders without Git too, once you add the folder.
 - Each agent's status with its evidence and confidence. Missing data shows as *Unknown*, never as idle.
 - Optionally, a short redacted excerpt of the agent's latest message and the plan it keeps with its planning tool.
 

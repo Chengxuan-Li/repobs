@@ -76,7 +76,7 @@ interface Route {
 }
 
 const SESSION_ID = /^(claude|codex):[A-Za-z0-9._-]{1,128}$/
-const REPO_ID = /^repo_[0-9a-f]{12}$/
+const REPO_ID = /^(repo|folder)_[0-9a-f]{12}$/
 const RULE_ID = /^[A-Za-z0-9_-]{1,64}$/
 const MAX_SSE_CLIENTS = 32
 
@@ -188,7 +188,7 @@ export function createRequestHandler(app: AppContext) {
       handler: async ({ res, body }) => {
         const input = validate(RegisterRepositoryRequest, body)
         try {
-          const repo = await monitor.registerRepository(input.path, input.displayName)
+          const repo = await monitor.registerRepository(input.path, input.displayName, input.kind)
           res.statusCode = 201
           return repo
         } catch (err) {
@@ -201,7 +201,10 @@ export function createRequestHandler(app: AppContext) {
       method: 'POST',
       pattern: /^\/repositories\/batch$/,
       auth: true,
-      handler: async ({ body }) => monitor.registerRepositories(validate(RegisterRepositoriesRequest, body).paths),
+      handler: async ({ body }) => {
+        const input = validate(RegisterRepositoriesRequest, body)
+        return monitor.registerRepositories(input.paths, input.folders)
+      },
     },
     {
       method: 'GET',
