@@ -2,6 +2,38 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 32 — 2026-11-02: a real local case for folders without Git
+
+The owner had no real case of an agent working outside Git and asked for one on local disk, following each agent's own conventions. Nothing in this case is committed; it lives in the owner's agent homes and in two folders outside any repository.
+
+Where the agents put work (observed on this machine, Codex app 26.1027 with `codex-cli 0.166.0-alpha.5.1`, Claude Code 2.1.309):
+
+- **A folder the user names.** Codex `exec` refuses to run outside Git unless given `--skip-git-repo-check`; the session's `cwd` is the folder. Claude Code records the folder as `cwd` and stores the transcript under `~/.claude/projects/<encoded folder>/`.
+- **Codex project-less chats.** The Codex desktop app runs a chat without a project in `<projectlessWorkspaceRoot>/<YYYY-MM-DD>/<first six words of the prompt>/`, with `outputs/` for deliverables and `work/` for scratch. The root is the `desktop.projectlessWorkspaceRoot` setting, default `~/Documents/Codex` (unset here). It is not under `~/.codex`.
+- **Codex worktrees** live in `~/.codex/worktrees/<4 hex>/<repository>`. They are Git worktrees, so they belong to the repository, not to this feature.
+
+The case:
+
+| Folder | Agent work |
+| --- | --- |
+| `D:\agent-cases\heat-pump-notes` (synthetic `readings.csv`) | Codex `exec` session `01a19de2-…` wrote `fit.md`. Two Claude Code CLI runs started from inside a desktop session could not sign in; each still left a transcript whose only reply is an API error (`isApiErrorMessage: true`) |
+| `%USERPROFILE%\Documents\Codex\2026-11-02\draft-a-one-page-checklist-for` (the app's layout, created by hand) | Codex `exec` session `01a19de4-…` wrote `outputs/winter-tune-up.md`. Real rollout, but `source` is `exec`, not the desktop app |
+
+A headless repobs instance (`.claude/case-check.ts`, untracked, data in a temporary folder, real `~/.claude` and `~/.codex` read-only) suggested both folders as `kind: folder` (`Documents\Codex` itself was not suggested, as no agent ran there). It registered both folders and `Documents\Codex`. The heat-pump folder got its three sessions. The dated chat folder got its Codex session, because the deepest registration wins over `Documents\Codex`. Registering only `Documents\Codex` would collect every project-less chat on one board.
+
+Found while doing this:
+
+- **API error turns.** The Claude adapter does not read `isApiErrorMessage`, so a run that failed to sign in shows as a finished turn, not an error.
+- **Codex thread history.** Codex 0.166 keeps thread history in `state_5.sqlite`; 279 of 286 threads here have no rollout file left, so repobs, which reads only `sessions/` and `archived_sessions/` rollouts, misses most Codex history. Thread `cwd` values there carry the `\\?\` prefix.
+
+Then a Claude Code desktop session (`9d076e23-…`) was started in `D:\agent-cases\heat-pump-notes` and wrote `summary.md`, without touching the other files. Rerunning the headless check, with the uncommitted changes of checkpoints 33 and 34 in the checkout, gave these results:
+
+- The heat-pump folder's suggestion counted 4 sessions, 1 active.
+- After registration the folder has all four sessions matched: the desktop session is *idle*, from the live session registry; the Codex run has *turn completed*; the two runs that failed to sign in are *error*, from the transcript as a `provider_error_event`.
+- The project-less Codex folder still has its one session.
+
+Not done: a project-less chat started from the Codex app itself (only its folder layout was reproduced), and a browser check of these boards.
+
 ## Checkpoint 31 — 2026-11-02: folders without Git (ADR 0010, branch `feature/non-git-folders`)
 
 The owner asked for agents working in folders that are not Git repositories, approved the recommended design (explicit folder registrations, not an automatic group) and asked for the ADR and the implementation.
