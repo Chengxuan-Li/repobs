@@ -33,7 +33,9 @@ Only Claude Code's live-session registry (`~/.claude/sessions/<pid>.json`, `busy
 
 ## Folder picker
 
-Windows-only native picker via a fixed PowerShell `FolderBrowserDialog` script (no user input in the command); path entry is always available and is the fallback elsewhere.
+Windows-only native picker via a fixed PowerShell script (no user input; passed as `-EncodedCommand`); path entry is always available and is the fallback elsewhere.
+
+Amended 2026-11-02: the script shows the shell folder dialog (`IFileOpenDialog` with `FOS_PICKFOLDERS`) instead of `FolderBrowserDialog`. The legacy dialog reports any failure as *Cancel* and was observed closing itself as *Cancel* about 1.5 s after opening, which the UI showed as nothing at all. The dialog is owned by a transparent topmost window on the monitor under the pointer, with a taskbar entry, and is brought to the foreground. The script prints an explicit `selected`/`cancelled` status; a missing status, a non-zero exit or the 10-minute timeout is an error (`picker_failed`, `picker_timeout`), never a silent cancel. The browser can stop waiting, which aborts the request and closes the dialog.
 
 ## Pairing and authentication
 

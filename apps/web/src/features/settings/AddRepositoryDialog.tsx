@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { RegisterRepositoriesResponse, RepositorySuggestion } from '@repobs/contracts'
 import { api, ApiError } from '../../app/api'
 import { Dialog, formatAge, InlineAlert, useNow } from '../../components/primitives'
@@ -28,6 +28,8 @@ export function AddRepositoryDialog({ onClose, onAdded }: { onClose: () => void;
   const [busy, setBusy] = useState(false)
   const [picking, setPicking] = useState(false)
   const [pickerUnavailable, setPickerUnavailable] = useState<string>()
+  const [pickNotice, setPickNotice] = useState<string>()
+  const pickAbort = useRef<AbortController>(undefined)
   const now = useNow(60_000)
   const ids = { path: useId(), sort: useId() }
 
@@ -68,18 +70,37 @@ export function AddRepositoryDialog({ onClose, onAdded }: { onClose: () => void;
       return next
     })
 
+  // Every outcome of Browse is reported; the native dialog opens outside the browser, so a click
+  // that changed nothing visible would look broken. Stopping (or closing this dialog) aborts the
+  // request, which closes the native dialog on the server.
+  useEffect(() => () => pickAbort.current?.abort(), [])
+
   const browse = async () => {
+    const abort = new AbortController()
+    pickAbort.current = abort
     setPicking(true)
     setError(undefined)
+    setPickNotice(undefined)
     try {
-      const res = await api<{ path?: string; cancelled: boolean }>('POST', '/repositories/pick-directory', {})
+      const res = await api<{ path?: string; cancelled: boolean }>('POST', '/repositories/pick-directory', {}, { signal: abort.signal })
       if (res.path) addPath(res.path)
+      else setPickNotice('The folder chooser was closed without choosing a folder.')
     } catch (e) {
+      if (abort.signal.aborted) return
       if (e instanceof ApiError && e.status === 501) setPickerUnavailable(e.message)
       else setError(e instanceof ApiError ? e.message : 'The folder picker failed')
     } finally {
-      setPicking(false)
+      if (pickAbort.current === abort) {
+        pickAbort.current = undefined
+        setPicking(false)
+      }
     }
+  }
+
+  const stopPicking = () => {
+    pickAbort.current?.abort()
+    pickAbort.current = undefined
+    setPicking(false)
   }
 
   const submit = async () => {
@@ -138,10 +159,26 @@ export function AddRepositoryDialog({ onClose, onAdded }: { onClose: () => void;
         <button type="submit" className="btn" disabled={!path.trim()}>
           Add to list
         </button>
-        <button type="button" className="btn" onClick={() => void browse()} disabled={picking || !!pickerUnavailable} title={pickerUnavailable ?? 'Opens a native folder chooser on this computer'}>
-          {picking ? 'Waiting for folder…' : 'Browse…'}
-        </button>
+        {picking ? (
+          <button type="button" className="btn" onClick={stopPicking} title="Closes the folder chooser and stops waiting">
+            Stop waiting
+          </button>
+        ) : (
+          <button type="button" className="btn" onClick={() => void browse()} disabled={!!pickerUnavailable} title={pickerUnavailable ?? 'Opens a native folder chooser on this computer'}>
+            Browse…
+          </button>
+        )}
       </form>
+      {picking ? (
+        <InlineAlert tone="info">
+          A folder chooser is open on this computer. Choose a folder there; if you cannot see it, look for “Select a Git repository folder” in the taskbar.
+        </InlineAlert>
+      ) : null}
+      {pickNotice ? (
+        <InlineAlert tone="info" onDismiss={() => setPickNotice(undefined)}>
+          {pickNotice}
+        </InlineAlert>
+      ) : null}
       <p className="small muted">
         Any folder inside a repository works, including a linked worktree. Registering is read-only. Candidates below come from the working directories of your Claude
         Code and Codex sessions; repobs never scans your disk.

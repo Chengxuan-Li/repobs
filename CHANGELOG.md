@@ -20,6 +20,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 - Claude Code task plans using `TaskCreate` and `TaskUpdate` now appear in agent checklists. Successful results supply task ids and confirmed changes; long-transcript and subagent recovery preserves earlier task creations.
 - After closing a side panel from the toolbar, its button stayed pressed until something else redrew the page.
+- **Browse…** in *Add repositories* could appear to do nothing: the legacy folder dialog sometimes closed itself as *Cancel* within two seconds, and any failure was also reported as a cancel. It now uses the Windows shell folder dialog, opens in front on the monitor where you clicked, and every outcome shows in the page: the chosen folder, *closed without choosing a folder*, or the error. While it is open the page says so and offers *Stop waiting*, which closes it.
 
 ## [0.3.0] — 2026-11-01
 
