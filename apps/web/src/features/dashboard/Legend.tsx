@@ -56,7 +56,7 @@ export function Legend({ axisMode }: { axisMode: AxisMode }) {
           : axisMode === 'compressed'
             ? 'Axis: calendar, compressed. Gaps follow elapsed time, but commits made close together are pushed apart to a minimum spacing, so distances are only proportional between well-separated commits. Zoom stretches the time gaps, never below that spacing.'
             : 'Axis: calendar time. Distances are proportional to elapsed time.'}{' '}
-        Status colours: blue = working, amber = needs input or review, green = complete (reviewed), grey = unreviewed or unknown. Click an agent's status to set your review state. Hover any node, bar or row for details; Ctrl + wheel or the − / + buttons zoom the history.
+        Status colours: blue = working, amber = needs input or review, green = complete (reviewed), grey = unreviewed or unknown. Click an agent's status to set your review state. Hover any node, bar or row for details. Drag to pan; the mouse wheel or the − / + buttons zoom the history, and Ctrl + wheel changes the size of the whole interface.
       </p>
     </div>
   )

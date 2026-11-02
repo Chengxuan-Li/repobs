@@ -1,8 +1,10 @@
 import { type RefObject, useRef } from 'react'
+import { pageZoom } from '../../components/placement'
 
 // Drag to pan, like a map: press the primary mouse button anywhere on the dashboard that is not a
 // control and move; the view scrolls with the pointer. A press that moves less than a few pixels
 // stays a click (selecting a row, expanding a group). Touch and pens keep their native scrolling.
+// Text in the view cannot be selected (dashboard.module.css), so a drag never starts a selection.
 
 const THRESHOLD_PX = 4
 /** Presses on these start no pan: controls keep their own drag and click behaviour. */
@@ -35,10 +37,11 @@ export function useDragPan(ref: RefObject<HTMLElement | null>, onPanStart?: () =
       const d = drag.current
       const el = ref.current
       if (!d || !el || e.pointerId !== d.id) return
-      const dx = e.clientX - d.x
-      const dy = e.clientY - d.y
+      // Pointer distances are screen pixels; scrolling is in page pixels (they differ at other UI sizes).
+      const dx = (e.clientX - d.x) / pageZoom()
+      const dy = (e.clientY - d.y) / pageZoom()
       if (!d.panning) {
-        if (Math.hypot(dx, dy) < THRESHOLD_PX) return
+        if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < THRESHOLD_PX) return
         d.panning = true
         el.setPointerCapture(d.id)
         el.dataset.panning = ''

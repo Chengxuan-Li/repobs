@@ -38,7 +38,7 @@
 - **Finished, unreviewed agents are "Unreviewed"** (neutral), replacing "Ready" (success green), which contradicted an unreviewed review state.
 - **The status badge is the review control.** It opens a review-state menu on the dashboard row and in the agent's hover card; the hover card opens beside the label column so the pointer can reach it.
 - **Metro-style connector tracks.** Overlapping collinear connector legs get parallel tracks 4 px apart (`routing.ts`): lanes keep the centre; a leg that turns later sits closer to the centre and others step outwards on the side they turn to, so a bundle leaving one commit does not cross itself; when a side is full (4 tracks) the other side is used.
-- **Horizontal zoom** (25%–1600%) of the shared axis, by buttons, Ctrl + wheel (anchored at the pointer) or +/−/0 keys; stored with the per-browser view.
+- **Horizontal zoom** (25%–1600%) of the shared axis, by buttons, the mouse wheel (anchored at the pointer; Ctrl + wheel before [ADR 0010](0010-ui-size-and-wheel-controls.md)) or +/−/0 keys; stored with the per-browser view.
 
 ## Amendment (owner feedback, 2026-10-30, fifth review)
 

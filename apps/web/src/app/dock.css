@@ -2,7 +2,7 @@
    use the label style; the selected tab is an inverted block (EnergyAtlas family convention). */
 :root {
   --flexlayout-font-family: var(--font-sans);
-  --flexlayout-font-size: var(--font-size-base);
+  --flexlayout-font-size: calc(var(--font-size-base) * var(--ui-scale, 1));
 
   --flexlayout-color-background: var(--color-bg);
   --flexlayout-color-base: var(--color-surface);
@@ -54,23 +54,30 @@
   --flexlayout-color-overflow: var(--color-text-muted);
 }
 
+/* The UI size (app/uiScale.ts) is CSS zoom on the root, but FlexLayout positions splitters, drag
+   outlines and popups from screen coordinates as if they were page pixels. Its frame is therefore
+   zoomed back to 1 and its tab strips scaled by --ui-scale; panels zoom again (.panelScale). */
+.flexlayout__layout {
+  zoom: calc(1 / var(--ui-scale, 1));
+}
+
 .flexlayout__tabset_tabbar_outer {
-  min-height: 2rem;
+  min-height: calc(2rem * var(--ui-scale, 1));
 }
 
 .flexlayout__tab_button,
 .flexlayout__border_button {
-  min-height: 1.5rem;
+  min-height: calc(1.5rem * var(--ui-scale, 1));
   border-radius: 0;
   font-family: var(--label-font);
-  font-size: var(--label-size);
+  font-size: calc(var(--label-size) * var(--ui-scale, 1));
   font-weight: var(--label-weight);
   letter-spacing: var(--label-tracking);
   text-transform: var(--label-case);
 }
 .flexlayout__border_button {
-  gap: 0.375rem;
-  padding: 0.25rem 0.5rem;
+  gap: calc(0.375rem * var(--ui-scale, 1));
+  padding: calc(0.25rem * var(--ui-scale, 1)) calc(0.5rem * var(--ui-scale, 1));
 }
 
 /* The selected tab: an inverted block inside a thin accent outline, drawn inset with a gap of the
@@ -122,7 +129,7 @@
 }
 .flexlayout__popup_menu_item {
   font-family: var(--label-font);
-  font-size: var(--label-size);
+  font-size: calc(var(--label-size) * var(--ui-scale, 1));
 }
 
 /* Splitters: a hairline until pointed at, then the accent. */
@@ -141,6 +148,6 @@
   padding: 0 var(--space-2);
   color: var(--color-text-muted);
   font-family: var(--label-font);
-  font-size: var(--label-size);
+  font-size: calc(var(--label-size) * var(--ui-scale, 1));
   white-space: nowrap;
 }

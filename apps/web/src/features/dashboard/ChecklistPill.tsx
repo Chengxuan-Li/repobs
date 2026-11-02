@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { boxOf, placeFloating } from '../../components/placement'
+import { boxOf, placeFloating, windowSize } from '../../components/placement'
 import type { ChecklistEntry } from './checklistEntries'
 import styles from './checklistPill.module.css'
 
@@ -47,7 +47,7 @@ export function ChecklistPill({
     const place = () => {
       if (!trigger.current || !pop.current) return
       const size = { width: pop.current.offsetWidth, height: pop.current.offsetHeight }
-      setPos(placeFloating(boxOf(trigger.current), size, { width: window.innerWidth, height: window.innerHeight }, { placement: 'below', gap: 3 }))
+      setPos(placeFloating(boxOf(trigger.current), size, windowSize(), { placement: 'below', gap: 3 }))
     }
     place()
     // The popover follows its pill when the dashboard scrolls or the window resizes.
