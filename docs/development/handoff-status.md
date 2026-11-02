@@ -32,13 +32,15 @@ Manual checks against the real dialog, with the built app in the browser pane:
 - Filling the folder box and clicking *Select Folder* (`WM_SETTEXT`/`BM_CLICK`): `D:\repobs\docs` was added and ticked.
 - Called directly through `pickFolder`, Escape returned `cancelled` and a typed path returned it.
 
+Owner check, 2026-11-02: the owner ran a separate instance of this branch (`REPOBS_DATA_DIR=%LOCALAPPDATA%epobs\previewsolder-picker`, port 47391) in their usual browser and reported that *Browse…* works.
+
 Not verified:
 
-- Foreground activation when an ordinary browser (Edge/Chrome) holds focus. The checks above ran from processes under the Claude desktop app.
+- Each outcome separately in the owner's check: it was reported as a whole.
 - Behaviour on a machine where PowerShell runs in Constrained Language Mode, where `Add-Type` is blocked. This is now reported as `picker_failed`, not ignored.
 - What made the legacy dialog cancel itself.
 
-Next action: owner review of the PR, including one *Browse…* in their usual browser.
+Next action: merge [PR #6](https://github.com/Chengxuan-Li/repobs/pull/6) once its CI passes; no merge has been performed.
 
 ## Checkpoint 29 — 2026-11-01: Claude task checklist fix ready for local review
 
