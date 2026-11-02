@@ -2,6 +2,44 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 30 — 2026-11-02: folder picker no longer looks unresponsive (branch `claude/folder-picker-no-response-41aa92`)
+
+Reproduced in a built copy of this branch (isolated data dir, port 47391, browser pane): *Browse…* returned `{"cancelled":true}` about 2 s after the click, no dialog stayed up, and the page did not change. A window trace showed the legacy `FolderBrowserDialog` (`SHBrowseForFolder`) visible for about 1.5 s, then closing itself as *Cancel* with no input. This happened on every attempt for a few minutes, through every launch path (server, direct `runProcess`, plain spawn), then stopped; the trigger on this machine is unknown. Independently of that trigger, `pickFolder` turned any empty output into `cancelled` whatever the exit code, stderr or timeout. The UI ignored a cancel, so every failure was a silent no-op.
+
+| Change | Where |
+| --- | --- |
+| Shell folder dialog (`IFileOpenDialog`, `FOS_PICKFOLDERS`) from a fixed C# helper compiled by `Add-Type`. It is owned by a transparent topmost window on the monitor under the pointer, with a taskbar entry, and is brought to the foreground (`AttachThreadInput`). The script goes as `-EncodedCommand` and prints `selected\n<path>` or `cancelled`. Anything else, a non-zero exit (first readable stderr line, CLIXML included) or the 10-minute timeout is an error | `platform/folderPicker.ts` |
+| Route aborts the picker when the client disconnects. Codes: `busy` 409, `picker_failed` 500 (logged, paths redacted), `picker_timeout` 504 | `api/server.ts` |
+| While waiting: an info notice and *Stop waiting*, which aborts the request; closing the dialog also aborts. A cancel shows *closed without choosing a folder*; errors show the server message | `AddRepositoryDialog.tsx`, `api.ts` (optional `signal`) |
+
+Verification (2026-11-02, this machine):
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm test` | 198 tests passed: 9 new in `tests/platform/folderPicker.test.ts`, 5 new in `AddRepositoryDialog.test.tsx`. The latter fail on the previous component |
+| `npm run test:integration` | 86 tests passed |
+| `npm run build` | Passed |
+| `npx playwright test` (with `REPOBS_E2E_PORT=47419`, because another session held 47399) | 35 passed, docs screenshot skipped |
+| `npm run docs:build` | Strict build passed |
+
+Manual checks against the real dialog, with the built app in the browser pane:
+
+- *Browse…*: the dialog was the topmost window, and the page showed the notice and *Stop waiting*.
+- *Stop waiting*: the PowerShell process ended.
+- A `WM_CLOSE` to the dialog: the page showed the cancel notice.
+- Filling the folder box and clicking *Select Folder* (`WM_SETTEXT`/`BM_CLICK`): `D:\repobs\docs` was added and ticked.
+- Called directly through `pickFolder`, Escape returned `cancelled` and a typed path returned it.
+
+Not verified:
+
+- Foreground activation when an ordinary browser (Edge/Chrome) holds focus. The checks above ran from processes under the Claude desktop app.
+- Behaviour on a machine where PowerShell runs in Constrained Language Mode, where `Add-Type` is blocked. This is now reported as `picker_failed`, not ignored.
+- What made the legacy dialog cancel itself.
+
+Next action: owner review of the PR, including one *Browse…* in their usual browser.
+
 ## Checkpoint 29 — 2026-11-01: Claude task checklist fix ready for local review
 
 Branch `codex/claude-task-checklists` implements the follow-up to checkpoint 28. The owner requested a local branch first and a PR only after checking it. The owner checked the preview, approved the result and authorized opening the PR on 2026-11-01. Local implementation commit: `72fc7e4`. Published as [PR #4](https://github.com/Chengxuan-Li/repobs/pull/4) against `main`; the PR is open and ready for review.

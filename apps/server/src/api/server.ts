@@ -22,7 +22,7 @@ import {
 import type { Logger } from '../config/logger.ts'
 import { type Monitor, RegistrationError } from '../monitoring/monitor.ts'
 import type { AppStore } from '../persistence/store.ts'
-import { folderPickerSupported, pickFolder } from '../platform/folderPicker.ts'
+import { folderPickerSupported, PickerError, pickFolder } from '../platform/folderPicker.ts'
 import { isAbsoluteLocalPath, redactHome } from '../platform/paths.ts'
 import {
   checkHostAndOrigin,
@@ -213,13 +213,20 @@ export function createRequestHandler(app: AppContext) {
       method: 'POST',
       pattern: /^\/repositories\/pick-directory$/,
       auth: true,
-      handler: async () => {
+      handler: async ({ res }) => {
         if (!folderPickerSupported()) throw new HttpError(501, 'unsupported', 'The native folder picker is only available on Windows; enter the path instead.')
+        // The browser aborts the request when the user stops waiting; close the dialog with it.
+        const abort = new AbortController()
+        res.on('close', () => {
+          if (!res.writableEnded) abort.abort()
+        })
         try {
-          return await pickFolder()
+          return await pickFolder({ signal: abort.signal })
         } catch (err) {
-          const code = (err as { code?: string }).code ?? 'picker_failed'
-          throw new HttpError(code === 'busy' ? 409 : 500, code, (err as Error).message)
+          if (!(err instanceof PickerError)) throw err
+          if (err.code === 'picker_failed') app.log('warn', `Folder picker failed: ${err.message}`)
+          const status = { unsupported: 501, busy: 409, picker_timeout: 504, aborted: 499, picker_failed: 500 }[err.code]
+          throw new HttpError(status, err.code, err.message)
         }
       },
     },
