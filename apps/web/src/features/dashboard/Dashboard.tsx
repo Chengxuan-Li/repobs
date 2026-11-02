@@ -125,13 +125,14 @@ export function Dashboard({
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    // The wheel zooms the history around the pointer instead of scrolling (dragging pans both
-    // ways); Ctrl + wheel is left to the UI size (app/uiScale.ts). Needs a non-passive listener.
+    // The wheel zooms the history around the pointer, 10 % per notch, instead of scrolling (dragging
+    // pans both ways); Ctrl + wheel is left to the UI size (app/uiScale.ts). Sideways swipes
+    // (touchpads, tilting wheels) and Shift + wheel still scroll sideways. Needs a non-passive listener.
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey || (e.target as Element).closest(OWN_WHEEL)) return
+      if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
       e.preventDefault()
-      if (!e.deltaY) return
-      zoomTo(zoomState.current.zoom * Math.exp(-wheelPixels(e) * 0.002), (e.clientX - el.getBoundingClientRect().left) / pageZoom())
+      zoomTo(zoomState.current.zoom * Math.pow(1.1, -wheelPixels(e) / 100), (e.clientX - el.getBoundingClientRect().left) / pageZoom())
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)

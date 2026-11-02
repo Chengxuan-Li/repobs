@@ -2,6 +2,36 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 32 — 2026-11-02: sideways swipes pan again; zoom in 10 % steps (branch `claude/ui-zoom-timeline-pan-3b4ef3`)
+
+The owner tried checkpoint 31 in their preview (port 47391) and reported that pan did not work, and asked for 10 % zoom steps.
+
+Investigation:
+
+- Mouse-drag pan worked on the demo and on the preview's data in the built-in browser (Chromium 152, real input), at 100 % and 175 %.
+- It also worked in a clean Chrome 156 through Playwright: at 125 %, an 80 × 60 px drag scrolled 64 × 48 page px.
+- The same Chrome probe found a regression from checkpoint 31. The dashboard's wheel handler prevented every non-Ctrl wheel event, so a sideways wheel movement did nothing (touchpad sideways swipe, tilting wheel; `mouse.wheel(-120, 0)` left `scrollLeft` unchanged). This is the likely cause on a touchpad.
+- The owner's own Chrome could not be checked: Claude in Chrome was not connected. Extensions or a different input device remain possible causes.
+
+| Change | Where |
+| --- | --- |
+| Wheel events with more sideways than vertical movement, and Shift + wheel, are left to native scrolling (sideways pan) | `Dashboard.tsx` |
+| History wheel zoom: ×1.1 per notch (`1.1^(−px/100)`), smooth on touchpads | `Dashboard.tsx` |
+| Interface size in whole 10 % steps (50–200 %). Ctrl + = / − go to the next 10 %; Ctrl + wheel makes one step per notch; pinch movements add up, one step per 50 px (`wheelStep`) | `app/uiScale.ts` |
+
+Verification (2026-11-02, this machine):
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm test` | 205 passed (`uiScale.test.ts` rewritten for 10 % steps and notch/pinch stepping) |
+| `npm run build` | Passed |
+| `npm run test:e2e` | 36 passed, docs screenshot skipped. New assertions: one notch gives timeline 110 %; a sideways wheel scrolls without zooming; Ctrl + wheel notch gives 110 %; Ctrl + = ×5 gives 150 %, then Ctrl + − gives 140 % |
+| `npm run docs:build` | Strict build passed |
+
+Next action: owner retries pan in their browser. If drag itself still fails there, find out the input device and browser extensions.
+
 ## Checkpoint 31 — 2026-11-02: interface size; the wheel zooms the history (branch `claude/ui-zoom-timeline-pan-3b4ef3`)
 
 Owner request: an interface-size zoom (text and all controls) on Ctrl + wheel, using repobs's own zoom instead of the browser's; the wheel alone zooms the history (dragging already pans both ways); no text selection in the dashboard, so panning never selects. Recorded in [ADR 0010](../decisions/0010-ui-size-and-wheel-controls.md).

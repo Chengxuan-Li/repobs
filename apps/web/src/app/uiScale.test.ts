@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { applyUiScale, normalizeUiScale, readUiScale, stepUiScale, uiScaleKey, wheelUiScale } from './uiScale'
+import { applyUiScale, normalizeUiScale, readUiScale, stepUiScale, uiScaleKey, wheelStep } from './uiScale'
 
 describe('UI size', () => {
   afterEach(() => {
@@ -16,20 +16,30 @@ describe('UI size', () => {
     expect(normalizeUiScale(-1)).toBe(1)
   })
 
-  it('steps to the next listed size, also from a size between steps', () => {
+  it('steps in whole 10 %, also from a size between steps, and stops at the ends', () => {
     expect(stepUiScale(1, 1)).toBe(1.1)
     expect(stepUiScale(1, -1)).toBe(0.9)
-    expect(stepUiScale(1.16, 1)).toBe(1.25)
+    expect(stepUiScale(1.1, 1)).toBe(1.2)
+    expect(stepUiScale(0.7, -1)).toBe(0.6)
+    expect(stepUiScale(1.16, 1)).toBe(1.2)
     expect(stepUiScale(1.16, -1)).toBe(1.1)
     expect(stepUiScale(2, 1)).toBe(2)
     expect(stepUiScale(0.5, -1)).toBe(0.5)
   })
 
-  it('grows when the wheel moves up and shrinks when it moves down, in pixels, lines or pages', () => {
-    expect(wheelUiScale(1, { deltaY: -100, deltaMode: 0 })).toBeGreaterThan(1.1)
-    expect(wheelUiScale(1, { deltaY: 100, deltaMode: 0 })).toBeLessThan(0.9)
-    expect(wheelUiScale(1, { deltaY: 3, deltaMode: 1 })).toBeCloseTo(wheelUiScale(1, { deltaY: 99, deltaMode: 0 }), 2)
-    expect(wheelUiScale(1, { deltaY: -1, deltaMode: 2 })).toBe(2)
+  it('makes one step per wheel notch (up: larger), and adds up the small movements of a pinch', () => {
+    expect(wheelStep(0, { deltaY: -100, deltaMode: 0 })).toEqual({ step: 1, pending: 0 })
+    expect(wheelStep(0, { deltaY: 125, deltaMode: 0 })).toEqual({ step: -1, pending: 0 })
+    expect(wheelStep(0, { deltaY: 3, deltaMode: 1 })).toEqual({ step: -1, pending: 0 })
+    let pending = 0
+    const steps: number[] = []
+    for (let i = 0; i < 12; i++) {
+      const r = wheelStep(pending, { deltaY: -10, deltaMode: 0 })
+      pending = r.pending
+      if (r.step) steps.push(r.step)
+    }
+    expect(steps).toEqual([1, 1])
+    expect(wheelStep(-30, { deltaY: 20, deltaMode: 0 })).toEqual({ step: 0, pending: -10 })
   })
 
   it('reads Ctrl + = / + / − / 0 on the main row and the numpad, and nothing without Ctrl or with Alt', () => {

@@ -613,10 +613,22 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     const top = await scroller.evaluate((el) => el.scrollTop)
     await page.mouse.move(box.x + box.width - 100, box.y + box.height / 2)
     await page.mouse.wheel(0, -300)
-    await expect.poll(width).toBeGreaterThan(before * 1.4)
+    // Three notches: 1.1³ ≈ 1.33.
+    await expect.poll(width).toBeGreaterThan(before * 1.3)
     expect(await scroller.evaluate((el) => el.scrollTop)).toBe(top)
     await page.mouse.wheel(0, 300)
     await expect.poll(width).toBeLessThan(before * 1.1)
+    // One notch is 10 %.
+    await page.getByRole('button', { name: /^Zoom \d+%, reset$/ }).click()
+    await page.mouse.wheel(0, -100)
+    await expect(page.getByRole('button', { name: /^Zoom 110%/ })).toBeVisible()
+    // A sideways swipe (touchpad, tilting wheel) still scrolls sideways, without zooming.
+    await page.getByRole('button', { name: 'Zoom in' }).click()
+    const zoomed = await width()
+    const left = await scroller.evaluate((el) => el.scrollLeft)
+    await page.mouse.wheel(-120, 0)
+    await expect.poll(() => scroller.evaluate((el) => el.scrollLeft)).toBeLessThan(left)
+    expect(await width()).toBe(zoomed)
     // Text in the view cannot be selected, so a drag never selects.
     expect(await scroller.evaluate((el) => getComputedStyle(el).userSelect)).toBe('none')
   })
@@ -632,15 +644,19 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await page.keyboard.down('Control')
     await page.mouse.wheel(0, -100)
     await page.keyboard.up('Control')
-    await expect.poll(zoom).toBeGreaterThan(1.1)
+    // One notch is 10 %.
+    await expect.poll(zoom).toBe(1.1)
     // Ctrl + wheel over the history leaves its own zoom alone.
     await expect(timelineZoom).toHaveText('100%')
     await page.keyboard.press('Control+0')
     await expect.poll(zoom).toBe(1)
     await expect(page.getByRole('button', { name: /^Interface size/ })).toBeHidden()
-    for (let i = 0; i < 3; i++) await page.keyboard.press('Control+Equal')
+    for (let i = 0; i < 5; i++) await page.keyboard.press('Control+Equal')
     await expect.poll(zoom).toBe(1.5)
     await expect(page.getByRole('button', { name: 'Interface size 150%, reset' })).toBeVisible()
+    await page.keyboard.press('Control+Minus')
+    await expect.poll(zoom).toBe(1.4)
+    await page.keyboard.press('Control+Equal')
     // The browser's own zoom is untouched.
     expect(await page.evaluate(() => window.devicePixelRatio)).toBe(1)
 

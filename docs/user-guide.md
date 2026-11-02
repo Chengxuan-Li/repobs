@@ -9,7 +9,7 @@
 - **Repositories panel** (left side bar by default): every repository registered in repobs, with agent counts and last activity, sorted by the **Sort** dropdown (the ⇅ button beside **Add**). The ticks are the current view's selection (*Ticked repositories are shown in View 0*); click a name to jump to it in the current view, **×** to remove it from repobs (no files are touched).
 - **Details panel** (right side bar by default): evidence and your notes for the selected agent, or upstream/worktree/status details for the selected branch. Selecting an agent or branch opens it if it is hidden.
 - **Status bar** (bottom): counts, last sync time, live connection state, and a *Monitoring degraded* link when something needs attention.
-- **Interface size** makes everything larger or smaller (text, controls, panels): **Ctrl + mouse wheel** anywhere, **Ctrl + =** / **Ctrl + −**, **Ctrl + 0** to reset, or *View → Styling*. It replaces the browser's zoom for these keys and is kept for this browser. When it is not 100%, the status bar shows *UI n%*; click it to reset.
+- **Interface size** makes everything larger or smaller (text, controls, panels) in 10% steps: **Ctrl + mouse wheel** or a touchpad pinch anywhere, **Ctrl + =** / **Ctrl + −**, **Ctrl + 0** to reset, or *View → Styling*. It replaces the browser's zoom for these keys and is kept for this browser. When it is not 100%, the status bar shows *UI n%*; click it to reset.
 
 ### Arranging the panels
 
@@ -76,7 +76,7 @@ All repositories share one horizontal axis, labelled at the top; scroll sideways
 - **Timeline → Calendar, compressed**: gaps follow elapsed time, but commits made close together are pushed apart to a minimum spacing, so a burst of commits stays readable. Distances are only proportional between well-separated commits; date labels mark where days and months start. Zooming stretches or shrinks the time gaps, never below that minimum spacing.
 - **Timeline → History** limits how far back the axis goes (24 hours … 1 year, or everything loaded — the newest 400 commits per repository).
 - **Pan** like a map: press the mouse button on the history (or the label column) and drag; the view follows the pointer in both directions. A press that barely moves is still a click, so selecting rows and expanding groups work as before. Controls (status menus, chevrons, buttons) do not start a pan.
-- **Zoom** stretches or compresses the axis horizontally: the **−** / **+** buttons at the left of the axis, the **mouse wheel** over the dashboard (zooms around the pointer), or **+**, **−** and **0** (reset) while the dashboard has focus. The percentage button resets to 100%. Zooming out below 100% only packs commits closer when history is wider than the window. To move through history, drag with the mouse in any direction; text in the dashboard cannot be selected, so a drag never selects.
+- **Zoom** stretches or compresses the axis horizontally: the **−** / **+** buttons at the left of the axis, the **mouse wheel** over the dashboard (10% per notch, around the pointer), or **+**, **−** and **0** (reset) while the dashboard has focus. The percentage button resets to 100%. Zooming out below 100% only packs commits closer when history is wider than the window. To move through history, drag with the mouse in any direction, or swipe sideways on a touchpad (Shift + wheel also scrolls sideways); text in the dashboard cannot be selected, so a drag never selects.
 
 ## Agents
 
