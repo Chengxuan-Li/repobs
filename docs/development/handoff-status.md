@@ -30,7 +30,9 @@ Verification (2026-11-02, this machine):
 | `npm run test:e2e` | 36 passed, docs screenshot skipped. New assertions: one notch gives timeline 110 %; a sideways wheel scrolls without zooming; Ctrl + wheel notch gives 110 %; Ctrl + = ×5 gives 150 %, then Ctrl + − gives 140 % |
 | `npm run docs:build` | Strict build passed |
 
-Next action: owner retries pan in their browser. If drag itself still fails there, find out the input device and browser extensions.
+Owner check, 2026-11-02: after reloading the preview (port 47391) on this build, the owner reported that pan works.
+
+Next action: open a PR for `claude/ui-zoom-timeline-pan-3b4ef3` when the owner asks; nothing has been pushed.
 
 ## Checkpoint 31 — 2026-11-02: interface size; the wheel zooms the history (branch `claude/ui-zoom-timeline-pan-3b4ef3`)
 
