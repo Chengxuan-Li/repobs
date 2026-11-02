@@ -2,6 +2,19 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 33 — 2026-11-02: Claude Code API errors show as errors
+
+Follow-up to checkpoint 32: a Claude Code run that could not sign in showed as *Idle / turn finished*. Claude Code writes a failed API call as an assistant record with `isApiErrorMessage: true`, `stop_reason: stop_sequence` and `model: <synthetic>`, plus a structural `error` code. Local transcripts on this machine (keys and codes only, no text read out) show `authentication_failed`, `rate_limit` (429) and `server_error` (529), in main sessions and in subagents; after a sign-in failure the next records are metadata only (`last-prompt`, `cost-state`), with no `stop_hook_summary`.
+
+| Area | Change |
+| --- | --- |
+| Adapter | `claudePhase` maps a flagged assistant record to `error_event`, so the state is `error` / `inferred` / `claude.transcript` (or `claude.subagent`) / `provider_error_event`, observed at the record's timestamp. Not downgraded when stale; the next user prompt returns it to *Running*. A live registry entry still wins (direct evidence). No contract change; the excerpt is unchanged (the error text is an assistant text item, redacted and truncated as before) |
+| Fixtures | `claude.apiError(sid, cwd, at, error?)` |
+| Tests | `tests/sessions/adapters.test.ts`: sign-in failure → error with exact evidence; rate limit then a new prompt → running; failed subagent → error child, not counted active. `tests/api/folders.int.test.ts`: a sign-in failure in a registered folder is an error in the snapshot |
+| Docs | `integrations.md` lifecycle mapping, `status-semantics.md` Error row, changelog |
+
+Verification (repository root, 2026-11-02): `npm run typecheck` passed; `npm run lint` passed; `npm test` 24 files, 191 tests passed; `npm run test:integration` 8 files, 93 tests passed. Not run: e2e, docs build. Not checked: the real heat-pump case in a running instance. Possible follow-up: a specific reason (e.g. `provider_api_error` carrying the structural `error` code) instead of the generic `provider_error_event`, which needs a contract change and API reference regeneration. Nothing committed.
+
 ## Checkpoint 32 — 2026-11-02: a real local case for folders without Git
 
 The owner had no real case of an agent working outside Git and asked for one on local disk, following each agent's own conventions. Nothing in this case is committed; it lives in the owner's agent homes and in two folders outside any repository.

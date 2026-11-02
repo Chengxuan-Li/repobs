@@ -52,6 +52,14 @@ export const claude = {
     type: 'assistant',
     message: { role: 'assistant', stop_reason: 'end_turn', content: [{ type: 'text', text: 'synthetic answer' }] },
   }),
+  /** A failed API call as Claude Code records it (e.g. a run that could not sign in): a synthetic reply ending with stop_sequence. */
+  apiError: (sid: string, cwd: string, at: number, error = 'authentication_failed') => ({
+    ...claudeCommon(sid, cwd, at),
+    type: 'assistant',
+    error,
+    isApiErrorMessage: true,
+    message: { model: '<synthetic>', role: 'assistant', stop_reason: 'stop_sequence', content: [{ type: 'text', text: 'synthetic api error' }] },
+  }),
   interrupted: (sid: string, cwd: string, at: number) => ({
     ...claudeCommon(sid, cwd, at),
     type: 'user',

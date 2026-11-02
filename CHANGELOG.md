@@ -19,6 +19,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Fixed
 
+- A Claude Code session whose last reply is a failed API call (a run that could not sign in, a rate limit, a server error) showed as *Idle / turn finished*; it now shows *Error*, inferred from the transcript, until the next prompt. The same applies to subagents.
 - Claude Code task plans using `TaskCreate` and `TaskUpdate` now appear in agent checklists. Successful results supply task ids and confirmed changes; long-transcript and subagent recovery preserves earlier task creations.
 - After closing a side panel from the toolbar, its button stayed pressed until something else redrew the page.
 

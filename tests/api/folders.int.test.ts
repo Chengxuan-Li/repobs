@@ -38,6 +38,9 @@ beforeAll(async () => {
   session(fx.repoB, 'c-b', 6)
   session(notes, 'c-notes', 7)
   session(path.join(notes, 'deep'), 'c-deep', 8)
+  // A Claude Code run that could not sign in: its only reply is an API error record.
+  const deep = path.join(notes, 'deep')
+  writeClaudeSession(t.claudeHome, deep, 'c-nologin', [claude.prompt('c-nologin', deep, ago(11)), claude.apiError('c-nologin', deep, ago(10))])
   session(later, 'c-later', 9)
   await t.running.monitor.refreshAll()
 })
@@ -103,6 +106,10 @@ describe('folders without Git', () => {
     expect(where.get('c-deep')).toBe(folder.id)
     expect(s.sessions.find((x) => x.providerSessionId === 'c-notes')).toMatchObject({ association: 'matched', worktreeId: folderTrees[0]!.id })
     expect(where.has('c-later')).toBe(false)
+    expect(s.sessions.find((x) => x.providerSessionId === 'c-nologin')).toMatchObject({
+      repoId: folder.id,
+      state: { kind: 'error', confidence: 'inferred', source: 'claude.transcript', detail: 'provider_error_event' },
+    })
     expect(snapshotTree(fx.repoA)).toEqual(before)
   })
 

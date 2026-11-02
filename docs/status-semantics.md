@@ -18,7 +18,7 @@ They have no causal relationship. A session can be idle and still need your revi
 | Idle / turn finished | The last turn completed or was interrupted, or the provider reports the session idle. |
 | Ended | The provider's live-session registry points to a process that is no longer running. |
 | Unknown | Not enough evidence. **Missing data is unknown, never idle.** |
-| Error | The provider recorded an error event. |
+| Error | The provider recorded an error event (for Claude Code, a failed API call such as a run that could not sign in), and no prompt has followed it. |
 
 ## Evidence and confidence
 

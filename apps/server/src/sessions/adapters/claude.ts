@@ -119,6 +119,9 @@ function assistantExcerpt(rec: Record<string, unknown>, at: string | undefined):
 function claudePhase(rec: Record<string, unknown>): Lifecycle['phase'] | undefined {
   const message = isRecord(rec.message) ? rec.message : undefined
   if (rec.type === 'assistant') {
+    // Claude Code writes a failed API call (sign-in, rate limit, server error) as an assistant
+    // record flagged isApiErrorMessage; its stop_reason (stop_sequence) would read as a finished turn.
+    if (rec.isApiErrorMessage === true) return 'error_event'
     const stop = message?.stop_reason
     if (stop === 'tool_use') return 'tool_pending'
     if (stop === 'end_turn' || stop === 'stop_sequence' || stop === 'max_tokens' || stop === 'refusal') return 'turn_completed'
