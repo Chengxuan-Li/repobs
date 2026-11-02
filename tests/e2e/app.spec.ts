@@ -606,6 +606,101 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     expect(await width()).toBeGreaterThan(before * 1.4)
     await page.getByRole('button', { name: /^Zoom 150%/ }).click()
     expect(await width()).toBe(before)
+
+    // The wheel alone zooms the history (dragging pans both ways); it no longer scrolls the view.
+    const scroller = page.getByLabel(/^Branches and agents\. Use the arrow keys/)
+    const box = (await scroller.boundingBox())!
+    const top = await scroller.evaluate((el) => el.scrollTop)
+    await page.mouse.move(box.x + box.width - 100, box.y + box.height / 2)
+    await page.mouse.wheel(0, -300)
+    // Three notches: 1.1³ ≈ 1.33.
+    await expect.poll(width).toBeGreaterThan(before * 1.3)
+    expect(await scroller.evaluate((el) => el.scrollTop)).toBe(top)
+    await page.mouse.wheel(0, 300)
+    await expect.poll(width).toBeLessThan(before * 1.1)
+    // One notch is 10 %.
+    await page.getByRole('button', { name: /^Zoom \d+%, reset$/ }).click()
+    await page.mouse.wheel(0, -100)
+    await expect(page.getByRole('button', { name: /^Zoom 110%/ })).toBeVisible()
+    // A sideways swipe (touchpad, tilting wheel) still scrolls sideways, without zooming.
+    await page.getByRole('button', { name: 'Zoom in' }).click()
+    const zoomed = await width()
+    const left = await scroller.evaluate((el) => el.scrollLeft)
+    await page.mouse.wheel(-120, 0)
+    await expect.poll(() => scroller.evaluate((el) => el.scrollLeft)).toBeLessThan(left)
+    expect(await width()).toBe(zoomed)
+    // Text in the view cannot be selected, so a drag never selects.
+    expect(await scroller.evaluate((el) => getComputedStyle(el).userSelect)).toBe('none')
+  })
+
+  test('Ctrl + wheel and Ctrl + = / − / 0 change the size of the interface, not the browser zoom', async ({ page }) => {
+    await pair(page)
+    const html = page.locator('html')
+    const zoom = () => html.evaluate((el) => Number(getComputedStyle(el).zoom))
+    const timelineZoom = page.getByRole('button', { name: /^Zoom \d+%, reset$/ })
+    const scroller = page.getByLabel(/^Branches and agents\. Use the arrow keys/)
+    const box = (await scroller.boundingBox())!
+    await page.mouse.move(box.x + box.width - 100, box.y + box.height / 2)
+    await page.keyboard.down('Control')
+    await page.mouse.wheel(0, -100)
+    await page.keyboard.up('Control')
+    // One notch is 10 %.
+    await expect.poll(zoom).toBe(1.1)
+    // Ctrl + wheel over the history leaves its own zoom alone.
+    await expect(timelineZoom).toHaveText('100%')
+    await page.keyboard.press('Control+0')
+    await expect.poll(zoom).toBe(1)
+    await expect(page.getByRole('button', { name: /^Interface size/ })).toBeHidden()
+    for (let i = 0; i < 5; i++) await page.keyboard.press('Control+Equal')
+    await expect.poll(zoom).toBe(1.5)
+    await expect(page.getByRole('button', { name: 'Interface size 150%, reset' })).toBeVisible()
+    await page.keyboard.press('Control+Minus')
+    await expect.poll(zoom).toBe(1.4)
+    await page.keyboard.press('Control+Equal')
+    // The browser's own zoom is untouched.
+    expect(await page.evaluate(() => window.devicePixelRatio)).toBe(1)
+
+    // At 150% a drag still moves the history with the pointer (scrolling is in page pixels).
+    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Zoom in' }).click()
+    const at = () => scroller.evaluate((el) => ({ left: el.scrollLeft, top: el.scrollTop }))
+    const b = (await scroller.boundingBox())!
+    const before = await at()
+    const x = b.x + b.width - 60
+    const y = b.y + b.height - 45
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + 150, y - 90, { steps: 10 })
+    await page.mouse.up()
+    const after = await at()
+    expect(Math.abs(before.left - after.left - 100)).toBeLessThanOrEqual(2)
+    expect(Math.abs(after.top - before.top - 60)).toBeLessThanOrEqual(2)
+
+    // Dock splitters follow the pointer too (the dock frame itself is not zoomed).
+    const splitter = page.locator('.flexlayout__splitter').first()
+    const s = (await splitter.boundingBox())!
+    await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(s.x + s.width / 2 + 90, s.y + s.height / 2, { steps: 8 })
+    await page.mouse.up()
+    await expect.poll(async () => (await splitter.boundingBox())!.x - s.x).toBeGreaterThan(85)
+    expect((await splitter.boundingBox())!.x - s.x).toBeLessThan(95)
+
+    // Menus open under their button.
+    const viewButton = page.getByRole('button', { name: 'View', exact: true })
+    await viewButton.click()
+    const menu = (await page.getByRole('menu', { name: 'View menu' }).boundingBox())!
+    const button = (await viewButton.boundingBox())!
+    expect(Math.abs(menu.x - button.x)).toBeLessThanOrEqual(2)
+    expect(menu.y - (button.y + button.height)).toBeGreaterThanOrEqual(0)
+    expect(menu.y - (button.y + button.height)).toBeLessThanOrEqual(6)
+    await page.keyboard.press('Escape')
+
+    // The size is kept for this browser; the status bar resets it.
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Interface size 150%, reset' })).toBeVisible()
+    expect(await zoom()).toBe(1.5)
+    await page.getByRole('button', { name: 'Interface size 150%, reset' }).click()
+    await expect.poll(zoom).toBe(1)
   })
 
   test('long agent lists collapse behind "show more"', async ({ page }) => {

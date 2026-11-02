@@ -2,6 +2,73 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 32 — 2026-11-02: sideways swipes pan again; zoom in 10 % steps (branch `claude/ui-zoom-timeline-pan-3b4ef3`)
+
+The owner tried checkpoint 31 in their preview (port 47391) and reported that pan did not work, and asked for 10 % zoom steps.
+
+Investigation:
+
+- Mouse-drag pan worked on the demo and on the preview's data in the built-in browser (Chromium 152, real input), at 100 % and 175 %.
+- It also worked in a clean Chrome 156 through Playwright: at 125 %, an 80 × 60 px drag scrolled 64 × 48 page px.
+- The same Chrome probe found a regression from checkpoint 31. The dashboard's wheel handler prevented every non-Ctrl wheel event, so a sideways wheel movement did nothing (touchpad sideways swipe, tilting wheel; `mouse.wheel(-120, 0)` left `scrollLeft` unchanged). This is the likely cause on a touchpad.
+- The owner's own Chrome could not be checked: Claude in Chrome was not connected. Extensions or a different input device remain possible causes.
+
+| Change | Where |
+| --- | --- |
+| Wheel events with more sideways than vertical movement, and Shift + wheel, are left to native scrolling (sideways pan) | `Dashboard.tsx` |
+| History wheel zoom: ×1.1 per notch (`1.1^(−px/100)`), smooth on touchpads | `Dashboard.tsx` |
+| Interface size in whole 10 % steps (50–200 %). Ctrl + = / − go to the next 10 %; Ctrl + wheel makes one step per notch; pinch movements add up, one step per 50 px (`wheelStep`) | `app/uiScale.ts` |
+
+Verification (2026-11-02, this machine):
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm test` | 205 passed (`uiScale.test.ts` rewritten for 10 % steps and notch/pinch stepping) |
+| `npm run build` | Passed |
+| `npm run test:e2e` | 36 passed, docs screenshot skipped. New assertions: one notch gives timeline 110 %; a sideways wheel scrolls without zooming; Ctrl + wheel notch gives 110 %; Ctrl + = ×5 gives 150 %, then Ctrl + − gives 140 % |
+| `npm run docs:build` | Strict build passed |
+
+Owner check, 2026-11-02: after reloading the preview (port 47391) on this build, the owner reported that pan works.
+
+Next action: open a PR for `claude/ui-zoom-timeline-pan-3b4ef3` when the owner asks; nothing has been pushed.
+
+## Checkpoint 31 — 2026-11-02: interface size; the wheel zooms the history (branch `claude/ui-zoom-timeline-pan-3b4ef3`)
+
+Owner request: an interface-size zoom (text and all controls) on Ctrl + wheel, using repobs's own zoom instead of the browser's; the wheel alone zooms the history (dragging already pans both ways); no text selection in the dashboard, so panning never selects. Recorded in [ADR 0010](../decisions/0010-ui-size-and-wheel-controls.md).
+
+| Change | Where |
+| --- | --- |
+| Interface size 50–200 %: CSS `zoom` and `--ui-scale` on the root, per browser (`repobs.uiScale`), applied before the first frame. Ctrl + wheel changes it smoothly; Ctrl + = / − step through the listed sizes; Ctrl + 0 resets. Handled in the capture phase with the default prevented, so the browser does not zoom, also in text fields | `app/uiScale.ts`, `public/theme-init.js` |
+| *View → Styling*: larger, smaller, reset. The status bar shows *UI n %* when the size is not 100 % and resets it on click. The ribbon ignores keys that are already handled | `WorkbenchShell.tsx`, `Ribbon.tsx` |
+| Screen to page pixels: `pageZoom()`, `boxOf()` and `windowSize()` return page pixels. Used by hover cards, dropdowns, ribbon menus, the review menu, the checklist list, drag-to-pan, the wheel anchor and the lane click | `components/placement.ts` and its callers |
+| FlexLayout frame zoomed back to 1 (its splitters moved about 3× the pointer distance at 150 %); tab strips scaled by `--ui-scale`; each panel zoomed again | `dock.css`, `.panelScale` in `shell.module.css` |
+| The wheel over the dashboard zooms the axis around the pointer and no longer scrolls; Ctrl + wheel is left to the interface size; open menus and dialogs keep their own scrolling | `Dashboard.tsx` |
+| `user-select: none` on the dashboard scroller (text fields excepted) | `dashboard.module.css` |
+
+Verification (2026-11-02, this machine):
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm test` | 205 tests passed: 5 new in `app/uiScale.test.ts`, 2 new in `components/placement.test.ts` |
+| `npm run build` | Passed |
+| `npm run test:e2e` | 36 passed, docs screenshot skipped. New: *Ctrl + wheel and Ctrl + = / − / 0 change the size of the interface*. It covers Ctrl + wheel, the keys, persistence across reload, the status-bar reset, `devicePixelRatio` staying 1, drag-to-pan at 150 % (screen 150 × 90 px gives 100 × 60 page px), a dock splitter following the pointer, and the View menu opening under its button. Extended: *the history zooms horizontally* (wheel zooms without scrolling, `user-select: none`) |
+| `npm run docs:build` | Strict build passed |
+
+Manual check with a Playwright script on Edge 156 and the e2e demo data (port 47398): screenshots at 150 % and 80 %. The whole workbench scales, tab strips and side-bar tabs included. The hover card sits beside its row, and the dropdown and View menu open under their buttons.
+
+Not verified:
+
+- Firefox and Safari (no e2e project for them). Browsers without standardized CSS zoom (Chromium before 128, Firefox before 126) would misplace floating cards at sizes other than 100 %.
+- Touchpad pinch on real hardware: it arrives as Ctrl + wheel, and only the synthetic event was tested.
+- FlexLayout tab drag-and-drop between docks at sizes other than 100 %. Splitters were tested; drag-and-drop uses the same coordinate space.
+- Pixel paddings in FlexLayout's own stylesheet are not scaled.
+
+Next action: owner review of the branch; no PR opened.
+
 ## Checkpoint 30 — 2026-11-02: folder picker no longer looks unresponsive (branch `claude/folder-picker-no-response-41aa92`)
 
 Reproduced in a built copy of this branch (isolated data dir, port 47391, browser pane): *Browse…* returned `{"cancelled":true}` about 2 s after the click, no dialog stayed up, and the page did not change. A window trace showed the legacy `FolderBrowserDialog` (`SHBrowseForFolder`) visible for about 1.5 s, then closing itself as *Cancel* with no input. This happened on every attempt for a few minutes, through every launch path (server, direct `runProcess`, plain spawn), then stopped; the trigger on this machine is unknown. Independently of that trigger, `pickFolder` turned any empty output into `cancelled` whatever the exit code, stderr or timeout. The UI ignored a cancel, so every failure was a silent no-op.

@@ -11,6 +11,7 @@ import {
   WORKFLOW_TONES,
   workflowStatus,
 } from '@repobs/contracts'
+import { pageZoom } from '../../components/placement'
 import { Badge, formatAge } from '../../components/primitives'
 import { AgentRow } from './AgentRow'
 import { AgentHover, BranchHover, CommitHover, GroupHover, PendingHover, type ShowHover } from './HoverCard'
@@ -129,7 +130,7 @@ export const RepoBoard = memo(function RepoBoard(props: RepoBoardProps) {
             data-lanes=""
             onClick={(e) => {
               // Nodes and bars take pointer events (for hover cards); a click on them selects their row.
-              const y = e.clientY - e.currentTarget.getBoundingClientRect().top
+              const y = (e.clientY - e.currentTarget.getBoundingClientRect().top) / pageZoom()
               const hit = Object.entries(geo.rows).find(([, r]) => y >= r.top && y < r.top + r.height)
               if (hit && !hit[0].startsWith('more:')) props.onSelect(hit[0])
             }}

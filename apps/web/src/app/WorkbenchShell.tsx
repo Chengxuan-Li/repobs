@@ -30,6 +30,7 @@ import { SettingsPanel } from '../features/settings/SettingsPanel'
 import { api, ApiError } from './api'
 import type { Connection } from './store'
 import { applyTheme } from './theme'
+import { useUiScale } from './uiScale'
 import { defaultLayout, type PanelId, type TabComponent, useDockLayout, viewTabs } from './dockLayout'
 import { type Command, Ribbon } from './Ribbon'
 import { useViewData, ViewPanel } from './ViewPanel'
@@ -57,6 +58,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
   const failed = useCallback((text: string) => setNotice(text, 'danger'), [setNotice])
   const refused = useCallback((text: string) => setNotice(text, 'warning'), [setNotice])
   const now = useNow(30_000)
+  const ui = useUiScale()
   // The current view: the one last selected, clicked or focused. Ribbon commands, the repository
   // ticks and the details panel follow it.
   const [currentId, setCurrentId] = useState<string>()
@@ -325,7 +327,8 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
   }
   const factory = (node: TabNode) => {
     const render = panels[node.getComponent() as TabComponent]
-    return render ? render(node) : <p className="small muted">Unknown panel “{node.getName()}”. Reset the layout from View → Panels.</p>
+    // The dock frame is not zoomed (dock.css); its panels take the UI size again.
+    return <div className={styles.panelScale}>{render ? render(node) : <p className="small muted">Unknown panel “{node.getName()}”. Reset the layout from View → Panels.</p>}</div>
   }
 
   const panelCommand = (panel: PanelId, label: string, shortcut: string, icon: Command['icon']): Command => ({
@@ -368,6 +371,9 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
       pressed: theme === t,
       run: () => void chooseTheme(t),
     })),
+    { id: 'view.uiLarger', label: 'Larger interface', group: 'View', submenu: 'Styling', shortcut: 'Ctrl+=', run: ui.zoomIn },
+    { id: 'view.uiSmaller', label: 'Smaller interface', group: 'View', submenu: 'Styling', shortcut: 'Ctrl+-', run: ui.zoomOut },
+    { id: 'view.uiReset', label: `Reset interface size (now ${Math.round(ui.scale * 100)}%)`, group: 'View', submenu: 'Styling', shortcut: 'Ctrl+0', run: ui.reset },
     {
       id: 'view.fullscreen',
       label: 'Full screen',
@@ -438,7 +444,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
         />
       </div>
 
-      <GlobalStatusBar snapshot={snapshot} annotations={annotations} connection={connection} onDiagnostics={() => setDialog('diagnostics')} />
+      <GlobalStatusBar snapshot={snapshot} annotations={annotations} connection={connection} uiScale={ui.scale} onResetUiScale={ui.reset} onDiagnostics={() => setDialog('diagnostics')} />
 
       <input
         ref={fileInput}
@@ -569,11 +575,15 @@ function GlobalStatusBar({
   snapshot,
   annotations,
   connection,
+  uiScale,
+  onResetUiScale,
   onDiagnostics,
 }: {
   snapshot: Snapshot
   annotations: Map<string, AnnotationSummary>
   connection: Connection
+  uiScale: number
+  onResetUiScale: () => void
   onDiagnostics: () => void
 }) {
   const working = snapshot.sessions.filter((s) => workflowStatus(s, annotations.get(s.id)) === 'working').length
@@ -589,6 +599,11 @@ function GlobalStatusBar({
       {snapshot.monitor.state === 'degraded' ? (
         <button type="button" className={styles.statusButton} onClick={onDiagnostics} title={snapshot.monitor.errors.map((e) => e.message).join('\n')}>
           ⚠ Monitoring degraded ({snapshot.monitor.errors.length})
+        </button>
+      ) : null}
+      {uiScale !== 1 ? (
+        <button type="button" className={styles.statusLink} onClick={onResetUiScale} title="Interface size (Ctrl + wheel, Ctrl + = / −). Click to reset (Ctrl + 0)." aria-label={`Interface size ${Math.round(uiScale * 100)}%, reset`}>
+          UI {Math.round(uiScale * 100)}%
         </button>
       ) : null}
       <span>Synced {synced}</span>

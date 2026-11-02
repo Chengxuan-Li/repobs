@@ -180,13 +180,16 @@
   overflow: auto;
   outline: none;
   position: relative;
-  /* Drag to pan (useDragPan.ts). */
+  /* Drag to pan (useDragPan.ts): no text selection, so a drag never selects. */
   cursor: grab;
+  user-select: none;
+}
+.scroller :is(input, textarea) {
+  user-select: text;
 }
 .scroller[data-panning],
 .scroller[data-panning] * {
   cursor: grabbing !important;
-  user-select: none;
 }
 .scroller:focus-visible {
   outline: 2px solid var(--color-focus);

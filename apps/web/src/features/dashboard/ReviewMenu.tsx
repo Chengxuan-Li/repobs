@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Check, ChevronDown, EyeOff } from 'lucide-react'
 import { REVIEW_LABELS, type ReviewState, WORKFLOW_LABELS, WORKFLOW_TONES, type WorkflowStatus } from '@repobs/contracts'
+import { boxOf } from '../../components/placement'
 import { badgeClassName, ReviewDot } from '../../components/primitives'
 import styles from './reviewMenu.module.css'
 
@@ -46,7 +47,7 @@ export function ReviewMenu({
     if (!open || !menu.current || !trigger.current) return
     // Open upwards when the menu would run past the bottom of the scrolling area.
     const box = trigger.current.closest('[data-menu-bounds]') ?? document.documentElement
-    setAbove(trigger.current.getBoundingClientRect().bottom + menu.current.offsetHeight > box.getBoundingClientRect().bottom)
+    setAbove(boxOf(trigger.current).bottom + menu.current.offsetHeight > boxOf(box).bottom)
     ;(menu.current.querySelector<HTMLElement>('[aria-checked="true"]') ?? menu.current.querySelector<HTMLElement>(ITEMS))?.focus()
   }, [open])
 

@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Check, ChevronDown, type LucideIcon } from 'lucide-react'
+import { boxOf, windowSize } from './placement'
 import styles from './dropdown.module.css'
 
 // A labelled button showing its current value that opens either a menu of options (check boxes for
@@ -57,9 +58,9 @@ export function Dropdown({
   useLayoutEffect(() => {
     if (!open || !trigger.current || !popup.current) return
     // Below the button, kept inside the window.
-    const r = trigger.current.getBoundingClientRect()
+    const r = boxOf(trigger.current)
     const w = popup.current.offsetWidth
-    setPos({ left: Math.max(4, Math.min(r.left, window.innerWidth - w - 4)), top: r.bottom + 2 })
+    setPos({ left: Math.max(4, Math.min(r.left, windowSize().width - w - 4)), top: r.bottom + 2 })
     const first = isMenu
       ? (popup.current.querySelector<HTMLElement>('[aria-checked="true"]') ?? popup.current.querySelector<HTMLElement>('[role^="menuitem"]'))
       : popup.current.querySelector<HTMLElement>('input, select, textarea, button')
