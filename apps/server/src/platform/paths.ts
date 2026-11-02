@@ -9,7 +9,7 @@ import path from 'node:path'
 const isWindows = process.platform === 'win32'
 
 /** Strip Win32 namespace prefixes (\\?\C:\x, \\?\UNC\server\share) that some tools emit. */
-function stripNamespace(p: string): string {
+export function stripNamespace(p: string): string {
   if (p.startsWith('\\\\?\\UNC\\')) return '\\\\' + p.slice(8)
   if (p.startsWith('\\\\?\\') || p.startsWith('//?/')) return p.slice(4)
   return p

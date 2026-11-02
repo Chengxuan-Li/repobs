@@ -156,7 +156,8 @@ JSON Schema generated from the shared zod contracts.
             "no_lifecycle_records",
             "unrecognized_records",
             "provider_error_event",
-            "source_missing"
+            "source_missing",
+            "metadata_only"
           ]
         },
         "possiblyAwaitingApproval": {
@@ -3506,7 +3507,8 @@ JSON Schema generated from the shared zod contracts.
                   "no_lifecycle_records",
                   "unrecognized_records",
                   "provider_error_event",
-                  "source_missing"
+                  "source_missing",
+                  "metadata_only"
                 ]
               },
               "possiblyAwaitingApproval": {
@@ -4464,7 +4466,8 @@ JSON Schema generated from the shared zod contracts.
                       "no_lifecycle_records",
                       "unrecognized_records",
                       "provider_error_event",
-                      "source_missing"
+                      "source_missing",
+                      "metadata_only"
                     ]
                   },
                   "possiblyAwaitingApproval": {

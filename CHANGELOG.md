@@ -19,6 +19,8 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Fixed
 
+- Codex history: most Codex threads were missing, because Codex 0.166 compresses older rollouts (`rollout-*.jsonl.zst`) and repobs read only plain ones. Compressed rollouts are now read in memory, over the first scans after start, with the same state, excerpt and plan rules. Codex's `state_5.sqlite` thread index is read read-only for thread names and lists threads without a readable rollout as *Unknown · only thread metadata is available*; it never reads prompt columns and never creates files or takes blocking locks in the Codex home (ADR 0011). Codex working directories lose their `\\?\` prefix.
+- A forked Codex sub-agent's rollout was credited to its parent thread, whose `session_meta` it repeats after its own; the sub-agent now appears as its own session.
 - A Claude Code session whose last reply is a failed API call (a run that could not sign in, a rate limit, a server error) showed as *Idle / turn finished*; it now shows *Error*, inferred from the transcript, until the next prompt. The same applies to subagents.
 - Claude Code task plans using `TaskCreate` and `TaskUpdate` now appear in agent checklists. Successful results supply task ids and confirmed changes; long-transcript and subagent recovery preserves earlier task creations.
 - After closing a side panel from the toolbar, its button stayed pressed until something else redrew the page.

@@ -146,6 +146,7 @@ export const StateDetail = z.enum([
   'unrecognized_records',
   'provider_error_event',
   'source_missing',
+  'metadata_only',
 ])
 export type StateDetail = z.infer<typeof StateDetail>
 

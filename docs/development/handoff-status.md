@@ -2,6 +2,36 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 34 — 2026-11-02: Codex compressed rollouts and state database (ADR 0011)
+
+Follow-up to checkpoint 32, which found most Codex history invisible and blamed missing rollouts. Investigated with read-only scripts printing structure and counts only ([ADR 0011](../decisions/0011-codex-compressed-rollouts-and-state-database.md) has the evidence). **The rollouts are not missing: Codex 0.166 compresses them in place** (`rollout-*.jsonl.zst`, 303 files, next to 11 plain ones). All 288 threads in `state_5.sqlite` have a rollout (9 plain, 279 compressed). `threads.title` holds the start of the first prompt (equal to `first_user_message` in 281 rows), so it is never read; `thread_history_1.sqlite` holds transcripts and is never opened.
+
+| Area | Change |
+| --- | --- |
+| Compressed rollouts | `sessions/zstd-jsonl.ts`: stream decompression with `node:zlib` zstd, nothing written; head 256 KB and tail 512 KB fed like a long plain file, the latest plan-marker lines before the tail kept for replay, 1 GiB decompressed cap (`rollout_too_large`, head only). The adapter discovers `.jsonl.zst`, prefers the plain twin while Codex compresses, reads plain files first and compressed ones newest first within about 2 s per scan (`compressed_rollouts_pending` until done) |
+| State database | `sessions/adapters/codex-state.ts`: `state_5.sqlite` only, WAL only (header bytes 18/19), `mode=ro` when `-wal` and `-shm` exist, else `immutable=1` with a before/after stat check; named metadata columns only (`id`, `cwd`, `name`, times, `source`, `git_branch`, `cli_version`, `agent_nickname`, `agent_role`) and `thread_spawn_edges`. Re-read only when the files change; the last good snapshot survives an unreadable read. Problems: `state_db_unsupported` (other generation, non-WAL), `state_db_unrecognized`, `state_db_unreadable` |
+| Adapter | Thread names fall back to the database. Threads without a readable rollout are metadata-only sessions: `unknown` / `unknown` / `codex.state-db` / new reason `metadata_only`, observed at the thread's last update; counted in the parent's sub-agent total, never active. Codex cwds lose `\\?\` (`stripNamespace` exported from `platform/paths.ts`). **Fix:** the first `session_meta` names a rollout's thread; a forked sub-agent's repeated parent meta (6 real files) no longer credits the file to the parent. The adapter is available when only the database exists |
+| Contracts | `StateDetail` gains `metadata_only` with its label; API reference regenerated |
+| Fixtures and tests | `fixtures/codex-history-fixtures.ts` (compressed rollouts, a synthetic `state_5.sqlite` with the observed column names and a prompt canary in `title`/`first_user_message`/`preview`, a writer that keeps the database open). `tests/sessions/codex-history.test.ts`, 19 tests: compressed reading, twins, head/tail/plan, budget and pending, undecompressable file, bounded reader (jump, cap, bad lines), forked sub-agent, metadata-only sessions and parents, canary never in output, rollout wins over database, no file created in the Codex home when closed (immutable), `mode=ro` reads the WAL while the writer keeps writing, non-WAL, other generation, unrecognized table, corrupt database, database-only home |
+| Docs | ADR 0011 (and MkDocs nav), integrations (Codex table, compressed rollouts, state database), status semantics, privacy, limitations, changelog |
+
+Verification (PowerShell, repository root, 2026-11-02):
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm test` | 25 files, 210 tests passed (includes the other session's checkpoint 33 work in the same tree) |
+| `npm run docs:api` | Regenerated `docs/api.md` (`metadata_only`) |
+| `npm run test:integration` | 8 files, 93 tests passed |
+| `npm run build` | Passed |
+| `npm run docs:build`, then `git diff --check` | Strict build passed; no whitespace errors |
+| Headless check against the real `~/.codex` (scratch script outside the repository, counts only) | 288 sessions; 89 metadata-only after scan 1, none after scan 5; 287 *Idle / turn finished*, 1 interrupted; no `\\?\` left; Codex home listing unchanged |
+
+**Side effect during the investigation.** The first schema inspection opened the real `state_5.sqlite` with `mode=ro` while no companion files existed; SQLite created an empty `state_5.sqlite-wal` and a 32 KB `state_5.sqlite-shm` in `~/.codex` (15:37). Codex was running, so they were left in place; Codex removes them on its own next clean close. This is why the adapter uses `immutable=1` when they are absent. The database itself was not written.
+
+Not done or unverified: `npx playwright test` was not run (no UI change beyond a new reason label); the owner's running instance was not restarted; Codex's compression trigger, other history modes and compressed archived rollouts were not observed. Nothing committed. Next action: owner review of ADR 0011 and the branch.
+
 ## Checkpoint 33 — 2026-11-02: Claude Code API errors show as errors
 
 Follow-up to checkpoint 32: a Claude Code run that could not sign in showed as *Idle / turn finished*. Claude Code writes a failed API call as an assistant record with `isApiErrorMessage: true`, `stop_reason: stop_sequence` and `model: <synthetic>`, plus a structural `error` code. Local transcripts on this machine (keys and codes only, no text read out) show `authentication_failed`, `rate_limit` (429) and `server_error` (529), in main sessions and in subagents; after a sign-in failure the next records are metadata only (`last-prompt`, `cost-state`), with no `stop_hook_summary`.
