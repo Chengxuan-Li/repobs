@@ -595,9 +595,22 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Zoom in' }).click()
     const at = () => scroller.evaluate((el) => ({ left: el.scrollLeft, top: el.scrollTop }))
     const before = await at()
-    const box = (await scroller.boundingBox())!
-    const x = box.x + box.width - 80
-    const y = box.y + box.height - 60
+    // Press on empty lane background, not on a control, a repository header, a label, a card or a
+    // drawn mark (controls never start a pan, marks open hover cards, and where they all sit
+    // depends on the window size): the lower right of the view, scanning inwards.
+    const { x, y } = await scroller.evaluate((el) => {
+      const busy = 'button, a, input, select, textarea, label, [role="menu"], [role="dialog"], [data-no-pan], [data-nav-row] *, [data-bar-label], [class*="repoHeader"]'
+      const r = el.getBoundingClientRect()
+      for (let dy = 60; dy < r.height / 2; dy += 7) {
+        for (let dx = 80; dx < r.width / 2; dx += 7) {
+          const p = { x: r.right - dx, y: r.bottom - dy }
+          const hit = document.elementFromPoint(p.x, p.y)
+          const mark = hit instanceof SVGElement && !hit.matches('svg[data-lanes]')
+          if (hit && el.contains(hit) && !mark && !hit.closest(busy)) return p
+        }
+      }
+      throw new Error('no empty lane background to press on')
+    })
     await page.mouse.move(x, y)
     await page.mouse.down()
     await page.mouse.move(x + 150, y - 100, { steps: 10 })
