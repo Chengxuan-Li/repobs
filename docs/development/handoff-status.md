@@ -32,7 +32,9 @@ Verification (2026-11-02, this machine):
 
 Owner check, 2026-11-02: after reloading the preview (port 47391) on this build, the owner reported that pan works.
 
-Next action: open a PR for `claude/ui-zoom-timeline-pan-3b4ef3` when the owner asks; nothing has been pushed.
+Published as [PR #7](https://github.com/Chengxuan-Li/repobs/pull/7) against `main`; the owner merged it on 2026-11-02 (merge commit `de3d9ae`). PR CI passed: Test (ubuntu-latest), Test (windows-latest), Documentation (strict) and the Pages build; deploy is skipped on pull requests (it runs only on `main`).
+
+Next action: none for this feature. Open questions are under *Not verified* in checkpoint 31.
 
 ## Checkpoint 31 — 2026-11-02: interface size; the wheel zooms the history (branch `claude/ui-zoom-timeline-pan-3b4ef3`)
 
@@ -67,7 +69,7 @@ Not verified:
 - FlexLayout tab drag-and-drop between docks at sizes other than 100 %. Splitters were tested; drag-and-drop uses the same coordinate space.
 - Pixel paddings in FlexLayout's own stylesheet are not scaled.
 
-Next action: owner review of the branch; no PR opened.
+Next action: superseded by checkpoint 32 (merged as PR #7).
 
 ## Checkpoint 30 — 2026-11-02: folder picker no longer looks unresponsive (branch `claude/folder-picker-no-response-41aa92`)
 
