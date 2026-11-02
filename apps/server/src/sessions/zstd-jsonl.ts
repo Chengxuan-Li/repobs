@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import zlib from 'node:zlib'
 import { DEFAULT_LIMITS, splitLines } from './jsonl.ts'
 
-// Bounded reading of zstd-compressed JSONL (Codex compresses older rollouts in place, ADR 0011).
+// Bounded reading of zstd-compressed JSONL (Codex compresses older rollouts in place, ADR 0012).
 // A compressed file cannot be read from its end, so it is decompressed as a stream and nothing is
 // written anywhere. Like a large plain file, the caller gets the records of a bounded head (session
 // metadata) and a bounded tail (the latest state); lines in between are not parsed, except the

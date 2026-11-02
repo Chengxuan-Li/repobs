@@ -23,7 +23,7 @@ export type AuthSession = z.infer<typeof AuthSession>
 export const RegisterRepositoryRequest = z.object({
   path: z.string().trim().min(1).max(LIMITS.pathChars),
   displayName: z.string().trim().min(1).max(120).optional(),
-  /** `git` (default) resolves the repository the path belongs to; `folder` registers a folder without Git (ADR 0010). */
+  /** `git` (default) resolves the repository the path belongs to; `folder` registers a folder without Git (ADR 0011). */
   kind: RepositoryKind.optional(),
 })
 export type RegisterRepositoryRequest = z.infer<typeof RegisterRepositoryRequest>
@@ -31,7 +31,7 @@ export type RegisterRepositoryRequest = z.infer<typeof RegisterRepositoryRequest
 export const RegisterRepositoriesRequest = z
   .object({
     paths: z.array(z.string().trim().min(1).max(LIMITS.pathChars)).max(50).default([]),
-    /** Folders without Git (ADR 0010). */
+    /** Folders without Git (ADR 0011). */
     folders: z.array(z.string().trim().min(1).max(LIMITS.pathChars)).max(50).default([]),
   })
   .refine((r) => r.paths.length + r.folders.length >= 1 && r.paths.length + r.folders.length <= 50, 'Register between 1 and 50 paths at once')

@@ -15,7 +15,7 @@ import {
 import { codex, codexRolloutPath, writeCodexIndex, writeCodexRollout } from '../../fixtures/session-fixtures.ts'
 import { makeTempDir, removeDir } from '../helpers/tmp.ts'
 
-// ADR 0011: compressed rollouts and the Codex state database. Synthetic data only.
+// ADR 0012: compressed rollouts and the Codex state database. Synthetic data only.
 
 let root: string
 let home: string

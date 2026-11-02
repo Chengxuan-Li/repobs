@@ -92,8 +92,9 @@ nav:
           - Documentation site style: decisions/0007-docs-site-alignment.md
           - Automation rules and hiding: decisions/0008-automation-rules-and-view-hiding.md
           - Agent plans in checklists: decisions/0009-agent-plans-in-checklists.md
-          - Folders without Git: decisions/0010-folders-without-git.md
-          - Codex compressed rollouts and state database: decisions/0011-codex-compressed-rollouts-and-state-database.md
+          - Interface size and wheel: decisions/0010-ui-size-and-wheel-controls.md
+          - Folders without Git: decisions/0011-folders-without-git.md
+          - Codex compressed rollouts and state database: decisions/0012-codex-compressed-rollouts-and-state-database.md
 # Reveals the landing page's header once the page scrolls (design/docs-ui-spec.md, 0.7).
 extra_javascript:
   - assets/javascripts/opening.js

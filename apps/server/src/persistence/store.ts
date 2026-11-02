@@ -19,7 +19,7 @@ import {
 
 export interface StoredRepository {
   id: string
-  /** ADR 0010: `folder` registrations have no Git directory (stored as an empty string). */
+  /** ADR 0011: `folder` registrations have no Git directory (stored as an empty string). */
   kind: 'git' | 'folder'
   displayName: string
   registeredPath: string

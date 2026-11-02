@@ -1,4 +1,4 @@
-# 0010 — Folders without Git
+# 0011 — Folders without Git
 
 - Status: accepted (owner request, 2026-11-02). Implemented on `feature/non-git-folders`.
 - Extends [ADR 0001](0001-product-foundation.md), decision 2 (repository → branch → worktree → sessions). The read-only rules and the metadata-only agent observation are unchanged.

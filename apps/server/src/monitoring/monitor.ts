@@ -69,7 +69,7 @@ interface RepoState {
   commitGraph?: CommitGraph
   /** Ref tips + detached heads the graph was built from. */
   graphKey: string
-  /** Folders only (ADR 0010): Git now reports the folder as inside a repository. */
+  /** Folders only (ADR 0011): Git now reports the folder as inside a repository. */
   gitDetected?: boolean
 }
 
@@ -261,7 +261,7 @@ export class Monitor extends EventEmitter {
     return this.activate(stored)
   }
 
-  /** Register a folder without Git (ADR 0010). */
+  /** Register a folder without Git (ADR 0011). */
   private async registerFolder(inputPath: string, displayName?: string): Promise<Repository> {
     let folder
     try {
@@ -377,7 +377,7 @@ export class Monitor extends EventEmitter {
     }
   }
 
-  /** A folder: whether it exists, and whether Git now covers it. Nothing else is read (ADR 0010). */
+  /** A folder: whether it exists, and whether Git now covers it. Nothing else is read (ADR 0011). */
   private async scanFolder(repo: RepoState): Promise<void> {
     repo.scanning = true
     repo.structureDirty = false
@@ -842,7 +842,7 @@ export class Monitor extends EventEmitter {
     }
     const candidates = [...byCwd.values()].sort((a, b) => (b.lastActivityAt ?? '').localeCompare(a.lastActivityAt ?? '')).slice(0, limit * 2)
     // Several working directories (worktrees, subfolders) can belong to one repository: merge them.
-    // Working directories outside any repository are offered as folders, one each (ADR 0010).
+    // Working directories outside any repository are offered as folders, one each (ADR 0011).
     const byRepo = new Map<string, RepositorySuggestion>()
     for (const c of candidates) {
       if (byRepo.size >= limit) break

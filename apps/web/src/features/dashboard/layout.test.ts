@@ -127,7 +127,7 @@ describe('layoutRepository', () => {
     expect(l.commits.get('X')!.rowId).toBe('branch:r|refs/heads/topic')
   })
 
-  it('gives a folder without Git one row for its agents and no commits (ADR 0010)', () => {
+  it('gives a folder without Git one row for its agents and no commits (ADR 0011)', () => {
     const f = repo('folder_1', { kind: 'folder', commonGitDir: undefined })
     const wt = worktree('folder_1', 'wt_f', { isPrimary: true, status: { state: 'unavailable', staged: 0, unstaged: 0, untracked: 0, conflicted: 0 } })
     const inFolder = session('claude:f', { worktreeId: 'wt_f', repoId: 'folder_1' })

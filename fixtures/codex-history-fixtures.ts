@@ -3,7 +3,7 @@ import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import zlib from 'node:zlib'
 
-// Synthetic Codex 0.166 history (ADR 0011): zstd-compressed rollouts and a `state_5.sqlite` thread
+// Synthetic Codex 0.166 history (ADR 0012): zstd-compressed rollouts and a `state_5.sqlite` thread
 // index shaped like the observed schema (a subset of its columns, with the observed names and
 // types). Every value is a placeholder; prompt-bearing columns carry a canary that tests assert
 // never reaches repobs output.

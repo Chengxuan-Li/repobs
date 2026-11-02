@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Worktree } from '@repobs/contracts'
 import { associate } from '../../apps/server/src/sessions/registry.ts'
 
-// Session matching with registered folders without Git next to repositories (ADR 0010). Paths are
+// Session matching with registered folders without Git next to repositories (ADR 0011). Paths are
 // synthetic and need not exist: a cwd equal to a worktree root is matched without a disk check.
 
 const root = process.platform === 'win32' ? 'C:\\synthetic' : '/synthetic'

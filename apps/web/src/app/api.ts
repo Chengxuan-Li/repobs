@@ -19,7 +19,7 @@ export function setCsrfToken(token: string | undefined) {
   csrfToken = token
 }
 
-export async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
+export async function api<T>(method: string, path: string, body?: unknown, options: { signal?: AbortSignal } = {}): Promise<T> {
   const headers: Record<string, string> = {}
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (method !== 'GET' && csrfToken) headers[CSRF_HEADER] = csrfToken
@@ -31,8 +31,10 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
       body: body === undefined ? undefined : JSON.stringify(body),
       credentials: 'same-origin',
       cache: 'no-store',
+      signal: options.signal,
     })
   } catch {
+    if (options.signal?.aborted) throw new ApiError(0, 'aborted', 'Request cancelled')
     throw new ApiError(0, 'offline', 'The repobs server is not reachable. Is it still running?')
   }
   const text = await res.text()

@@ -13,6 +13,11 @@
   min-height: 0;
   min-width: 0;
 }
+/* A panel inside the dock: the UI size again, since the dock frame is zoomed back to 1 (dock.css). */
+.panelScale {
+  height: 100%;
+  zoom: var(--ui-scale, 1);
+}
 .side {
   display: flex;
   flex-direction: column;
@@ -87,6 +92,18 @@
   font: inherit;
   color: var(--tone-warning-text);
   cursor: pointer;
+}
+.statusLink {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.statusLink:hover {
+  color: var(--color-text);
+  text-decoration: underline;
 }
 .renameField {
   display: flex;

@@ -1,11 +1,11 @@
-# 0011 — Codex compressed rollouts and state database
+# 0012 — Codex compressed rollouts and state database
 
-- Status: accepted (2026-11-02, delegated by the owner's session for checkpoint 32). Implemented on `feature/non-git-folders`.
+- Status: accepted (2026-11-02, delegated by the owner's session for checkpoint 35). Implemented on `feature/non-git-folders`.
 - Extends [ADR 0001](0001-product-foundation.md) (metadata-only agent observation, read-only sources) and the Codex section of [integrations](../integrations.md). The privacy rules of [ADR 0003](0003-dashboard-commit-graph-and-excerpts.md) and [ADR 0009](0009-agent-plans-in-checklists.md) are unchanged.
 
 ## Context
 
-Checkpoint 32 found that most Codex threads on the owner's machine were invisible to repobs. Investigated on 2026-11-02 against Codex app 26.1027 with `codex-cli 0.166.0-alpha.5.1`, using read-only scripts that printed structure and counts only (no titles, prompts or paths):
+Checkpoint 35 found that most Codex threads on the owner's machine were invisible to repobs. Investigated on 2026-11-02 against Codex app 26.1027 with `codex-cli 0.166.0-alpha.5.1`, using read-only scripts that printed structure and counts only (no titles, prompts or paths):
 
 - **Rollouts are compressed, not removed.** `~/.codex/sessions/` holds 303 `rollout-*.jsonl.zst` files and 11 plain `rollout-*.jsonl` files. Every `.zst` file starts with the zstd frame magic and decompresses to the same JSONL records as a plain rollout (`session_meta`, `event_msg`, `response_item`, `turn_context`, plus `world_state`, `compacted`, `inter_agent_communication_metadata` and `token_usage_record`, which repobs ignores). The repobs adapter matched only `*.jsonl`, so it saw 11 of 314 rollout files.
 - **`state_5.sqlite` indexes every thread.** Its `threads` table has 288 rows. For each row, `rollout_path` names a `.jsonl` file: 9 exist as named, the other 279 exist with `.zst` appended, none is missing. So the earlier figure "279 of 286 threads have no rollout file" counted compressed rollouts as missing. 251 rows are sub-agent threads (`thread_spawn_edges` has 251 rows), 3 are guardian reviews, 33 were started by the user, 1 by an agent. All 288 have `history_mode = 'legacy'`, and all `cwd` values carry the `\\?\` prefix.

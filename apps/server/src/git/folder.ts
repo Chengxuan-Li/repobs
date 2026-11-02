@@ -7,7 +7,7 @@ import { basenameOf, canonicalPath, isAbsoluteLocalPath, isWithin, pathKey } fro
 import { GitError, type GitRunner } from './exec.ts'
 import { emptyStatus } from './reader.ts'
 
-// Folders without Git (ADR 0010). A registered folder is never read beyond "does it exist and is
+// Folders without Git (ADR 0011). A registered folder is never read beyond "does it exist and is
 // it a directory"; the only Git call asks, read-only, whether a repository now covers it.
 
 const hash = (s: string) => createHash('sha256').update(s).digest('hex')

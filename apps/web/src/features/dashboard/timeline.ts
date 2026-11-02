@@ -8,7 +8,7 @@
 //     activity point keeps at least minSpacing from the previous one, so bursts of commits or
 //     agents never collide; zoom scales only the time-proportional part of the gaps.
 // Agent activity takes part in both ordinal modes, so agents never collapse into one point where
-// there are no commits (folders without Git, ADR 0010) or between two distant commits.
+// there are no commits (folders without Git, ADR 0011) or between two distant commits.
 // Pure and unit-tested (timeline.test.ts).
 
 export type AxisMode = 'sequence' | 'time' | 'compressed'

@@ -17,7 +17,7 @@ import type { DiscoveredSession } from './types.ts'
 // longest root wins. Sessions whose cwd no longer exists, or that were associated before but no
 // longer match, become "unassigned" under their repository. Nothing is ever guessed from branch
 // names. Sessions unrelated to registered repositories are not shown (only counted). Registered
-// folders without Git take part through one stand-in worktree at their path (ADR 0010).
+// folders without Git take part through one stand-in worktree at their path (ADR 0011).
 
 const isFolderId = (repoId: string) => repoId.startsWith('folder_')
 
@@ -51,7 +51,7 @@ export function associate(
     let best: Worktree | undefined
     for (const wt of worktrees) {
       if (!isWithin(canonical, wt.path) && !isWithin(cwd, wt.path)) continue
-      // A Git worktree wins a tie with a registered folder at the same path (ADR 0010).
+      // A Git worktree wins a tie with a registered folder at the same path (ADR 0011).
       if (!best || wt.path.length > best.path.length || (wt.path.length === best.path.length && isFolderId(best.repoId) && !isFolderId(wt.repoId))) best = wt
     }
     if (best) {

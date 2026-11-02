@@ -38,7 +38,7 @@
 - **Finished, unreviewed agents are "Unreviewed"** (neutral), replacing "Ready" (success green), which contradicted an unreviewed review state.
 - **The status badge is the review control.** It opens a review-state menu on the dashboard row and in the agent's hover card; the hover card opens beside the label column so the pointer can reach it.
 - **Metro-style connector tracks.** Overlapping collinear connector legs get parallel tracks 4 px apart (`routing.ts`): lanes keep the centre; a leg that turns later sits closer to the centre and others step outwards on the side they turn to, so a bundle leaving one commit does not cross itself; when a side is full (4 tracks) the other side is used.
-- **Horizontal zoom** (25%–1600%) of the shared axis, by buttons, Ctrl + wheel (anchored at the pointer) or +/−/0 keys; stored with the per-browser view.
+- **Horizontal zoom** (25%–1600%) of the shared axis, by buttons, the mouse wheel (anchored at the pointer; Ctrl + wheel before [ADR 0010](0010-ui-size-and-wheel-controls.md)) or +/−/0 keys; stored with the per-browser view.
 
 ## Amendment (owner feedback, 2026-10-30, fifth review)
 
@@ -61,4 +61,4 @@
 
 ## Amendment (owner feedback, 2026-11-02, ninth review)
 
-- **Agent activity is an anchor of the ordinal axes.** Commit order and calendar, compressed placed only commits (and quiet-commit groups) and interpolated agent bars between them, so a folder without Git (ADR 0010) stacked every agent at one point, and agents before the first commit or between two distant commits shared a single gap. The first and last activity of every drawn agent before now is now an anchor like a commit: a column of its own in commit order, a point kept at least the minimum spacing from its neighbour in calendar, compressed. Points at the same instant share one anchor; agents behind *show more*, outside the history range or filtered out take no space. Commit order keeps its name: commits still each take a column, and agents are placed among them in time order. Plain calendar time is unchanged.
+- **Agent activity is an anchor of the ordinal axes.** Commit order and calendar, compressed placed only commits (and quiet-commit groups) and interpolated agent bars between them, so a folder without Git (ADR 0011) stacked every agent at one point, and agents before the first commit or between two distant commits shared a single gap. The first and last activity of every drawn agent before now is now an anchor like a commit: a column of its own in commit order, a point kept at least the minimum spacing from its neighbour in calendar, compressed. Points at the same instant share one anchor; agents behind *show more*, outside the history range or filtered out take no space. Commit order keeps its name: commits still each take a column, and agents are placed among them in time order. Plain calendar time is unchanged.

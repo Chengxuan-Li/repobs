@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Check, Search } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { boxOf } from '../components/placement'
 import styles from './ribbon.module.css'
 
 // The ribbon (EnergyAtlas family layout): the wordmark, the File and View menus, a "Search
@@ -88,7 +89,7 @@ function MenuButton({ label, commands }: { label: string; commands: Command[] })
   }, [open])
   useLayoutEffect(() => {
     if (!open || !trigger.current) return
-    const r = trigger.current.getBoundingClientRect()
+    const r = boxOf(trigger.current)
     setPos({ left: r.left, top: r.bottom + 2 })
     menu.current?.querySelector<HTMLElement>('[role^="menuitem"]')?.focus()
   }, [open])
@@ -266,6 +267,8 @@ function useShortcuts(commands: Command[], paletteShortcut: string, openPalette:
   })
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Already handled, e.g. the interface size (uiScale.ts), which also runs while typing.
+      if (e.defaultPrevented) return
       const combo = keyCombo(e)
       if (combo === paletteShortcut) {
         e.preventDefault()

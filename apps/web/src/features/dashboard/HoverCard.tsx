@@ -14,7 +14,7 @@ import {
   WORKFLOW_TONES,
   workflowStatus,
 } from '@repobs/contracts'
-import { type Box, boxOf, type Placement, placeFloating, WIDE_ANCHOR } from '../../components/placement'
+import { type Box, boxOf, type Placement, pageZoom, placeFloating, WIDE_ANCHOR, windowSize } from '../../components/placement'
 import { Badge, formatAge } from '../../components/primitives'
 import type { BranchRow } from './layout'
 import { checklistEntries } from './checklistEntries'
@@ -52,7 +52,7 @@ export function hoverAt(content: ReactNode, e: { currentTarget: Element; clientX
   const anchor = boxOf(e.currentTarget)
   const placement = options.placement ?? 'below'
   const wide = placement === 'below' && anchor.right - anchor.left > WIDE_ANCHOR
-  return { content, anchor, x: wide ? e.clientX - 12 : undefined, placement, interactive: options.interactive, label: options.label }
+  return { content, anchor, x: wide ? e.clientX / pageZoom() - 12 : undefined, placement, interactive: options.interactive, label: options.label }
 }
 
 export function HoverCard({ state, onEnter, onLeave }: { state?: HoverState; onEnter: () => void; onLeave: () => void }) {
@@ -62,7 +62,7 @@ export function HoverCard({ state, onEnter, onLeave }: { state?: HoverState; onE
     if (!state || !ref.current) return
     const size = { width: ref.current.offsetWidth, height: ref.current.offsetHeight }
     // Interactive cards sit close to their element so the pointer can move onto them.
-    setPos(placeFloating(state.anchor, size, { width: window.innerWidth, height: window.innerHeight }, { placement: state.placement, gap: state.interactive ? 2 : 6, x: state.x }))
+    setPos(placeFloating(state.anchor, size, windowSize(), { placement: state.placement, gap: state.interactive ? 2 : 6, x: state.x }))
   }, [state])
   if (!state) return null
   return (

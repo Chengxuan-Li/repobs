@@ -2,7 +2,17 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
-## Checkpoint 35 — 2026-11-02: agent activity on the ordinal axes
+## Checkpoint 39 — 2026-11-02: `main` merged into `feature/non-git-folders`; ADRs and checkpoints renumbered
+
+Before the pull request, `main` (PRs #6–#8: folder picker, interface size, wheel zoom) was merged into the branch. Both sides had numbered new work from the same base:
+
+- **ADRs.** `main` took 0010 (*Interface size; the wheel zooms the history*), already published. This branch's ADRs move up one: *Folders without Git* 0010 → **0011**, *Codex compressed rollouts and state database* 0011 → **0012** (files, headings, links, MkDocs nav, code comments, tests, changelog). The branch's commit messages keep the old numbers.
+- **Checkpoints.** `main`'s 30–32 keep their numbers; this branch's 30–35 are now 33–38, in the same order, with their cross-references updated. Commit messages *checkpoint 32, 33, 35* mean 35, 36, 38 here. Checkpoint 33 (*state correction*) describes `main` as it was before PRs #6–#8.
+- **Conflicts resolved by hand.** `AddRepositoryDialog.tsx`: both import changes (`useRef` from `main`, `RepositoryKind` from the branch) and both helpers (`stopPicking`, `asFolder`/`kindOf`). User guide: the branch's *Add* paragraph with `main`'s note on the Browse… chooser. Architecture: `main`'s paragraph (wheel zoom, interface size) with the branch's axis wording. MkDocs nav: all three ADRs.
+
+Verification after the merge (Git Bash, repository root, 2026-11-02): `npm run typecheck` and `npm run lint` passed; `npm test` 28 files, 236 tests; `npm run test:integration` 8 files, 93 tests; `npm run docs:api` left `docs/api.md` unchanged; `npm run build` passed; `npm run docs:build` (strict) passed; `git diff --check` clean; `npx playwright test` 37 passed, 1 skipped. Next action: review and merge the pull request.
+
+## Checkpoint 38 — 2026-11-02: agent activity on the ordinal axes
 
 Owner feedback from trying the preview: *Calendar, compressed* and *Commit order* compressed the agents of a folder without Git, and the same was suspected for Git repositories. **Confirmed for both.** `timeline.ts` built the two ordinal axes from drawn commits and groups only and interpolated every other time between them: with no commits, commit order put every agent at *now* and calendar, compressed covered only the last day (older activity clamped to the left edge); with commits, agents between two distant commits shared one column gap, and agents before the first commit were clamped onto it. Plain calendar time was not affected.
 
@@ -27,9 +37,9 @@ Verification (Git Bash, repository root, 2026-11-02):
 
 Not done or unverified: the compressed mode's time-proportional spacing was checked by unit tests only (the preview pane was too narrow for a year of history, so every gap fell to the minimum); the wider axis on large histories was not tuned (zoom below 100% packs it). Committed on `feature/non-git-folders`; not pushed. Next action: owner tries the preview.
 
-## Checkpoint 34 — 2026-11-02: Codex compressed rollouts and state database (ADR 0011)
+## Checkpoint 37 — 2026-11-02: Codex compressed rollouts and state database (ADR 0012)
 
-Follow-up to checkpoint 32, which found most Codex history invisible and blamed missing rollouts. Investigated with read-only scripts printing structure and counts only ([ADR 0011](../decisions/0011-codex-compressed-rollouts-and-state-database.md) has the evidence). **The rollouts are not missing: Codex 0.166 compresses them in place** (`rollout-*.jsonl.zst`, 303 files, next to 11 plain ones). All 288 threads in `state_5.sqlite` have a rollout (9 plain, 279 compressed). `threads.title` holds the start of the first prompt (equal to `first_user_message` in 281 rows), so it is never read; `thread_history_1.sqlite` holds transcripts and is never opened.
+Follow-up to checkpoint 35, which found most Codex history invisible and blamed missing rollouts. Investigated with read-only scripts printing structure and counts only ([ADR 0012](../decisions/0012-codex-compressed-rollouts-and-state-database.md) has the evidence). **The rollouts are not missing: Codex 0.166 compresses them in place** (`rollout-*.jsonl.zst`, 303 files, next to 11 plain ones). All 288 threads in `state_5.sqlite` have a rollout (9 plain, 279 compressed). `threads.title` holds the start of the first prompt (equal to `first_user_message` in 281 rows), so it is never read; `thread_history_1.sqlite` holds transcripts and is never opened.
 
 | Area | Change |
 | --- | --- |
@@ -38,7 +48,7 @@ Follow-up to checkpoint 32, which found most Codex history invisible and blamed 
 | Adapter | Thread names fall back to the database. Threads without a readable rollout are metadata-only sessions: `unknown` / `unknown` / `codex.state-db` / new reason `metadata_only`, observed at the thread's last update; counted in the parent's sub-agent total, never active. Codex cwds lose `\\?\` (`stripNamespace` exported from `platform/paths.ts`). **Fix:** the first `session_meta` names a rollout's thread; a forked sub-agent's repeated parent meta (6 real files) no longer credits the file to the parent. The adapter is available when only the database exists |
 | Contracts | `StateDetail` gains `metadata_only` with its label; API reference regenerated |
 | Fixtures and tests | `fixtures/codex-history-fixtures.ts` (compressed rollouts, a synthetic `state_5.sqlite` with the observed column names and a prompt canary in `title`/`first_user_message`/`preview`, a writer that keeps the database open). `tests/sessions/codex-history.test.ts`, 19 tests: compressed reading, twins, head/tail/plan, budget and pending, undecompressable file, bounded reader (jump, cap, bad lines), forked sub-agent, metadata-only sessions and parents, canary never in output, rollout wins over database, no file created in the Codex home when closed (immutable), `mode=ro` reads the WAL while the writer keeps writing, non-WAL, other generation, unrecognized table, corrupt database, database-only home |
-| Docs | ADR 0011 (and MkDocs nav), integrations (Codex table, compressed rollouts, state database), status semantics, privacy, limitations, changelog |
+| Docs | ADR 0012 (and MkDocs nav), integrations (Codex table, compressed rollouts, state database), status semantics, privacy, limitations, changelog |
 
 Verification (PowerShell, repository root, 2026-11-02):
 
@@ -46,7 +56,7 @@ Verification (PowerShell, repository root, 2026-11-02):
 | --- | --- |
 | `npm run typecheck` | Passed |
 | `npm run lint` | Passed |
-| `npm test` | 25 files, 210 tests passed (includes the other session's checkpoint 33 work in the same tree) |
+| `npm test` | 25 files, 210 tests passed (includes the other session's checkpoint 36 work in the same tree) |
 | `npm run docs:api` | Regenerated `docs/api.md` (`metadata_only`) |
 | `npm run test:integration` | 8 files, 93 tests passed |
 | `npm run build` | Passed |
@@ -55,11 +65,11 @@ Verification (PowerShell, repository root, 2026-11-02):
 
 **Side effect during the investigation.** The first schema inspection opened the real `state_5.sqlite` with `mode=ro` while no companion files existed; SQLite created an empty `state_5.sqlite-wal` and a 32 KB `state_5.sqlite-shm` in `~/.codex` (15:37). Codex was running, so they were left in place; Codex removes them on its own next clean close. This is why the adapter uses `immutable=1` when they are absent. The database itself was not written.
 
-Not done or unverified: `npx playwright test` was not run (no UI change beyond a new reason label); the owner's running instance was not restarted; Codex's compression trigger, other history modes and compressed archived rollouts were not observed. Nothing committed. Next action: owner review of ADR 0011 and the branch.
+Not done or unverified: `npx playwright test` was not run (no UI change beyond a new reason label); the owner's running instance was not restarted; Codex's compression trigger, other history modes and compressed archived rollouts were not observed. Nothing committed. Next action: owner review of ADR 0012 and the branch.
 
-## Checkpoint 33 — 2026-11-02: Claude Code API errors show as errors
+## Checkpoint 36 — 2026-11-02: Claude Code API errors show as errors
 
-Follow-up to checkpoint 32: a Claude Code run that could not sign in showed as *Idle / turn finished*. Claude Code writes a failed API call as an assistant record with `isApiErrorMessage: true`, `stop_reason: stop_sequence` and `model: <synthetic>`, plus a structural `error` code. Local transcripts on this machine (keys and codes only, no text read out) show `authentication_failed`, `rate_limit` (429) and `server_error` (529), in main sessions and in subagents; after a sign-in failure the next records are metadata only (`last-prompt`, `cost-state`), with no `stop_hook_summary`.
+Follow-up to checkpoint 35: a Claude Code run that could not sign in showed as *Idle / turn finished*. Claude Code writes a failed API call as an assistant record with `isApiErrorMessage: true`, `stop_reason: stop_sequence` and `model: <synthetic>`, plus a structural `error` code. Local transcripts on this machine (keys and codes only, no text read out) show `authentication_failed`, `rate_limit` (429) and `server_error` (529), in main sessions and in subagents; after a sign-in failure the next records are metadata only (`last-prompt`, `cost-state`), with no `stop_hook_summary`.
 
 | Area | Change |
 | --- | --- |
@@ -70,7 +80,7 @@ Follow-up to checkpoint 32: a Claude Code run that could not sign in showed as *
 
 Verification (repository root, 2026-11-02): `npm run typecheck` passed; `npm run lint` passed; `npm test` 24 files, 191 tests passed; `npm run test:integration` 8 files, 93 tests passed. Not run: e2e, docs build. Not checked: the real heat-pump case in a running instance. Possible follow-up: a specific reason (e.g. `provider_api_error` carrying the structural `error` code) instead of the generic `provider_error_event`, which needs a contract change and API reference regeneration. Nothing committed.
 
-## Checkpoint 32 — 2026-11-02: a real local case for folders without Git
+## Checkpoint 35 — 2026-11-02: a real local case for folders without Git
 
 The owner had no real case of an agent working outside Git and asked for one on local disk, following each agent's own conventions. Nothing in this case is committed; it lives in the owner's agent homes and in two folders outside any repository.
 
@@ -94,7 +104,7 @@ Found while doing this:
 - **API error turns.** The Claude adapter does not read `isApiErrorMessage`, so a run that failed to sign in shows as a finished turn, not an error.
 - **Codex thread history.** Codex 0.166 keeps thread history in `state_5.sqlite`; 279 of 286 threads here have no rollout file left, so repobs, which reads only `sessions/` and `archived_sessions/` rollouts, misses most Codex history. Thread `cwd` values there carry the `\\?\` prefix.
 
-Then a Claude Code desktop session (`9d076e23-…`) was started in `D:\agent-cases\heat-pump-notes` and wrote `summary.md`, without touching the other files. Rerunning the headless check, with the uncommitted changes of checkpoints 33 and 34 in the checkout, gave these results:
+Then a Claude Code desktop session (`9d076e23-…`) was started in `D:\agent-cases\heat-pump-notes` and wrote `summary.md`, without touching the other files. Rerunning the headless check, with the uncommitted changes of checkpoints 36 and 34 in the checkout, gave these results:
 
 - The heat-pump folder's suggestion counted 4 sessions, 1 active.
 - After registration the folder has all four sessions matched: the desktop session is *idle*, from the live session registry; the Codex run has *turn completed*; the two runs that failed to sign in are *error*, from the transcript as a `provider_error_event`.
@@ -110,7 +120,7 @@ Not done: a project-less chat started from the Codex app itself (only its folder
   - a plain project folder on `D:`;
   - an empty, retired Codex worktree folder under `~\.codex\worktrees\`. It is suggested as a folder although its sessions ran in a Git worktree that no longer exists.
 
-## Checkpoint 31 — 2026-11-02: folders without Git (ADR 0010, branch `feature/non-git-folders`)
+## Checkpoint 34 — 2026-11-02: folders without Git (ADR 0011, branch `feature/non-git-folders`)
 
 The owner asked for agents working in folders that are not Git repositories, approved the recommended design (explicit folder registrations, not an automatic group) and asked for the ADR and the implementation.
 
@@ -120,7 +130,7 @@ The owner asked for agents working in folders that are not Git repositories, app
 | Storage | Migration 4: `repositories.kind` (default `git`); folders store an empty `common_git_dir`. Backup before migrating as usual |
 | Server | `git/folder.ts`: id `folder_<hash>`, path checks (absolute, existing directory, not a root, not the home folder or a parent of it), refusal inside a repository (read-only `rev-parse`), the stand-in worktree (its own id, never colliding with a Git worktree). `monitor.ts`: no status scan, graph, pull requests or watchers for folders; the structure poll checks existence and whether Git now covers the folder (`gitDetected`). A missing folder is a scan error and its sessions become unassigned. Suggestions offer non-Git working directories as folders, skip plain subfolders of registered folders and still offer Git repositories inside them. `registry.ts`: a Git worktree wins a tie with a folder at the same path |
 | Web | One *Folder* row (`no Git`, folder icon, own hover card), *folder* badge and *now a Git repository* badge on the board, folder icon in the repositories panel, *Folder* in the details panel, folders counted separately in the status bar. The Add dialog marks folder suggestions and offers *Add as folder* when Git rejects a typed path |
-| Docs | ADR 0010; user guide *Folders without Git*; getting started, architecture, limitations, README; regenerated API reference; changelog |
+| Docs | ADR 0011; user guide *Folders without Git*; getting started, architecture, limitations, README; regenerated API reference; changelog |
 
 Verification (PowerShell, repository root, 2026-11-02):
 
@@ -137,9 +147,118 @@ Verification (PowerShell, repository root, 2026-11-02):
 
 A screenshot of the e2e state (dark and light) showed the two folder boards under the Git repositories, each with its *Folder* row, and the agent hover card. Not checked: the owner's real data (the owner's instance is not migrated; schema v4 is not readable by 0.3.0, the automatic backup is), Linux/macOS root and home refusals (synthetic only on Windows). Next action: owner review of the branch; no commit pushed and no PR opened.
 
-## Checkpoint 30 — 2026-11-02: state correction
+## Checkpoint 33 — 2026-11-02: state correction
 
 [PR #4](https://github.com/Chengxuan-Li/repobs/pull/4) (Claude task checklists, checkpoint 29) and [PR #5](https://github.com/Chengxuan-Li/repobs/pull/5) (dark screenshots, checkpoint 27) were merged into `main` on 2026-11-01, after checkpoint 29 was written. All six feature branches are merged; 23 commits on `main` since `v0.3.0` are listed under *Unreleased* in the changelog. Checked with `git branch --no-merged main` (none) and `gh pr list --state all`.
+
+## Checkpoint 32 — 2026-11-02: sideways swipes pan again; zoom in 10 % steps (branch `claude/ui-zoom-timeline-pan-3b4ef3`)
+
+The owner tried checkpoint 31 in their preview (port 47391) and reported that pan did not work, and asked for 10 % zoom steps.
+
+Investigation:
+
+- Mouse-drag pan worked on the demo and on the preview's data in the built-in browser (Chromium 152, real input), at 100 % and 175 %.
+- It also worked in a clean Chrome 156 through Playwright: at 125 %, an 80 × 60 px drag scrolled 64 × 48 page px.
+- The same Chrome probe found a regression from checkpoint 31. The dashboard's wheel handler prevented every non-Ctrl wheel event, so a sideways wheel movement did nothing (touchpad sideways swipe, tilting wheel; `mouse.wheel(-120, 0)` left `scrollLeft` unchanged). This is the likely cause on a touchpad.
+- The owner's own Chrome could not be checked: Claude in Chrome was not connected. Extensions or a different input device remain possible causes.
+
+| Change | Where |
+| --- | --- |
+| Wheel events with more sideways than vertical movement, and Shift + wheel, are left to native scrolling (sideways pan) | `Dashboard.tsx` |
+| History wheel zoom: ×1.1 per notch (`1.1^(−px/100)`), smooth on touchpads | `Dashboard.tsx` |
+| Interface size in whole 10 % steps (50–200 %). Ctrl + = / − go to the next 10 %; Ctrl + wheel makes one step per notch; pinch movements add up, one step per 50 px (`wheelStep`) | `app/uiScale.ts` |
+
+Verification (2026-11-02, this machine):
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm test` | 205 passed (`uiScale.test.ts` rewritten for 10 % steps and notch/pinch stepping) |
+| `npm run build` | Passed |
+| `npm run test:e2e` | 36 passed, docs screenshot skipped. New assertions: one notch gives timeline 110 %; a sideways wheel scrolls without zooming; Ctrl + wheel notch gives 110 %; Ctrl + = ×5 gives 150 %, then Ctrl + − gives 140 % |
+| `npm run docs:build` | Strict build passed |
+
+Owner check, 2026-11-02: after reloading the preview (port 47391) on this build, the owner reported that pan works.
+
+Published as [PR #7](https://github.com/Chengxuan-Li/repobs/pull/7) against `main`; the owner merged it on 2026-11-02 (merge commit `de3d9ae`). PR CI passed: Test (ubuntu-latest), Test (windows-latest), Documentation (strict) and the Pages build; deploy is skipped on pull requests (it runs only on `main`).
+
+Next action: none for this feature. Open questions are under *Not verified* in checkpoint 31.
+
+## Checkpoint 31 — 2026-11-02: interface size; the wheel zooms the history (branch `claude/ui-zoom-timeline-pan-3b4ef3`)
+
+Owner request: an interface-size zoom (text and all controls) on Ctrl + wheel, using repobs's own zoom instead of the browser's; the wheel alone zooms the history (dragging already pans both ways); no text selection in the dashboard, so panning never selects. Recorded in [ADR 0010](../decisions/0010-ui-size-and-wheel-controls.md).
+
+| Change | Where |
+| --- | --- |
+| Interface size 50–200 %: CSS `zoom` and `--ui-scale` on the root, per browser (`repobs.uiScale`), applied before the first frame. Ctrl + wheel changes it smoothly; Ctrl + = / − step through the listed sizes; Ctrl + 0 resets. Handled in the capture phase with the default prevented, so the browser does not zoom, also in text fields | `app/uiScale.ts`, `public/theme-init.js` |
+| *View → Styling*: larger, smaller, reset. The status bar shows *UI n %* when the size is not 100 % and resets it on click. The ribbon ignores keys that are already handled | `WorkbenchShell.tsx`, `Ribbon.tsx` |
+| Screen to page pixels: `pageZoom()`, `boxOf()` and `windowSize()` return page pixels. Used by hover cards, dropdowns, ribbon menus, the review menu, the checklist list, drag-to-pan, the wheel anchor and the lane click | `components/placement.ts` and its callers |
+| FlexLayout frame zoomed back to 1 (its splitters moved about 3× the pointer distance at 150 %); tab strips scaled by `--ui-scale`; each panel zoomed again | `dock.css`, `.panelScale` in `shell.module.css` |
+| The wheel over the dashboard zooms the axis around the pointer and no longer scrolls; Ctrl + wheel is left to the interface size; open menus and dialogs keep their own scrolling | `Dashboard.tsx` |
+| `user-select: none` on the dashboard scroller (text fields excepted) | `dashboard.module.css` |
+
+Verification (2026-11-02, this machine):
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm test` | 205 tests passed: 5 new in `app/uiScale.test.ts`, 2 new in `components/placement.test.ts` |
+| `npm run build` | Passed |
+| `npm run test:e2e` | 36 passed, docs screenshot skipped. New: *Ctrl + wheel and Ctrl + = / − / 0 change the size of the interface*. It covers Ctrl + wheel, the keys, persistence across reload, the status-bar reset, `devicePixelRatio` staying 1, drag-to-pan at 150 % (screen 150 × 90 px gives 100 × 60 page px), a dock splitter following the pointer, and the View menu opening under its button. Extended: *the history zooms horizontally* (wheel zooms without scrolling, `user-select: none`) |
+| `npm run docs:build` | Strict build passed |
+
+Manual check with a Playwright script on Edge 156 and the e2e demo data (port 47398): screenshots at 150 % and 80 %. The whole workbench scales, tab strips and side-bar tabs included. The hover card sits beside its row, and the dropdown and View menu open under their buttons.
+
+Not verified:
+
+- Firefox and Safari (no e2e project for them). Browsers without standardized CSS zoom (Chromium before 128, Firefox before 126) would misplace floating cards at sizes other than 100 %.
+- Touchpad pinch on real hardware: it arrives as Ctrl + wheel, and only the synthetic event was tested.
+- FlexLayout tab drag-and-drop between docks at sizes other than 100 %. Splitters were tested; drag-and-drop uses the same coordinate space.
+- Pixel paddings in FlexLayout's own stylesheet are not scaled.
+
+Next action: superseded by checkpoint 32 (merged as PR #7).
+
+## Checkpoint 30 — 2026-11-02: folder picker no longer looks unresponsive (branch `claude/folder-picker-no-response-41aa92`)
+
+Reproduced in a built copy of this branch (isolated data dir, port 47391, browser pane): *Browse…* returned `{"cancelled":true}` about 2 s after the click, no dialog stayed up, and the page did not change. A window trace showed the legacy `FolderBrowserDialog` (`SHBrowseForFolder`) visible for about 1.5 s, then closing itself as *Cancel* with no input. This happened on every attempt for a few minutes, through every launch path (server, direct `runProcess`, plain spawn), then stopped; the trigger on this machine is unknown. Independently of that trigger, `pickFolder` turned any empty output into `cancelled` whatever the exit code, stderr or timeout. The UI ignored a cancel, so every failure was a silent no-op.
+
+| Change | Where |
+| --- | --- |
+| Shell folder dialog (`IFileOpenDialog`, `FOS_PICKFOLDERS`) from a fixed C# helper compiled by `Add-Type`. It is owned by a transparent topmost window on the monitor under the pointer, with a taskbar entry, and is brought to the foreground (`AttachThreadInput`). The script goes as `-EncodedCommand` and prints `selected\n<path>` or `cancelled`. Anything else, a non-zero exit (first readable stderr line, CLIXML included) or the 10-minute timeout is an error | `platform/folderPicker.ts` |
+| Route aborts the picker when the client disconnects. Codes: `busy` 409, `picker_failed` 500 (logged, paths redacted), `picker_timeout` 504 | `api/server.ts` |
+| While waiting: an info notice and *Stop waiting*, which aborts the request; closing the dialog also aborts. A cancel shows *closed without choosing a folder*; errors show the server message | `AddRepositoryDialog.tsx`, `api.ts` (optional `signal`) |
+
+Verification (2026-11-02, this machine):
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm test` | 198 tests passed: 9 new in `tests/platform/folderPicker.test.ts`, 5 new in `AddRepositoryDialog.test.tsx`. The latter fail on the previous component |
+| `npm run test:integration` | 86 tests passed |
+| `npm run build` | Passed |
+| `npx playwright test` (with `REPOBS_E2E_PORT=47419`, because another session held 47399) | 35 passed, docs screenshot skipped |
+| `npm run docs:build` | Strict build passed |
+
+Manual checks against the real dialog, with the built app in the browser pane:
+
+- *Browse…*: the dialog was the topmost window, and the page showed the notice and *Stop waiting*.
+- *Stop waiting*: the PowerShell process ended.
+- A `WM_CLOSE` to the dialog: the page showed the cancel notice.
+- Filling the folder box and clicking *Select Folder* (`WM_SETTEXT`/`BM_CLICK`): `D:\repobs\docs` was added and ticked.
+- Called directly through `pickFolder`, Escape returned `cancelled` and a typed path returned it.
+
+Owner check, 2026-11-02: the owner ran a separate instance of this branch (`REPOBS_DATA_DIR=%LOCALAPPDATA%\repobs\previews\folder-picker`, port 47391) in their usual browser and reported that *Browse…* works.
+
+Not verified:
+
+- Each outcome separately in the owner's check: it was reported as a whole.
+- Behaviour on a machine where PowerShell runs in Constrained Language Mode, where `Add-Type` is blocked. This is now reported as `picker_failed`, not ignored.
+- What made the legacy dialog cancel itself.
+
+Next action: merge [PR #6](https://github.com/Chengxuan-Li/repobs/pull/6) once its CI passes; no merge has been performed.
 
 ## Checkpoint 29 — 2026-11-01: Claude task checklist fix ready for local review
 

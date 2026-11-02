@@ -83,7 +83,7 @@ describe('shared timeline', () => {
   describe('agent activity takes part in the ordinal axes', () => {
     const hour = 3_600_000
     const agent = (daysAgo: number, hours: number) => ({ start: now - daysAgo * DAY, end: now - daysAgo * DAY + hours * hour })
-    // A folder without Git (ADR 0010): no commits at all, three agents days apart.
+    // A folder without Git (ADR 0011): no commits at all, three agents days apart.
     const folder = [agent(9, 2), agent(5, 1), agent(1, 3)]
 
     it('sequence mode spreads agents in a folder without commits instead of stacking them at now', () => {

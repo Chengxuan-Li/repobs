@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { stripNamespace } from '../../platform/paths.ts'
 import { asIso, asString, isRecord } from '../types.ts'
 
-// Codex's thread index, `<home>/state_5.sqlite` (observed with Codex 0.166, ADR 0011). Read-only,
+// Codex's thread index, `<home>/state_5.sqlite` (observed with Codex 0.166, ADR 0012). Read-only,
 // metadata columns only: the query names its columns and never selects `title`,
 // `first_user_message` or `preview`, which hold prompt text. Opening never creates files in the
 // Codex home and never takes a lock that could block Codex:

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import { type AgentSession, type AnnotationSummary, type ReviewState, type Snapshot, statusNeedsAttention, workflowStatus } from '@repobs/contracts'
+import { wheelPixels } from '../../app/uiScale'
 import { clamp, MAX_ZOOM, MIN_ZOOM, RANGE_MS, type ViewPatch, type ViewState } from '../../app/viewState'
+import { pageZoom } from '../../components/placement'
 import { AgentRow } from './AgentRow'
 import type { ChecklistEntry } from './checklistEntries'
 import { FilterBar } from './FilterBar'
@@ -17,6 +19,8 @@ import styles from './dashboard.module.css'
 
 const AXIS_HEIGHT = 24
 const ZOOM_STEP = 1.5
+/** Open menus and cards inside the view keep the wheel for their own scrolling. */
+const OWN_WHEEL = '[role="menu"], [role="dialog"], [role="listbox"]'
 const AXIS_LABELS = { sequence: 'Commits in order →', time: 'Calendar time →', compressed: 'Calendar, compressed →' } as const
 
 export function Dashboard({
@@ -123,11 +127,14 @@ export function Dashboard({
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    // Ctrl/⌘ + wheel zooms the axis instead of the page (needs a non-passive listener).
+    // The wheel zooms the history around the pointer, 10 % per notch, instead of scrolling (dragging
+    // pans both ways); Ctrl + wheel is left to the UI size (app/uiScale.ts). Sideways swipes
+    // (touchpads, tilting wheels) and Shift + wheel still scroll sideways. Needs a non-passive listener.
     const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return
+      if (e.ctrlKey || e.metaKey || (e.target as Element).closest(OWN_WHEEL)) return
+      if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
       e.preventDefault()
-      zoomTo(zoomState.current.zoom * Math.exp(-e.deltaY * 0.002), e.clientX - el.getBoundingClientRect().left)
+      zoomTo(zoomState.current.zoom * Math.pow(1.1, -wheelPixels(e) / 100), (e.clientX - el.getBoundingClientRect().left) / pageZoom())
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
@@ -243,7 +250,7 @@ export function Dashboard({
         {...pan}
         data-menu-bounds=""
         tabIndex={0}
-        aria-label="Branches and agents. Use the arrow keys to move between rows, right and left arrows to show or hide an agent's spawned agents, Enter to open it, plus and minus to zoom the history. Drag with the mouse to pan."
+        aria-label="Branches and agents. Use the arrow keys to move between rows, right and left arrows to show or hide an agent's spawned agents, Enter to open it, plus and minus to zoom the history. Drag with the mouse to pan; the mouse wheel zooms."
         style={{ ['--axis-height' as string]: `${AXIS_HEIGHT}px`, ['--label-w' as string]: `${labelW}px` }}
       >
         <div className={styles.canvas} style={{ width: labelW + timeline.width }}>
@@ -252,13 +259,13 @@ export function Dashboard({
               <span aria-hidden="true">{AXIS_LABELS[view.axisMode]}</span>
               <span className={styles.spacer} />
               <div className={styles.zoom} role="group" aria-label="Zoom history" onKeyDown={(e) => e.stopPropagation()}>
-                <button type="button" className={styles.zoomButton} aria-label="Zoom out" title="Zoom out (−, or Ctrl + wheel)" disabled={view.zoom <= MIN_ZOOM} onClick={() => zoomTo(view.zoom / ZOOM_STEP)}>
+                <button type="button" className={styles.zoomButton} aria-label="Zoom out" title="Zoom out (−, or the wheel)" disabled={view.zoom <= MIN_ZOOM} onClick={() => zoomTo(view.zoom / ZOOM_STEP)}>
                   <Minus size={11} />
                 </button>
                 <button type="button" className={styles.zoomLevel} title="Reset zoom (0)" aria-label={`Zoom ${Math.round(view.zoom * 100)}%, reset`} onClick={() => zoomTo(1)}>
                   {Math.round(view.zoom * 100)}%
                 </button>
-                <button type="button" className={styles.zoomButton} aria-label="Zoom in" title="Zoom in (+, or Ctrl + wheel)" disabled={view.zoom >= MAX_ZOOM} onClick={() => zoomTo(view.zoom * ZOOM_STEP)}>
+                <button type="button" className={styles.zoomButton} aria-label="Zoom in" title="Zoom in (+, or the wheel)" disabled={view.zoom >= MAX_ZOOM} onClick={() => zoomTo(view.zoom * ZOOM_STEP)}>
                   <Plus size={11} />
                 </button>
               </div>

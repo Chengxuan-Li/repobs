@@ -36,7 +36,7 @@ Every state carries a **source** (e.g. `claude.session-registry`, `claude.transc
 - **Stale evidence is downgraded.** Inferred *running* / *waiting* evidence older than the stale threshold (Settings, default 30 minutes) becomes *Unknown — stale evidence*. A completed turn stays *Idle / turn finished*, since that is a fact about the last record.
 - **Historical** sessions are those without activity for longer than the historical threshold (default 24 hours) and not reported live by the provider.
 - **Provider-reported states repobs does not recognize** are shown as *Unknown* with the reason *provider reported a status repobs does not recognize*.
-- **Metadata is not a state.** A Codex thread known only from Codex's state database (no readable rollout) is *Unknown* with the reason *only thread metadata is available* (source `codex.state-db`), however recently Codex updated it ([ADR 0011](decisions/0011-codex-compressed-rollouts-and-state-database.md)).
+- **Metadata is not a state.** A Codex thread known only from Codex's state database (no readable rollout) is *Unknown* with the reason *only thread metadata is available* (source `codex.state-db`), however recently Codex updated it ([ADR 0012](decisions/0012-codex-compressed-rollouts-and-state-database.md)).
 
 ## What repobs cannot see
 

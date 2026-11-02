@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { placeFloating } from './placement'
+import { afterEach, describe, expect, it } from 'vitest'
+import { boxOf, pageZoom, placeFloating, windowSize } from './placement'
 
 const viewport = { width: 1000, height: 800 }
 const size = { width: 200, height: 100 }
@@ -25,5 +25,25 @@ describe('placeFloating', () => {
 
   it('keeps a card inside the window vertically', () => {
     expect(placeFloating({ left: 10, top: 760, right: 300, bottom: 790 }, size, viewport, { placement: 'right', gap: 6 }).top).toBe(692)
+  })
+})
+
+describe('screen and page pixels at another UI size', () => {
+  afterEach(() => {
+    delete (document.documentElement as { currentCSSZoom?: number }).currentCSSZoom
+  })
+
+  it('converts element boxes and the window size to page pixels', () => {
+    Object.defineProperty(document.documentElement, 'currentCSSZoom', { value: 2, configurable: true })
+    const el = document.createElement('div')
+    el.getBoundingClientRect = () => DOMRect.fromRect({ x: 100, y: 40, width: 60, height: 20 })
+    expect(pageZoom()).toBe(2)
+    expect(boxOf(el)).toEqual({ left: 50, top: 20, right: 80, bottom: 30 })
+    expect(windowSize()).toEqual({ width: window.innerWidth / 2, height: window.innerHeight / 2 })
+  })
+
+  it('leaves them unchanged at 100% (and where the browser has no CSS zoom)', () => {
+    expect(pageZoom()).toBe(1)
+    expect(windowSize()).toEqual({ width: window.innerWidth, height: window.innerHeight })
   })
 })

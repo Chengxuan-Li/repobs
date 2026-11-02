@@ -50,8 +50,24 @@ export function placeFloating(
   return { left: fit(x ?? anchor.left, size.width, viewport.width), top }
 }
 
-/** The box of an element as plain numbers (a DOMRect without its methods). */
+/**
+ * Zoom of the page (the UI size: CSS zoom on the root). Pointer coordinates, element boxes and the
+ * window size are in screen pixels; positions, sizes and scroll offsets inside the page are in page
+ * pixels, so screen distances are divided by this.
+ */
+export function pageZoom(): number {
+  return document.documentElement.currentCSSZoom || 1
+}
+
+/** The box of an element as plain numbers (a DOMRect without its methods), in page pixels. */
 export function boxOf(el: Element): Box {
   const r = el.getBoundingClientRect()
-  return { left: r.left, top: r.top, right: r.right, bottom: r.bottom }
+  const z = pageZoom()
+  return { left: r.left / z, top: r.top / z, right: r.right / z, bottom: r.bottom / z }
+}
+
+/** The window's size in page pixels. */
+export function windowSize(): { width: number; height: number } {
+  const z = pageZoom()
+  return { width: window.innerWidth / z, height: window.innerHeight / z }
 }

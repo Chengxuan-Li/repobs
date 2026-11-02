@@ -25,10 +25,10 @@ import {
 // OpenAI Codex adapter (observed with Codex 0.165 and 0.166 on Windows, October–November 2026; see
 // docs/integrations.md). Reads, never writes:
 //   <home>/sessions/YYYY/MM/DD/rollout-*.jsonl   one thread may span several rollout files
-//   <home>/sessions/**/rollout-*.jsonl.zst       older rollouts, compressed by Codex (ADR 0011)
+//   <home>/sessions/**/rollout-*.jsonl.zst       older rollouts, compressed by Codex (ADR 0012)
 //   <home>/archived_sessions/**/rollout-*.jsonl  archived threads (historical)
 //   <home>/session_index.jsonl                   thread names {id, thread_name, updated_at}
-//   <home>/state_5.sqlite                        thread index, metadata columns only (ADR 0011)
+//   <home>/state_5.sqlite                        thread index, metadata columns only (ADR 0012)
 // Passive logs cannot observe live approval prompts reliably; repobs does not start a Codex
 // app-server and does not claim to observe independently running Codex processes.
 
@@ -308,7 +308,7 @@ export class CodexAdapter implements SessionAdapter {
       if (fresh && isActivePhase(latest.acc.lifecycle.phase)) c.active++
       children.set(parent, c)
     }
-    // Threads known only from the state database (ADR 0011): counted, never active.
+    // Threads known only from the state database (ADR 0012): counted, never active.
     const metadataOnly = [...this.state.all()].filter((t) => !threads.has(t.id))
     for (const t of metadataOnly) {
       if (!t.parentId) continue
@@ -419,7 +419,7 @@ export class CodexAdapter implements SessionAdapter {
     }
   }
 
-  /** Compressed rollouts are not appended to: each change is a full, bounded re-read (ADR 0011). */
+  /** Compressed rollouts are not appended to: each change is a full, bounded re-read (ADR 0012). */
   private async refreshCompressed(tracked: TrackedFile) {
     if (!zstdAvailable) {
       this.problems.add('compressed_rollouts_unsupported', 'This Node.js runtime cannot read compressed Codex rollouts')

@@ -82,7 +82,7 @@ export const MIGRATIONS: Migration[] = [
   {
     version: 4,
     name: 'folders without git',
-    // ADR 0010: folders store an empty common_git_dir.
+    // ADR 0011: folders store an empty common_git_dir.
     sql: `ALTER TABLE repositories ADD COLUMN kind TEXT NOT NULL DEFAULT 'git';`,
   },
 ]

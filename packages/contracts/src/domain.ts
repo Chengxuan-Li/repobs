@@ -14,7 +14,7 @@ export const ErrorInfo = z.object({
 })
 export type ErrorInfo = z.infer<typeof ErrorInfo>
 
-/** What a registration watches (ADR 0010): a Git repository, or a folder without Git. */
+/** What a registration watches (ADR 0011): a Git repository, or a folder without Git. */
 export const RepositoryKind = z.enum(['git', 'folder'])
 export type RepositoryKind = z.infer<typeof RepositoryKind>
 

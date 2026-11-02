@@ -120,7 +120,7 @@ describe('persistence', () => {
     upgraded.db.close()
   })
 
-  it('migrates v3 repositories to Git registrations and stores folders without a Git directory (ADR 0010)', () => {
+  it('migrates v3 repositories to Git registrations and stores folders without a Git directory (ADR 0011)', () => {
     const file = tempDb()
     const v3 = openDatabase(file, MIGRATIONS.filter((m) => m.version <= 3))
     v3.db

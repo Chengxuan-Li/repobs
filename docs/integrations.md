@@ -20,7 +20,7 @@ Lifecycle mapping (structural fields only): an assistant record with `stop_reaso
 
 ## OpenAI Codex
 
-Observed with Codex 0.165 (desktop/VS Code originator) on Windows (October 2026), and with Codex 0.166 (desktop app 26.1027) in November 2026 for compressed rollouts and the state database ([ADR 0011](decisions/0011-codex-compressed-rollouts-and-state-database.md)).
+Observed with Codex 0.165 (desktop/VS Code originator) on Windows (October 2026), and with Codex 0.166 (desktop app 26.1027) in November 2026 for compressed rollouts and the state database ([ADR 0012](decisions/0012-codex-compressed-rollouts-and-state-database.md)).
 
 | What | Where (default) | Used for |
 | --- | --- | --- |

@@ -9,7 +9,7 @@ import { pathKey } from '../../apps/server/src/platform/paths.ts'
 import { startTestServer, type Client, type TestServer } from '../helpers/server.ts'
 import { makeTempDir, removeDir } from '../helpers/tmp.ts'
 
-// Folders without Git (ADR 0010): registration, refusals, matching next to Git repositories,
+// Folders without Git (ADR 0011): registration, refusals, matching next to Git repositories,
 // suggestions, a folder that becomes a repository, and a folder that disappears.
 
 let t: TestServer
