@@ -2,6 +2,31 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 35 — 2026-11-02: agent activity on the ordinal axes
+
+Owner feedback from trying the preview: *Calendar, compressed* and *Commit order* compressed the agents of a folder without Git, and the same was suspected for Git repositories. **Confirmed for both.** `timeline.ts` built the two ordinal axes from drawn commits and groups only and interpolated every other time between them: with no commits, commit order put every agent at *now* and calendar, compressed covered only the last day (older activity clamped to the left edge); with commits, agents between two distant commits shared one column gap, and agents before the first commit were clamped onto it. Plain calendar time was not affected.
+
+| Area | Change |
+| --- | --- |
+| Axis | `anchorsOf()` merges the drawn items with the first and last activity of each drawn agent (before now, in range; identical instants share one anchor). Commit order gives each anchor a column; calendar, compressed keeps each at least the minimum spacing from the previous one and starts the default range at the earliest anchor. `commitX` still answers for commits and groups only |
+| Dashboard | `activity` comes from the layouts' session rows, so agents behind *show more*, filtered or in hidden repositories take no space (it was every filtered session) |
+| Tests | `timeline.test.ts`: folder without commits in both modes, agents between distant commits, an agent before the first commit, range/now/shared instants; the 5 new tests fail on the previous axis. e2e: the synthetic history is now wider than the window, so the quiet-group and timeline-card hover tests bring the target into the lanes (clear of the sticky label column) and move the pointer there with `hoverInLanes()`; a locator hover scrolled under the label column or into a scroll, which closes hover cards by design |
+| Docs | ADR 0003 amendment (ninth review), legend text for both modes, user guide, architecture, changelog |
+
+Verification (Git Bash, repository root, 2026-11-02):
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck`, `npm run lint` | Passed |
+| `npm test` | 25 files, 215 tests passed |
+| `npm run test:integration` | 8 files, 93 tests passed |
+| `npm run build` | Passed |
+| `npx playwright test` | 36 passed, 1 skipped |
+| `npm run docs:build`, then `git diff --check` | Strict build passed; no whitespace errors |
+| Preview on 47325 (rebuilt), measured bar positions | Commit order: the 4 `heat-pump-notes` agents at 4 distinct columns; Git boards' agents spread among commits. The shared axis grew to about 35,000 px at 100% for 378 agents and their repositories |
+
+Not done or unverified: the compressed mode's time-proportional spacing was checked by unit tests only (the preview pane was too narrow for a year of history, so every gap fell to the minimum); the wider axis on large histories was not tuned (zoom below 100% packs it). Committed on `feature/non-git-folders`; not pushed. Next action: owner tries the preview.
+
 ## Checkpoint 34 — 2026-11-02: Codex compressed rollouts and state database (ADR 0011)
 
 Follow-up to checkpoint 32, which found most Codex history invisible and blamed missing rollouts. Investigated with read-only scripts printing structure and counts only ([ADR 0011](../decisions/0011-codex-compressed-rollouts-and-state-database.md) has the evidence). **The rollouts are not missing: Codex 0.166 compresses them in place** (`rollout-*.jsonl.zst`, 303 files, next to 11 plain ones). All 288 threads in `state_5.sqlite` have a rollout (9 plain, 279 compressed). `threads.title` holds the start of the first prompt (equal to `first_user_message` in 281 rows), so it is never read; `thread_history_1.sqlite` holds transcripts and is never opened.
@@ -75,7 +100,15 @@ Then a Claude Code desktop session (`9d076e23-…`) was started in `D:\agent-cas
 - After registration the folder has all four sessions matched: the desktop session is *idle*, from the live session registry; the Codex run has *turn completed*; the two runs that failed to sign in are *error*, from the transcript as a `provider_error_event`.
 - The project-less Codex folder still has its one session.
 
-Not done: a project-less chat started from the Codex app itself (only its folder layout was reproduced), and a browser check of these boards.
+Not done: a project-less chat started from the Codex app itself (only its folder layout was reproduced).
+
+**Local review (2026-11-02):**
+- The owner's main instance (port 47321, default data folder) was restarted at 20:18 UTC from this branch's build and migrated its database to v4. The v3 backup is `repobs.db.bak-v3-2026-11-02T20-18-38-495Z`.
+- A separate preview of commit `4132f66` runs on port 47325, with data in `%LOCALAPPDATA%\repobs\previews\non-git-folders` (a copy of the main database taken at 20:57 UTC).
+- Its Add dialog suggests both case folders as folders, plus real non-Git working directories:
+  - Claude desktop side-session folders under `%LOCALAPPDATA%\Claude-Data\…\side-session-notes\local_<id>`;
+  - a plain project folder on `D:`;
+  - an empty, retired Codex worktree folder under `~\.codex\worktrees\`. It is suggested as a folder although its sessions ran in a Git worktree that no longer exists.
 
 ## Checkpoint 31 — 2026-11-02: folders without Git (ADR 0010, branch `feature/non-git-folders`)
 

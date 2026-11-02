@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { expect, type Page, test } from '@playwright/test'
+import { expect, type Locator, type Page, test } from '@playwright/test'
 // @ts-expect-error -- plain ESM helper shared with the launcher scripts
 import { mintPairingToken } from '../../scripts/lib.mjs'
 import { claude, writeClaudeSession } from '../../fixtures/session-fixtures.ts'
@@ -39,6 +39,25 @@ async function setOption(page: Page, menuName: string, option: string, checked =
   if ((await item.getAttribute('aria-checked')) !== String(checked)) await item.click()
   if (await menu.isVisible()) await page.keyboard.press('Escape')
   await expect(menu).toBeHidden()
+}
+
+/**
+ * Hovers something drawn in the lanes. The history is wider than the window, so bring it into view
+ * three quarters across (clear of the sticky label column on the left), let that scroll pass (a
+ * scroll closes hover cards), then move the pointer onto it without the further scrolling a
+ * locator hover may do.
+ */
+async function hoverInLanes(page: Page, target: Locator) {
+  await target.evaluate((el) => new Promise<void>((done) => {
+    el.scrollIntoView({ block: 'center', inline: 'nearest' })
+    let sc = el.parentElement!
+    while (sc.scrollWidth <= sc.clientWidth) sc = sc.parentElement!
+    const view = sc.getBoundingClientRect()
+    sc.scrollLeft += el.getBoundingClientRect().left - (view.left + view.width * 0.75)
+    requestAnimationFrame(() => requestAnimationFrame(() => done()))
+  }))
+  const box = (await target.boundingBox())!
+  await page.mouse.move(box.x + Math.min(box.width / 2, 20), box.y + box.height / 2)
 }
 
 test.describe.serial('repobs dashboard (synthetic data)', () => {
@@ -181,8 +200,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     const group = svg.locator('g[class*="group"]').first()
     await expect(group).toContainText('8')
     expect(await svg.locator('circle[class*="commit"]').count()).toBe(commitsBefore - 8)
-    await group.scrollIntoViewIfNeeded()
-    await group.hover()
+    await hoverInLanes(page, group)
     const card = page.getByRole('dialog', { name: 'Commit details' })
     await expect(card).toContainText('8 quiet commits on claude/scratch-a8de')
     await card.getByText('Scratch step 6').hover()
@@ -456,7 +474,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
   test('hovering an agent card on the timeline shows the same agent details as the list', async ({ page }) => {
     await pair(page)
     const cards = board(page, 'git-status-kit').getByRole('group', { name: 'Agents on the timeline of git-status-kit' })
-    await cards.locator('[data-bar-label]', { hasText: 'Tighten status parser' }).getByText('Tighten status parser').hover()
+    await hoverInLanes(page, cards.locator('[data-bar-label]', { hasText: 'Tighten status parser' }).getByText('Tighten status parser'))
     const hover = page.getByRole('dialog', { name: 'Agent details' })
     await expect(hover).toContainText('Last activity')
     await expect(hover.getByRole('button', { name: /change review state of Tighten status parser/ })).toBeVisible()
