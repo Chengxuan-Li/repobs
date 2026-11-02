@@ -32,7 +32,7 @@ Manual checks against the real dialog, with the built app in the browser pane:
 - Filling the folder box and clicking *Select Folder* (`WM_SETTEXT`/`BM_CLICK`): `D:\repobs\docs` was added and ticked.
 - Called directly through `pickFolder`, Escape returned `cancelled` and a typed path returned it.
 
-Owner check, 2026-11-02: the owner ran a separate instance of this branch (`REPOBS_DATA_DIR=%LOCALAPPDATA%epobs\previewsolder-picker`, port 47391) in their usual browser and reported that *Browse…* works.
+Owner check, 2026-11-02: the owner ran a separate instance of this branch (`REPOBS_DATA_DIR=%LOCALAPPDATA%\repobs\previews\folder-picker`, port 47391) in their usual browser and reported that *Browse…* works.
 
 Not verified:
 
