@@ -25,7 +25,7 @@ test('dashboard screenshot for the documentation', async ({ page }) => {
   await page.goto(`/#pair=${mintPairingToken(state.dataDir) as string}`)
   await page.getByRole('button', { name: 'Add repositories' }).first().click()
   const dialog = page.getByRole('dialog', { name: 'Add repositories' })
-  await expect(dialog.getByRole('list', { name: 'Repositories to add' }).getByRole('checkbox')).toHaveCount(2, { timeout: 15_000 })
+  await expect(dialog.getByRole('list', { name: 'Repositories and folders to add' }).getByRole('checkbox')).toHaveCount(2, { timeout: 15_000 })
   await dialog.getByLabel('Select all').check()
   await dialog.getByRole('button', { name: 'Add 2 repositories' }).click()
   await expect(dialog).toBeHidden()

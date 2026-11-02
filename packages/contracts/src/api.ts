@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ErrorInfo, LIMITS, ReviewState, SessionAnnotation, ChecklistItem, IsoDate, PlanOverrides } from './domain.ts'
+import { ErrorInfo, LIMITS, RepositoryKind, ReviewState, SessionAnnotation, ChecklistItem, IsoDate, PlanOverrides } from './domain.ts'
 
 export const API_PREFIX = '/api/v1'
 export const CSRF_HEADER = 'x-repobs-csrf'
@@ -23,12 +23,18 @@ export type AuthSession = z.infer<typeof AuthSession>
 export const RegisterRepositoryRequest = z.object({
   path: z.string().trim().min(1).max(LIMITS.pathChars),
   displayName: z.string().trim().min(1).max(120).optional(),
+  /** `git` (default) resolves the repository the path belongs to; `folder` registers a folder without Git (ADR 0011). */
+  kind: RepositoryKind.optional(),
 })
 export type RegisterRepositoryRequest = z.infer<typeof RegisterRepositoryRequest>
 
-export const RegisterRepositoriesRequest = z.object({
-  paths: z.array(z.string().trim().min(1).max(LIMITS.pathChars)).min(1).max(50),
-})
+export const RegisterRepositoriesRequest = z
+  .object({
+    paths: z.array(z.string().trim().min(1).max(LIMITS.pathChars)).max(50).default([]),
+    /** Folders without Git (ADR 0011). */
+    folders: z.array(z.string().trim().min(1).max(LIMITS.pathChars)).max(50).default([]),
+  })
+  .refine((r) => r.paths.length + r.folders.length >= 1 && r.paths.length + r.folders.length <= 50, 'Register between 1 and 50 paths at once')
 export type RegisterRepositoriesRequest = z.infer<typeof RegisterRepositoriesRequest>
 
 export const RegisterRepositoriesResponse = z.object({
@@ -53,6 +59,8 @@ export const ReorderRepositoriesRequest = z.object({
 
 export const RepositorySuggestion = z.object({
   path: z.string(),
+  /** What adding the suggestion registers: the repository the path belongs to, or the folder itself. */
+  kind: RepositoryKind,
   source: z.enum(['claude', 'codex']),
   sessionCount: z.number().int(),
   activeSessionCount: z.number().int(),

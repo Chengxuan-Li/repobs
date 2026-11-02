@@ -14,16 +14,23 @@ export const ErrorInfo = z.object({
 })
 export type ErrorInfo = z.infer<typeof ErrorInfo>
 
+/** What a registration watches (ADR 0011): a Git repository, or a folder without Git. */
+export const RepositoryKind = z.enum(['git', 'folder'])
+export type RepositoryKind = z.infer<typeof RepositoryKind>
+
 export const Repository = z.object({
   id: z.string(),
+  kind: RepositoryKind,
   displayName: z.string(),
   /** Path the user registered (display form). */
   registeredPath: z.string(),
-  /** Top-level of the primary (first-listed) worktree, or the bare repository directory. */
+  /** Top-level of the primary (first-listed) worktree, the bare repository directory, or the folder. */
   primaryPath: z.string(),
-  /** Absolute common Git directory; the repository identity. */
-  commonGitDir: z.string(),
+  /** Absolute common Git directory; the repository identity. Omitted for folders. */
+  commonGitDir: z.string().optional(),
   isBare: z.boolean(),
+  /** A folder that Git now reports as inside a repository; repobs never converts it by itself. */
+  gitDetected: z.boolean().optional(),
   order: z.number().int(),
   addedAt: IsoDate,
   lastSuccessfulScanAt: IsoDate.optional(),
@@ -139,6 +146,7 @@ export const StateDetail = z.enum([
   'unrecognized_records',
   'provider_error_event',
   'source_missing',
+  'metadata_only',
 ])
 export type StateDetail = z.infer<typeof StateDetail>
 

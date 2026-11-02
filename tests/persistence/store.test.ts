@@ -34,6 +34,7 @@ describe('persistence', () => {
     const store = new AppStore(first.db)
     store.addRepository({
       id: 'repo_1',
+      kind: 'git',
       displayName: 'A',
       registeredPath: 'C:\\a',
       primaryPath: 'C:\\a',
@@ -80,7 +81,7 @@ describe('persistence', () => {
   it('unregistering a repository keeps annotations and session records', () => {
     const { db } = openDatabase(':memory:')
     const store = new AppStore(db)
-    store.addRepository({ id: 'r', displayName: 'r', registeredPath: 'C:\\r', primaryPath: 'C:\\r', commonGitDir: 'C:\\r\\.git', isBare: false })
+    store.addRepository({ id: 'r', kind: 'git', displayName: 'r', registeredPath: 'C:\\r', primaryPath: 'C:\\r', commonGitDir: 'C:\\r\\.git', isBare: false })
     store.putAnnotation('codex:t', baseInput)
     store.upsertSessionRecord({ id: 'codex:t', provider: 'codex', providerSessionId: 't', title: 'T', titleSource: 'provider', repoId: 'r' })
     expect(store.removeRepository('r')).toBe(true)
@@ -92,7 +93,7 @@ describe('persistence', () => {
     const { db } = openDatabase(':memory:')
     const store = new AppStore(db)
     for (const id of ['a', 'b', 'c']) {
-      store.addRepository({ id, displayName: id, registeredPath: id, primaryPath: id, commonGitDir: id, isBare: false })
+      store.addRepository({ id, kind: 'git', displayName: id, registeredPath: id, primaryPath: id, commonGitDir: id, isBare: false })
     }
     store.reorderRepositories(['c', 'a'])
     expect(store.listRepositories().map((r) => r.id)).toEqual(['c', 'a', 'b'])
@@ -116,6 +117,28 @@ describe('persistence', () => {
     expect(upgraded.schemaVersion).toBe(SCHEMA_VERSION + 1)
     expect(upgraded.backups).toHaveLength(1)
     expect(fs.existsSync(upgraded.backups[0]!)).toBe(true)
+    upgraded.db.close()
+  })
+
+  it('migrates v3 repositories to Git registrations and stores folders without a Git directory (ADR 0011)', () => {
+    const file = tempDb()
+    const v3 = openDatabase(file, MIGRATIONS.filter((m) => m.version <= 3))
+    v3.db
+      .prepare(
+        `INSERT INTO repositories (id, display_name, registered_path, primary_path, common_git_dir, is_bare, sort_order, added_at)
+         VALUES ('repo_1', 'A', 'C:\\a', 'C:\\a', 'C:\\a\\.git', 0, 0, 'x')`,
+      )
+      .run()
+    v3.db.close()
+    const upgraded = openDatabase(file)
+    expect(upgraded.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(upgraded.backups).toHaveLength(1)
+    const store = new AppStore(upgraded.db)
+    store.addRepository({ id: 'folder_1', kind: 'folder', displayName: 'notes', registeredPath: 'C:\\notes', primaryPath: 'C:\\notes', commonGitDir: '', isBare: false })
+    expect(store.listRepositories().map((r) => [r.id, r.kind, r.commonGitDir])).toEqual([
+      ['repo_1', 'git', 'C:\\a\\.git'],
+      ['folder_1', 'folder', ''],
+    ])
     upgraded.db.close()
   })
 

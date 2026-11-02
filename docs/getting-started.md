@@ -46,14 +46,14 @@ If repobs is already running, `npm start` (or `npm run open`) simply opens a new
 ## Register repositories
 
 1. Click **Add repositories** (on the empty dashboard, or **Add** in the repositories panel).
-2. Tick the candidates — repositories found in the working directories of your existing Claude Code / Codex sessions, with their session counts and last activity (repobs never scans your disk) — or type a path (for example `C:\src\my-project`) and press **Add to list**, or click **Browse…** for the native Windows folder chooser. Any folder inside a repository works, including a linked worktree; repobs registers the whole repository (its common Git directory) once.
-3. Click **Add N repositories**. Each path reports success or its own error.
+2. Tick the candidates — repositories found in the working directories of your existing Claude Code / Codex sessions, with their session counts and last activity (repobs never scans your disk) — or type a path (for example `C:\src\my-project`) and press **Add to list**, or click **Browse…** for the native Windows folder chooser. Any folder inside a repository works, including a linked worktree; repobs registers the whole repository (its common Git directory) once. Working directories outside Git are offered as *folders*: repobs then shows the agents working in them, without commits ([Folders without Git](user-guide.md#folders-without-git)).
+3. Click **Add N repositories** (or **Add folder**, …). Each path reports success or its own error.
 
 The dashboard (*View 0*) immediately shows each repository's branches and commits on a timeline, with the agents that worked on each branch as cards. See [Using repobs](user-guide.md) for views, filters and arranging the panels.
 
 ## Verify that sessions are detected
 
-Open **File → Diagnostics**. For each provider it shows whether its folder was found, how many session files are tracked, how many sessions belong to registered repositories, and any (sanitized) problems. Sessions outside registered repositories are counted but not shown.
+Open **File → Diagnostics**. For each provider it shows whether its folder was found, how many session files are tracked, how many sessions belong to registered repositories, and any (sanitized) problems. Sessions outside registered repositories and folders are counted but not shown.
 
 ## Try it without your own data
 

@@ -118,6 +118,36 @@ describe('Claude adapter', () => {
     })
   })
 
+  it('shows a failed API call as an error, not a finished turn, until the next prompt', async () => {
+    // A run that could not sign in: the only reply is an API error record, hours old.
+    writeClaudeSession(claudeHome, cwdA, 'no-login', [claude.prompt('no-login', cwdA, ago(181)), claude.apiError('no-login', cwdA, ago(180))])
+    // A rate-limited turn the user retried.
+    writeClaudeSession(claudeHome, cwdA, 'retried', [
+      claude.prompt('retried', cwdA, ago(5)),
+      claude.apiError('retried', cwdA, ago(4), 'rate_limit'),
+      claude.prompt('retried', cwdA, ago(2)),
+    ])
+    writeClaudeSession(claudeHome, cwdA, 'parent', [claude.endTurn('parent', cwdA, ago(2))])
+    writeClaudeSubagent(claudeHome, cwdA, 'parent', 'a1', [claude.prompt('parent', cwdA, ago(1)), claude.apiError('parent', cwdA, ago(1), 'server_error')])
+    const adapter = new ClaudeAdapter()
+    adapter.configure(config(claudeHome))
+    const sessions = await adapter.discover(now)
+    const byId = Object.fromEntries(sessions.map((s) => [s.providerSessionId, s]))
+    expect(byId['no-login']!.lifecycle.phase).toBe('error_event')
+    expect(byId['no-login']!.state).toEqual({
+      kind: 'error',
+      confidence: 'inferred',
+      source: 'claude.transcript',
+      observedAt: new Date(ago(180)).toISOString(),
+      detail: 'provider_error_event',
+    })
+    expect(byId['retried']!.state).toMatchObject({ kind: 'running', detail: 'turn_in_progress' })
+    // A failed subagent is an error child and does not keep its parent running.
+    expect(byId['parent__agent-a1']!.state).toMatchObject({ kind: 'error', source: 'claude.subagent', detail: 'provider_error_event' })
+    expect(byId['parent']!.subagents).toEqual({ total: 1, active: 0 })
+    expect(byId['parent']!.state).toMatchObject({ kind: 'idle_or_turn_finished', detail: 'turn_completed' })
+  })
+
   it('captures the latest assistant text, and nothing when excerpts are off', async () => {
     writeClaudeSession(claudeHome, cwdA, 'talk', [claude.prompt('talk', cwdA, ago(3)), claude.endTurn('talk', cwdA, ago(2))])
     const adapter = new ClaudeAdapter()

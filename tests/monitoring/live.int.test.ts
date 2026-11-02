@@ -128,7 +128,7 @@ describe('SnapshotPublisher', () => {
   it('bumps the version only on real changes and reports removals', () => {
     const p = new SnapshotPublisher()
     const base = emptyCollections()
-    const repo = { id: 'r', displayName: 'r', registeredPath: 'r', primaryPath: 'r', commonGitDir: 'r', isBare: false, order: 0, addedAt: 'x', scanState: 'ok' as const }
+    const repo = { id: 'r', kind: 'git' as const, displayName: 'r', registeredPath: 'r', primaryPath: 'r', commonGitDir: 'r', isBare: false, order: 0, addedAt: 'x', scanState: 'ok' as const }
     expect(p.update({ ...base, repositories: [repo] })?.toVersion).toBe(1)
     expect(p.update({ ...base, repositories: [repo] })).toBeUndefined()
     const d = p.update(base)!

@@ -57,6 +57,7 @@ export const DETAIL_LABELS: Record<StateDetail, string> = {
   unrecognized_records: 'Records in an unrecognized format',
   provider_error_event: 'Provider recorded an error event',
   source_missing: 'The provider session file no longer exists',
+  metadata_only: 'Only thread metadata is available; no turn records were read',
 }
 
 export const CONFIDENCE_LABELS = {

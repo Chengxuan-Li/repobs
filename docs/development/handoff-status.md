@@ -2,6 +2,157 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 39 — 2026-11-02: `main` merged into `feature/non-git-folders`; ADRs and checkpoints renumbered
+
+Before the pull request, `main` (PRs #6–#8: folder picker, interface size, wheel zoom) was merged into the branch. Both sides had numbered new work from the same base:
+
+- **ADRs.** `main` took 0010 (*Interface size; the wheel zooms the history*), already published. This branch's ADRs move up one: *Folders without Git* 0010 → **0011**, *Codex compressed rollouts and state database* 0011 → **0012** (files, headings, links, MkDocs nav, code comments, tests, changelog). The branch's commit messages keep the old numbers.
+- **Checkpoints.** `main`'s 30–32 keep their numbers; this branch's 30–35 are now 33–38, in the same order, with their cross-references updated. Commit messages *checkpoint 32, 33, 35* mean 35, 36, 38 here. Checkpoint 33 (*state correction*) describes `main` as it was before PRs #6–#8.
+- **Conflicts resolved by hand.** `AddRepositoryDialog.tsx`: both import changes (`useRef` from `main`, `RepositoryKind` from the branch) and both helpers (`stopPicking`, `asFolder`/`kindOf`). User guide: the branch's *Add* paragraph with `main`'s note on the Browse… chooser. Architecture: `main`'s paragraph (wheel zoom, interface size) with the branch's axis wording. MkDocs nav: all three ADRs.
+
+Verification after the merge (Git Bash, repository root, 2026-11-02): `npm run typecheck` and `npm run lint` passed; `npm test` 28 files, 236 tests; `npm run test:integration` 8 files, 93 tests; `npm run docs:api` left `docs/api.md` unchanged; `npm run build` passed; `npm run docs:build` (strict) passed; `git diff --check` clean; `npx playwright test` 37 passed, 1 skipped. Next action: review and merge the pull request.
+
+**CI on PR #9 (head `b5551e1`):** *Test (windows-latest)* failed in the drag-to-pan e2e test (the view never entered `data-panning`); Ubuntu and the documentation build passed. The test pressed at a fixed point near the view's lower-right corner. With agents now taking their own room on the axis, that point lands on something that starts no pan by design on the CI window (a repository header's control, a card or a drawn mark that opens a hover card), though not locally. The test now scans from that corner for empty lane background (a row's own background, nothing inside it, no control, header, card or mark). The *first launch* failure in the same run is that test's retry rerunning the serial suite against a server that already has repositories, not a separate fault. Local: `npx playwright test` twice, 37 passed, 1 skipped each; `npm run typecheck`, `npm run lint` passed. The fix is confirmed only once CI passes.
+
+## Checkpoint 38 — 2026-11-02: agent activity on the ordinal axes
+
+Owner feedback from trying the preview: *Calendar, compressed* and *Commit order* compressed the agents of a folder without Git, and the same was suspected for Git repositories. **Confirmed for both.** `timeline.ts` built the two ordinal axes from drawn commits and groups only and interpolated every other time between them: with no commits, commit order put every agent at *now* and calendar, compressed covered only the last day (older activity clamped to the left edge); with commits, agents between two distant commits shared one column gap, and agents before the first commit were clamped onto it. Plain calendar time was not affected.
+
+| Area | Change |
+| --- | --- |
+| Axis | `anchorsOf()` merges the drawn items with the first and last activity of each drawn agent (before now, in range; identical instants share one anchor). Commit order gives each anchor a column; calendar, compressed keeps each at least the minimum spacing from the previous one and starts the default range at the earliest anchor. `commitX` still answers for commits and groups only |
+| Dashboard | `activity` comes from the layouts' session rows, so agents behind *show more*, filtered or in hidden repositories take no space (it was every filtered session) |
+| Tests | `timeline.test.ts`: folder without commits in both modes, agents between distant commits, an agent before the first commit, range/now/shared instants; the 5 new tests fail on the previous axis. e2e: the synthetic history is now wider than the window, so the quiet-group and timeline-card hover tests bring the target into the lanes (clear of the sticky label column) and move the pointer there with `hoverInLanes()`; a locator hover scrolled under the label column or into a scroll, which closes hover cards by design |
+| Docs | ADR 0003 amendment (ninth review), legend text for both modes, user guide, architecture, changelog |
+
+Verification (Git Bash, repository root, 2026-11-02):
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck`, `npm run lint` | Passed |
+| `npm test` | 25 files, 215 tests passed |
+| `npm run test:integration` | 8 files, 93 tests passed |
+| `npm run build` | Passed |
+| `npx playwright test` | 36 passed, 1 skipped |
+| `npm run docs:build`, then `git diff --check` | Strict build passed; no whitespace errors |
+| Preview on 47325 (rebuilt), measured bar positions | Commit order: the 4 `heat-pump-notes` agents at 4 distinct columns; Git boards' agents spread among commits. The shared axis grew to about 35,000 px at 100% for 378 agents and their repositories |
+
+Not done or unverified: the compressed mode's time-proportional spacing was checked by unit tests only (the preview pane was too narrow for a year of history, so every gap fell to the minimum); the wider axis on large histories was not tuned (zoom below 100% packs it). Committed on `feature/non-git-folders`; not pushed. Next action: owner tries the preview.
+
+## Checkpoint 37 — 2026-11-02: Codex compressed rollouts and state database (ADR 0012)
+
+Follow-up to checkpoint 35, which found most Codex history invisible and blamed missing rollouts. Investigated with read-only scripts printing structure and counts only ([ADR 0012](../decisions/0012-codex-compressed-rollouts-and-state-database.md) has the evidence). **The rollouts are not missing: Codex 0.166 compresses them in place** (`rollout-*.jsonl.zst`, 303 files, next to 11 plain ones). All 288 threads in `state_5.sqlite` have a rollout (9 plain, 279 compressed). `threads.title` holds the start of the first prompt (equal to `first_user_message` in 281 rows), so it is never read; `thread_history_1.sqlite` holds transcripts and is never opened.
+
+| Area | Change |
+| --- | --- |
+| Compressed rollouts | `sessions/zstd-jsonl.ts`: stream decompression with `node:zlib` zstd, nothing written; head 256 KB and tail 512 KB fed like a long plain file, the latest plan-marker lines before the tail kept for replay, 1 GiB decompressed cap (`rollout_too_large`, head only). The adapter discovers `.jsonl.zst`, prefers the plain twin while Codex compresses, reads plain files first and compressed ones newest first within about 2 s per scan (`compressed_rollouts_pending` until done) |
+| State database | `sessions/adapters/codex-state.ts`: `state_5.sqlite` only, WAL only (header bytes 18/19), `mode=ro` when `-wal` and `-shm` exist, else `immutable=1` with a before/after stat check; named metadata columns only (`id`, `cwd`, `name`, times, `source`, `git_branch`, `cli_version`, `agent_nickname`, `agent_role`) and `thread_spawn_edges`. Re-read only when the files change; the last good snapshot survives an unreadable read. Problems: `state_db_unsupported` (other generation, non-WAL), `state_db_unrecognized`, `state_db_unreadable` |
+| Adapter | Thread names fall back to the database. Threads without a readable rollout are metadata-only sessions: `unknown` / `unknown` / `codex.state-db` / new reason `metadata_only`, observed at the thread's last update; counted in the parent's sub-agent total, never active. Codex cwds lose `\\?\` (`stripNamespace` exported from `platform/paths.ts`). **Fix:** the first `session_meta` names a rollout's thread; a forked sub-agent's repeated parent meta (6 real files) no longer credits the file to the parent. The adapter is available when only the database exists |
+| Contracts | `StateDetail` gains `metadata_only` with its label; API reference regenerated |
+| Fixtures and tests | `fixtures/codex-history-fixtures.ts` (compressed rollouts, a synthetic `state_5.sqlite` with the observed column names and a prompt canary in `title`/`first_user_message`/`preview`, a writer that keeps the database open). `tests/sessions/codex-history.test.ts`, 19 tests: compressed reading, twins, head/tail/plan, budget and pending, undecompressable file, bounded reader (jump, cap, bad lines), forked sub-agent, metadata-only sessions and parents, canary never in output, rollout wins over database, no file created in the Codex home when closed (immutable), `mode=ro` reads the WAL while the writer keeps writing, non-WAL, other generation, unrecognized table, corrupt database, database-only home |
+| Docs | ADR 0012 (and MkDocs nav), integrations (Codex table, compressed rollouts, state database), status semantics, privacy, limitations, changelog |
+
+Verification (PowerShell, repository root, 2026-11-02):
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed |
+| `npm test` | 25 files, 210 tests passed (includes the other session's checkpoint 36 work in the same tree) |
+| `npm run docs:api` | Regenerated `docs/api.md` (`metadata_only`) |
+| `npm run test:integration` | 8 files, 93 tests passed |
+| `npm run build` | Passed |
+| `npm run docs:build`, then `git diff --check` | Strict build passed; no whitespace errors |
+| Headless check against the real `~/.codex` (scratch script outside the repository, counts only) | 288 sessions; 89 metadata-only after scan 1, none after scan 5; 287 *Idle / turn finished*, 1 interrupted; no `\\?\` left; Codex home listing unchanged |
+
+**Side effect during the investigation.** The first schema inspection opened the real `state_5.sqlite` with `mode=ro` while no companion files existed; SQLite created an empty `state_5.sqlite-wal` and a 32 KB `state_5.sqlite-shm` in `~/.codex` (15:37). Codex was running, so they were left in place; Codex removes them on its own next clean close. This is why the adapter uses `immutable=1` when they are absent. The database itself was not written.
+
+Not done or unverified: `npx playwright test` was not run (no UI change beyond a new reason label); the owner's running instance was not restarted; Codex's compression trigger, other history modes and compressed archived rollouts were not observed. Nothing committed. Next action: owner review of ADR 0012 and the branch.
+
+## Checkpoint 36 — 2026-11-02: Claude Code API errors show as errors
+
+Follow-up to checkpoint 35: a Claude Code run that could not sign in showed as *Idle / turn finished*. Claude Code writes a failed API call as an assistant record with `isApiErrorMessage: true`, `stop_reason: stop_sequence` and `model: <synthetic>`, plus a structural `error` code. Local transcripts on this machine (keys and codes only, no text read out) show `authentication_failed`, `rate_limit` (429) and `server_error` (529), in main sessions and in subagents; after a sign-in failure the next records are metadata only (`last-prompt`, `cost-state`), with no `stop_hook_summary`.
+
+| Area | Change |
+| --- | --- |
+| Adapter | `claudePhase` maps a flagged assistant record to `error_event`, so the state is `error` / `inferred` / `claude.transcript` (or `claude.subagent`) / `provider_error_event`, observed at the record's timestamp. Not downgraded when stale; the next user prompt returns it to *Running*. A live registry entry still wins (direct evidence). No contract change; the excerpt is unchanged (the error text is an assistant text item, redacted and truncated as before) |
+| Fixtures | `claude.apiError(sid, cwd, at, error?)` |
+| Tests | `tests/sessions/adapters.test.ts`: sign-in failure → error with exact evidence; rate limit then a new prompt → running; failed subagent → error child, not counted active. `tests/api/folders.int.test.ts`: a sign-in failure in a registered folder is an error in the snapshot |
+| Docs | `integrations.md` lifecycle mapping, `status-semantics.md` Error row, changelog |
+
+Verification (repository root, 2026-11-02): `npm run typecheck` passed; `npm run lint` passed; `npm test` 24 files, 191 tests passed; `npm run test:integration` 8 files, 93 tests passed. Not run: e2e, docs build. Not checked: the real heat-pump case in a running instance. Possible follow-up: a specific reason (e.g. `provider_api_error` carrying the structural `error` code) instead of the generic `provider_error_event`, which needs a contract change and API reference regeneration. Nothing committed.
+
+## Checkpoint 35 — 2026-11-02: a real local case for folders without Git
+
+The owner had no real case of an agent working outside Git and asked for one on local disk, following each agent's own conventions. Nothing in this case is committed; it lives in the owner's agent homes and in two folders outside any repository.
+
+Where the agents put work (observed on this machine, Codex app 26.1027 with `codex-cli 0.166.0-alpha.5.1`, Claude Code 2.1.309):
+
+- **A folder the user names.** Codex `exec` refuses to run outside Git unless given `--skip-git-repo-check`; the session's `cwd` is the folder. Claude Code records the folder as `cwd` and stores the transcript under `~/.claude/projects/<encoded folder>/`.
+- **Codex project-less chats.** The Codex desktop app runs a chat without a project in `<projectlessWorkspaceRoot>/<YYYY-MM-DD>/<first six words of the prompt>/`, with `outputs/` for deliverables and `work/` for scratch. The root is the `desktop.projectlessWorkspaceRoot` setting, default `~/Documents/Codex` (unset here). It is not under `~/.codex`.
+- **Codex worktrees** live in `~/.codex/worktrees/<4 hex>/<repository>`. They are Git worktrees, so they belong to the repository, not to this feature.
+
+The case:
+
+| Folder | Agent work |
+| --- | --- |
+| `D:\agent-cases\heat-pump-notes` (synthetic `readings.csv`) | Codex `exec` session `01a19de2-…` wrote `fit.md`. Two Claude Code CLI runs started from inside a desktop session could not sign in; each still left a transcript whose only reply is an API error (`isApiErrorMessage: true`) |
+| `%USERPROFILE%\Documents\Codex\2026-11-02\draft-a-one-page-checklist-for` (the app's layout, created by hand) | Codex `exec` session `01a19de4-…` wrote `outputs/winter-tune-up.md`. Real rollout, but `source` is `exec`, not the desktop app |
+
+A headless repobs instance (`.claude/case-check.ts`, untracked, data in a temporary folder, real `~/.claude` and `~/.codex` read-only) suggested both folders as `kind: folder` (`Documents\Codex` itself was not suggested, as no agent ran there). It registered both folders and `Documents\Codex`. The heat-pump folder got its three sessions. The dated chat folder got its Codex session, because the deepest registration wins over `Documents\Codex`. Registering only `Documents\Codex` would collect every project-less chat on one board.
+
+Found while doing this:
+
+- **API error turns.** The Claude adapter does not read `isApiErrorMessage`, so a run that failed to sign in shows as a finished turn, not an error.
+- **Codex thread history.** Codex 0.166 keeps thread history in `state_5.sqlite`; 279 of 286 threads here have no rollout file left, so repobs, which reads only `sessions/` and `archived_sessions/` rollouts, misses most Codex history. Thread `cwd` values there carry the `\\?\` prefix.
+
+Then a Claude Code desktop session (`9d076e23-…`) was started in `D:\agent-cases\heat-pump-notes` and wrote `summary.md`, without touching the other files. Rerunning the headless check, with the uncommitted changes of checkpoints 36 and 34 in the checkout, gave these results:
+
+- The heat-pump folder's suggestion counted 4 sessions, 1 active.
+- After registration the folder has all four sessions matched: the desktop session is *idle*, from the live session registry; the Codex run has *turn completed*; the two runs that failed to sign in are *error*, from the transcript as a `provider_error_event`.
+- The project-less Codex folder still has its one session.
+
+Not done: a project-less chat started from the Codex app itself (only its folder layout was reproduced).
+
+**Local review (2026-11-02):**
+- The owner's main instance (port 47321, default data folder) was restarted at 20:18 UTC from this branch's build and migrated its database to v4. The v3 backup is `repobs.db.bak-v3-2026-11-02T20-18-38-495Z`.
+- A separate preview of commit `4132f66` runs on port 47325, with data in `%LOCALAPPDATA%\repobs\previews\non-git-folders` (a copy of the main database taken at 20:57 UTC).
+- Its Add dialog suggests both case folders as folders, plus real non-Git working directories:
+  - Claude desktop side-session folders under `%LOCALAPPDATA%\Claude-Data\…\side-session-notes\local_<id>`;
+  - a plain project folder on `D:`;
+  - an empty, retired Codex worktree folder under `~\.codex\worktrees\`. It is suggested as a folder although its sessions ran in a Git worktree that no longer exists.
+
+## Checkpoint 34 — 2026-11-02: folders without Git (ADR 0011, branch `feature/non-git-folders`)
+
+The owner asked for agents working in folders that are not Git repositories, approved the recommended design (explicit folder registrations, not an automatic group) and asked for the ADR and the implementation.
+
+| Area | Implementation |
+| --- | --- |
+| Contracts | `Repository.kind` (`git` / `folder`), `commonGitDir` optional, `gitDetected`; `RegisterRepositoryRequest.kind`; batch `folders`; `RepositorySuggestion.kind` |
+| Storage | Migration 4: `repositories.kind` (default `git`); folders store an empty `common_git_dir`. Backup before migrating as usual |
+| Server | `git/folder.ts`: id `folder_<hash>`, path checks (absolute, existing directory, not a root, not the home folder or a parent of it), refusal inside a repository (read-only `rev-parse`), the stand-in worktree (its own id, never colliding with a Git worktree). `monitor.ts`: no status scan, graph, pull requests or watchers for folders; the structure poll checks existence and whether Git now covers the folder (`gitDetected`). A missing folder is a scan error and its sessions become unassigned. Suggestions offer non-Git working directories as folders, skip plain subfolders of registered folders and still offer Git repositories inside them. `registry.ts`: a Git worktree wins a tie with a folder at the same path |
+| Web | One *Folder* row (`no Git`, folder icon, own hover card), *folder* badge and *now a Git repository* badge on the board, folder icon in the repositories panel, *Folder* in the details panel, folders counted separately in the status bar. The Add dialog marks folder suggestions and offers *Add as folder* when Git rejects a typed path |
+| Docs | ADR 0011; user guide *Folders without Git*; getting started, architecture, limitations, README; regenerated API reference; changelog |
+
+Verification (PowerShell, repository root, 2026-11-02):
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed (after fixing halved backslashes in a new test) |
+| `npm test` | 24 files, 190 tests passed (new: folder layout, folder registry ties, migration 3 → 4) |
+| `npm run test:integration` | 8 files, 93 tests passed (new `tests/api/folders.int.test.ts`: suggestions, refusals, matching next to a registered repository, batch, `git init` detection, a removed folder, removal) |
+| `npm run build` | Passed |
+| `npx playwright test` | 36 passed, 1 skipped (the opt-in docs screenshot); new test adds a suggested folder and a typed one through *Add as folder* |
+| `npm run docs:api`, then `npm run docs:build` | Strict build passed |
+| `git diff --check` | Passed |
+
+A screenshot of the e2e state (dark and light) showed the two folder boards under the Git repositories, each with its *Folder* row, and the agent hover card. Not checked: the owner's real data (the owner's instance is not migrated; schema v4 is not readable by 0.3.0, the automatic backup is), Linux/macOS root and home refusals (synthetic only on Windows). Next action: owner review of the branch; no commit pushed and no PR opened.
+
+## Checkpoint 33 — 2026-11-02: state correction
+
+[PR #4](https://github.com/Chengxuan-Li/repobs/pull/4) (Claude task checklists, checkpoint 29) and [PR #5](https://github.com/Chengxuan-Li/repobs/pull/5) (dark screenshots, checkpoint 27) were merged into `main` on 2026-11-01, after checkpoint 29 was written. All six feature branches are merged; 23 commits on `main` since `v0.3.0` are listed under *Unreleased* in the changelog. Checked with `git branch --no-merged main` (none) and `gh pr list --state all`.
+
 ## Checkpoint 32 — 2026-11-02: sideways swipes pan again; zoom in 10 % steps (branch `claude/ui-zoom-timeline-pan-3b4ef3`)
 
 The owner tried checkpoint 31 in their preview (port 47391) and reported that pan did not work, and asked for 10 % zoom steps.

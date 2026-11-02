@@ -24,6 +24,7 @@ import {
 import { type AgentFacts, annotationChanged, applyActions, ruleMatches, toInput } from '../automation/engine.ts'
 import type { GitRunner } from '../git/exec.ts'
 import { GitError } from '../git/exec.ts'
+import { checkFolderPath, folderIdFor, folderInRepository, folderWorktree, resolveFolder } from '../git/folder.ts'
 import { fetchPullRequests, type GhOptions } from '../git/pulls.ts'
 import {
   repositoryIdFor,
@@ -68,7 +69,11 @@ interface RepoState {
   commitGraph?: CommitGraph
   /** Ref tips + detached heads the graph was built from. */
   graphKey: string
+  /** Folders only (ADR 0011): Git now reports the folder as inside a repository. */
+  gitDetected?: boolean
 }
+
+const isFolder = (repo: RepoState) => repo.stored.kind === 'folder'
 
 interface WorktreeSchedule {
   dirty: boolean
@@ -176,7 +181,7 @@ export class Monitor extends EventEmitter {
   /** Full rescan of everything (startup, troubleshooting, tests). */
   async refreshAll(): Promise<void> {
     await Promise.all([...this.repos.values()].map((r) => this.scanStructure(r)))
-    await Promise.all([...this.repos.values()].flatMap((r) => r.worktrees.map((w) => this.scanStatus(r, w))))
+    await Promise.all([...this.repos.values()].flatMap((r) => (isFolder(r) ? [] : r.worktrees.map((w) => this.scanStatus(r, w)))))
     await this.scanSessions(true)
     if (this.settings.github.enabled) await this.scanPullRequests()
     this.syncWatchers()
@@ -188,6 +193,7 @@ export class Monitor extends EventEmitter {
     const jobs: Promise<unknown>[] = []
     for (const repo of this.repos.values()) {
       if (!repo.scanning && (repo.structureDirty || now >= repo.nextStructureAt)) jobs.push(this.scanStructure(repo).then(() => this.syncWatchers()))
+      if (isFolder(repo)) continue
       for (const wt of repo.worktrees) {
         const sch = this.schedule(wt.id)
         if (sch.scanning || now - sch.lastScanAt < MIN_STATUS_INTERVAL_MS) continue
@@ -224,7 +230,8 @@ export class Monitor extends EventEmitter {
     }
   }
 
-  async registerRepository(inputPath: string, displayName?: string): Promise<Repository> {
+  async registerRepository(inputPath: string, displayName?: string, kind: Repository['kind'] = 'git'): Promise<Repository> {
+    if (kind === 'folder') return this.registerFolder(inputPath, displayName)
     let resolved
     try {
       resolved = await resolveRepository(this.git, inputPath)
@@ -244,30 +251,60 @@ export class Monitor extends EventEmitter {
     const name = displayName ?? defaultRepoName(resolved.primaryPath, resolved.isBare)
     const stored = this.store.addRepository({
       id,
+      kind: 'git',
       displayName: name,
       registeredPath: inputPath.trim(),
       primaryPath: resolved.primaryPath,
       commonGitDir: resolved.commonGitDir,
       isBare: resolved.isBare,
     })
+    return this.activate(stored)
+  }
+
+  /** Register a folder without Git (ADR 0011). */
+  private async registerFolder(inputPath: string, displayName?: string): Promise<Repository> {
+    let folder
+    try {
+      folder = await resolveFolder(this.git, inputPath)
+    } catch (err) {
+      const e = toErrorInfo(err)
+      throw new RegistrationError(e.code, err instanceof GitError ? err.message : e.message, 422)
+    }
+    const id = folderIdFor(folder)
+    const existing = this.repos.get(id)
+    if (existing) throw new RegistrationError('already_registered', `This folder is already registered as "${existing.stored.displayName}"`, 409)
+    const stored = this.store.addRepository({
+      id,
+      kind: 'folder',
+      displayName: displayName ?? basenameOf(folder),
+      registeredPath: inputPath.trim(),
+      primaryPath: folder,
+      commonGitDir: '',
+      isBare: false,
+    })
+    return this.activate(stored)
+  }
+
+  private async activate(stored: StoredRepository): Promise<Repository> {
     const state = this.newRepoState(stored)
-    this.repos.set(id, state)
+    this.repos.set(stored.id, state)
     await this.scanStructure(state)
-    await Promise.all(state.worktrees.map((w) => this.scanStatus(state, w)))
+    if (!isFolder(state)) await Promise.all(state.worktrees.map((w) => this.scanStatus(state, w)))
     this.sessionsDirty = true
     await this.scanSessions(true)
     this.syncWatchers()
     this.publish()
-    this.log('info', `Registered repository ${id}`)
+    this.log('info', `Registered ${stored.kind === 'folder' ? 'folder' : 'repository'} ${stored.id}`)
     return this.repositoryView(state)
   }
 
-  /** Register several repositories; each result reports success or a per-path error. */
-  async registerRepositories(paths: string[]) {
+  /** Register several repositories and folders; each result reports success or a per-path error. */
+  async registerRepositories(paths: string[], folders: string[] = []) {
     const results: Array<{ path: string; ok: boolean; repositoryId?: string; error?: ErrorInfo }> = []
-    for (const p of paths) {
+    const items = [...paths.map((p) => ({ p, kind: 'git' as const })), ...folders.map((p) => ({ p, kind: 'folder' as const }))]
+    for (const { p, kind } of items) {
       try {
-        const repo = await this.registerRepository(p)
+        const repo = await this.registerRepository(p, undefined, kind)
         results.push({ path: p, ok: true, repositoryId: repo.id })
       } catch (err) {
         const e = err instanceof RegistrationError ? { code: err.code, message: err.message } : toErrorInfo(err)
@@ -309,6 +346,7 @@ export class Monitor extends EventEmitter {
   }
 
   private async scanStructure(repo: RepoState): Promise<void> {
+    if (isFolder(repo)) return this.scanFolder(repo)
     repo.scanning = true
     repo.structureDirty = false
     try {
@@ -333,6 +371,33 @@ export class Monitor extends EventEmitter {
       repo.scanState = 'error'
       repo.error = toErrorInfo(err)
       this.log('warn', `Repository scan failed (${repo.stored.id}): ${repo.error.code}`)
+    } finally {
+      repo.scanning = false
+      repo.nextStructureAt = Date.now() + this.settings.monitoring.idleWorktreePollMs
+    }
+  }
+
+  /** A folder: whether it exists, and whether Git now covers it. Nothing else is read (ADR 0011). */
+  private async scanFolder(repo: RepoState): Promise<void> {
+    repo.scanning = true
+    repo.structureDirty = false
+    try {
+      const previous = repo.worktrees[0]
+      const wt = folderWorktree(repo.stored, previous)
+      if (!previous || previous.missing !== wt.missing) this.sessionsDirty = true
+      repo.worktrees = [wt]
+      repo.branches = []
+      if (wt.missing) {
+        repo.scanState = 'error'
+        repo.error = { code: 'path_missing', message: 'The folder no longer exists' }
+        repo.gitDetected = undefined
+      } else {
+        const detected = await this.limit(() => folderInRepository(this.git, repo.stored.primaryPath))
+        if (detected !== undefined) repo.gitDetected = detected
+        repo.scanState = 'ok'
+        repo.error = undefined
+        repo.lastSuccessfulScanAt = new Date().toISOString()
+      }
     } finally {
       repo.scanning = false
       repo.nextStructureAt = Date.now() + this.settings.monitoring.idleWorktreePollMs
@@ -557,6 +622,7 @@ export class Monitor extends EventEmitter {
     this.lastPrRun = Date.now()
     try {
       for (const repo of this.repos.values()) {
+        if (isFolder(repo)) continue
         const result = await fetchPullRequests(this.git, repo.stored, this.gh)
         this.prs.set(repo.stored.id, result)
         this.lastPrError = result.status.error?.message
@@ -592,6 +658,8 @@ export class Monitor extends EventEmitter {
     if (this.manual) return
     const specs: WatchSpec[] = []
     for (const repo of this.repos.values()) {
+      // Folders are not watched: there is no Git directory, and their contents are not read.
+      if (isFolder(repo)) continue
       specs.push({
         key: `repo:${repo.stored.id}`,
         path: repo.stored.commonGitDir,
@@ -658,13 +726,16 @@ export class Monitor extends EventEmitter {
   // Snapshot ---------------------------------------------------------------------------------
 
   private repositoryView(r: RepoState): Repository {
+    const folder = isFolder(r)
     return {
       id: r.stored.id,
+      kind: r.stored.kind,
       displayName: r.stored.displayName,
       registeredPath: r.stored.registeredPath,
       primaryPath: r.stored.primaryPath,
-      commonGitDir: r.stored.commonGitDir,
+      commonGitDir: folder ? undefined : r.stored.commonGitDir,
       isBare: r.stored.isBare,
+      gitDetected: folder ? r.gitDetected : undefined,
       order: r.stored.order,
       addedAt: r.stored.addedAt,
       lastSuccessfulScanAt: r.lastSuccessfulScanAt,
@@ -693,7 +764,7 @@ export class Monitor extends EventEmitter {
       annotations: this.annotations,
       pullRequests: [...this.prs.values()].flatMap((p) => p.pullRequests),
       pullRequestStatus: this.settings.github.enabled
-        ? repos.map((r) => this.prs.get(r.stored.id)?.status ?? { repoId: r.stored.id, state: 'pending' as const })
+        ? repos.filter((r) => !isFolder(r)).map((r) => this.prs.get(r.stored.id)?.status ?? { repoId: r.stored.id, state: 'pending' as const })
         : [],
       commitGraphs: repos.flatMap((r) => (r.commitGraph ? [r.commitGraph] : [])),
     })
@@ -751,7 +822,9 @@ export class Monitor extends EventEmitter {
 
   /** Repositories suggested from session working directories (no disk indexing). */
   async suggestions(limit = 40): Promise<RepositorySuggestion[]> {
-    const registered = [...this.repos.values()]
+    // A Git repository nested in a registered folder can still be suggested; plain subfolders cannot.
+    const registered = [...this.repos.values()].filter((r) => !isFolder(r))
+    const folders = [...this.repos.values()].filter(isFolder)
     const byCwd = new Map<string, RepositorySuggestion>()
     for (const s of [...this.discovered.values()].flat()) {
       if (!s.cwd) continue
@@ -764,11 +837,12 @@ export class Monitor extends EventEmitter {
         prior.sessionCount++
         if ((s.lastActivityAt ?? '') > (prior.lastActivityAt ?? '')) prior.lastActivityAt = s.lastActivityAt
       } else {
-        byCwd.set(key, { path: s.cwd, source: s.provider, sessionCount: 1, activeSessionCount: active ? 1 : 0, lastActivityAt: s.lastActivityAt })
+        byCwd.set(key, { path: s.cwd, kind: 'git', source: s.provider, sessionCount: 1, activeSessionCount: active ? 1 : 0, lastActivityAt: s.lastActivityAt })
       }
     }
     const candidates = [...byCwd.values()].sort((a, b) => (b.lastActivityAt ?? '').localeCompare(a.lastActivityAt ?? '')).slice(0, limit * 2)
     // Several working directories (worktrees, subfolders) can belong to one repository: merge them.
+    // Working directories outside any repository are offered as folders, one each (ADR 0011).
     const byRepo = new Map<string, RepositorySuggestion>()
     for (const c of candidates) {
       if (byRepo.size >= limit) break
@@ -784,8 +858,17 @@ export class Monitor extends EventEmitter {
           continue
         }
         byRepo.set(id, { ...c, path: resolved.primaryPath })
-      } catch {
-        // Not a repository any more (or not accessible): skip silently.
+      } catch (err) {
+        if (!(err instanceof GitError) || err.code !== 'not_a_repository') continue
+        if (folders.some((f) => isWithin(c.path, f.stored.primaryPath))) continue
+        try {
+          // Missing folders, roots, the home folder and its parents cannot be registered: not offered.
+          const folder = checkFolderPath(c.path)
+          const id = folderIdFor(folder)
+          if (!this.repos.has(id) && !byRepo.has(id)) byRepo.set(id, { ...c, kind: 'folder', path: folder })
+        } catch {
+          // Not registrable as a folder either: skip silently.
+        }
       }
     }
     return [...byRepo.values()]

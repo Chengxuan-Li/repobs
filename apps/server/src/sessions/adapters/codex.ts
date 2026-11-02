@@ -1,12 +1,14 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { redactHome } from '../../platform/paths.ts'
+import { redactHome, stripNamespace } from '../../platform/paths.ts'
 import type { LastMessage } from '@repobs/contracts'
 import { makeExcerpt, toolExcerpt } from '../excerpt.ts'
 import { JsonlCursor, scanBackward } from '../jsonl.ts'
 import { codexRecordPlanEvent, PLAN_MARKERS, PlanTracker } from '../plan.ts'
 import { isActivePhase, type Lifecycle, resolveState } from '../status.ts'
+import { readCompressedJsonl, zstdAvailable } from '../zstd-jsonl.ts'
+import { CodexStateIndex } from './codex-state.ts'
 import {
   type AdapterConfig,
   type AdapterStatus,
@@ -20,15 +22,20 @@ import {
   type SessionAdapter,
 } from '../types.ts'
 
-// OpenAI Codex adapter (observed with Codex 0.165 on Windows, October 2026; see
+// OpenAI Codex adapter (observed with Codex 0.165 and 0.166 on Windows, October–November 2026; see
 // docs/integrations.md). Reads, never writes:
 //   <home>/sessions/YYYY/MM/DD/rollout-*.jsonl   one thread may span several rollout files
+//   <home>/sessions/**/rollout-*.jsonl.zst       older rollouts, compressed by Codex (ADR 0012)
 //   <home>/archived_sessions/**/rollout-*.jsonl  archived threads (historical)
 //   <home>/session_index.jsonl                   thread names {id, thread_name, updated_at}
+//   <home>/state_5.sqlite                        thread index, metadata columns only (ADR 0012)
 // Passive logs cannot observe live approval prompts reliably; repobs does not start a Codex
 // app-server and does not claim to observe independently running Codex processes.
 
 const FULL_WALK_MS = 60_000
+/** Decompression time spent per scan; the remaining compressed rollouts are read on later scans. */
+export const COMPRESSED_BUDGET_MS = 2_000
+const COMPRESSED_SUFFIX = '.zst'
 
 export class CodexAccumulator {
   threadId?: string
@@ -60,14 +67,18 @@ export class CodexAccumulator {
       this.unrecognized++
       return
     }
+    const payload = isRecord(rec.payload) ? rec.payload : undefined
+    // A forked sub-agent's rollout repeats its parent's session_meta after its own (observed with
+    // Codex 0.166): the first one names the file's thread; another thread's record is history.
+    const metaId = rec.type === 'session_meta' ? asString(payload?.id, 128) : undefined
+    if (this.threadId && metaId && metaId !== this.threadId) return
     const ts = asIso(rec.timestamp)
     if (ts) {
       this.lastTs = laterIso(this.lastTs, ts)
       this.firstTs = earlierIso(this.firstTs, ts)
     }
-    const payload = isRecord(rec.payload) ? rec.payload : undefined
     if (rec.type === 'session_meta' && payload) {
-      this.threadId = asString(payload.id, 128) ?? this.threadId
+      this.threadId = metaId ?? this.threadId
       this.cwd = this.cwd ?? asString(payload.cwd)
       this.version = asString(payload.cli_version, 40) ?? this.version
       const metaTs = asIso(payload.timestamp)
@@ -134,10 +145,16 @@ export function codexEventPhase(type: string): Lifecycle['phase'] | undefined {
 }
 
 interface TrackedFile {
-  cursor: JsonlCursor
+  file: string
+  /** Plain rollouts only; compressed ones are re-read whole when they change. */
+  cursor?: JsonlCursor
   acc: CodexAccumulator
   statKey: string
   archived: boolean
+  /** Some bytes were read. */
+  read: boolean
+  /** Compressed and over the decompression limit: head only. */
+  tooLarge?: boolean
 }
 
 export function resolveCodexHome(config: Pick<AdapterConfig, 'home'>, env = process.env) {
@@ -158,6 +175,9 @@ export class CodexAdapter implements SessionAdapter {
   private available = false
   private lastScanAt?: string
   private lastScanMs?: number
+  private readonly state = new CodexStateIndex()
+  /** Decompression budget per scan (tests lower it). */
+  compressedBudgetMs = COMPRESSED_BUDGET_MS
 
   configure(config: AdapterConfig): void {
     const before = resolveCodexHome(this.config).root
@@ -169,6 +189,7 @@ export class CodexAdapter implements SessionAdapter {
       this.titles.clear()
       this.indexCursor = undefined
       this.lastFullWalk = 0
+      this.state.reset()
     }
   }
 
@@ -203,19 +224,23 @@ export class CodexAdapter implements SessionAdapter {
       return []
     }
     const sessionsDir = path.join(this.home.root, 'sessions')
-    try {
-      await fs.access(sessionsDir)
-      this.available = true
-    } catch {
+    const hasSessions = await fs.access(sessionsDir).then(
+      () => true,
+      () => false,
+    )
+    this.state.refresh(this.home.root)
+    if (!hasSessions && !this.state.present) {
       this.available = false
       this.files.clear()
       this.known.clear()
       return []
     }
+    this.available = true
+    if (this.state.problem) this.problems.add(this.state.problem.code, this.state.problem.message)
 
     // Full walk occasionally; otherwise only the most recent day directories (new files land there).
     if (now - this.lastFullWalk > FULL_WALK_MS || this.known.size === 0) {
-      this.known = new Set([
+      this.known = withoutCompressedTwins([
         ...(await walkRollouts(sessionsDir, 4)),
         ...(await walkRollouts(path.join(this.home.root, 'archived_sessions'), 4)),
       ])
@@ -224,22 +249,34 @@ export class CodexAdapter implements SessionAdapter {
       for (const dir of recentDayDirs(sessionsDir, now)) {
         for (const f of await walkRollouts(dir, 0)) this.known.add(f)
       }
+      this.known = withoutCompressedTwins(this.known)
     }
     for (const file of [...this.files.keys()]) if (!this.known.has(file)) this.files.delete(file)
     const archivedRoot = path.join(this.home.root, 'archived_sessions')
-    for (const file of this.known) {
+    // Plain rollouts first; compressed ones within the decompression budget, newest first.
+    const ordered = [...this.known].sort((a, b) => Number(isCompressed(a)) - Number(isCompressed(b)) || b.localeCompare(a))
+    const deadline = Date.now() + this.compressedBudgetMs
+    let pending = 0
+    for (const file of ordered) {
       let tracked = this.files.get(file)
       if (!tracked) {
         tracked = {
-          cursor: new JsonlCursor(file),
+          file,
+          cursor: isCompressed(file) ? undefined : new JsonlCursor(file),
           acc: new CodexAccumulator(this.config.excerpts !== false, this.config.plans !== false),
           statKey: '',
           archived: file.startsWith(archivedRoot),
+          read: false,
         }
         this.files.set(file, tracked)
       }
+      if (!tracked.cursor && Date.now() > deadline) {
+        if (await this.changed(tracked)) pending++
+        continue
+      }
       await this.refreshFile(tracked)
     }
+    if (pending > 0) this.problems.add('compressed_rollouts_pending', 'Some compressed Codex rollouts are still waiting to be read')
     await this.readIndex()
 
     // Group rollout files by thread id; the newest file carries the current state.
@@ -247,7 +284,9 @@ export class CodexAdapter implements SessionAdapter {
     for (const t of this.files.values()) {
       const id = t.acc.threadId
       if (!id) {
-        if (t.acc.unrecognized > 0 || t.cursor.position > 0) this.problems.add('rollout_without_meta', 'A rollout file had no readable session_meta record')
+        if (t.acc.unrecognized > 0 || t.cursor?.position || (t.read && !t.cursor)) {
+          this.problems.add('rollout_without_meta', 'A rollout file had no readable session_meta record')
+        }
         continue
       }
       const list = threads.get(id) ?? []
@@ -269,6 +308,14 @@ export class CodexAdapter implements SessionAdapter {
       if (fresh && isActivePhase(latest.acc.lifecycle.phase)) c.active++
       children.set(parent, c)
     }
+    // Threads known only from the state database (ADR 0012): counted, never active.
+    const metadataOnly = [...this.state.all()].filter((t) => !threads.has(t.id))
+    for (const t of metadataOnly) {
+      if (!t.parentId) continue
+      const c = children.get(t.parentId) ?? { total: 0, active: 0 }
+      c.total++
+      children.set(t.parentId, c)
+    }
 
     const sessions: DiscoveredSession[] = []
     for (const [id, files] of threads) {
@@ -289,8 +336,8 @@ export class CodexAdapter implements SessionAdapter {
         id: `codex:${id}`,
         provider: 'codex',
         providerSessionId: id,
-        title: this.titles.get(id)?.name ?? (parent && acc.nickname ? `${acc.nickname} (sub-agent)` : undefined),
-        cwd: acc.cwd,
+        title: this.titles.get(id)?.name ?? this.state.get(id)?.name ?? (parent && acc.nickname ? `${acc.nickname} (sub-agent)` : undefined),
+        cwd: acc.cwd ? stripNamespace(acc.cwd) : undefined,
         parentSessionId: parent ? `codex:${parent}` : undefined,
         agentType: parent ? acc.nickname : undefined,
         lastMessage: this.config.excerpts === false ? undefined : acc.lastMessage,
@@ -310,26 +357,52 @@ export class CodexAdapter implements SessionAdapter {
         sourceFiles: files.length,
       })
     }
+    for (const t of metadataOnly) {
+      sessions.push({
+        id: `codex:${t.id}`,
+        provider: 'codex',
+        providerSessionId: t.id,
+        title: this.titles.get(t.id)?.name ?? t.name ?? (t.parentId && t.nickname ? `${t.nickname} (sub-agent)` : undefined),
+        cwd: t.cwd,
+        parentSessionId: t.parentId ? `codex:${t.parentId}` : undefined,
+        agentType: t.parentId ? t.nickname : undefined,
+        firstSeenAt: t.createdAt,
+        lastActivityAt: t.updatedAt,
+        providerVersion: t.version,
+        recordedBranch: t.branch,
+        lifecycle: { phase: 'none' },
+        // The last update time proves nothing about the turn: never running, idle or ended.
+        state: { kind: 'unknown', confidence: 'unknown', source: 'codex.state-db', observedAt: t.updatedAt, detail: 'metadata_only' },
+        live: false,
+        subagents: children.get(t.id) ?? { total: 0, active: 0 },
+        sourceFiles: 0,
+      })
+    }
     this.lastScanAt = new Date().toISOString()
     this.lastScanMs = Date.now() - started
     return sessions
   }
 
+  /** The file changed since it was last read (or was never read). */
+  private async changed(tracked: TrackedFile): Promise<boolean> {
+    const key = await statKey(tracked.file)
+    return key !== undefined && key !== tracked.statKey
+  }
+
   private async refreshFile(tracked: TrackedFile) {
-    let st: import('node:fs').Stats
-    try {
-      st = await fs.stat(tracked.cursor.file)
-    } catch {
+    if (!tracked.cursor) {
+      await this.refreshCompressed(tracked)
       return
     }
-    const key = `${st.size}:${st.mtimeMs}`
-    if (key === tracked.statKey) return
+    const key = await statKey(tracked.file)
+    if (key === undefined || key === tracked.statKey) return
     tracked.statKey = key
     try {
       const stats = await tracked.cursor.read(tracked.acc.feed, tracked.acc.feedHead)
+      tracked.read = true
       if (stats?.reset) {
         tracked.acc = new CodexAccumulator(this.config.excerpts !== false, this.config.plans !== false)
-        tracked.cursor = new JsonlCursor(tracked.cursor.file)
+        tracked.cursor = new JsonlCursor(tracked.file)
         tracked.statKey = ''
         await this.refreshFile(tracked)
         return
@@ -337,10 +410,38 @@ export class CodexAdapter implements SessionAdapter {
       // The middle of a long rollout was skipped: look back for the latest plan.
       const plan = tracked.acc.plan
       if (stats?.jumped && stats.jumpedFrom && plan && !plan.hasList()) {
-        const earlier = await scanBackward(tracked.cursor.file, stats.jumpedFrom, PLAN_MARKERS, (rec) => !!codexRecordPlanEvent(rec))
+        const earlier = await scanBackward(tracked.file, stats.jumpedFrom, PLAN_MARKERS, (rec) => !!codexRecordPlanEvent(rec))
         plan.prepend(earlier.flatMap((rec) => codexRecordPlanEvent(rec) ?? []))
       }
       if (stats && stats.badLines > 0) this.problems.add('bad_jsonl_lines', 'Some rollout lines were not valid JSON (partial write or unknown format)')
+    } catch {
+      this.problems.add('rollout_unreadable', 'A Codex rollout file could not be read')
+    }
+  }
+
+  /** Compressed rollouts are not appended to: each change is a full, bounded re-read (ADR 0012). */
+  private async refreshCompressed(tracked: TrackedFile) {
+    if (!zstdAvailable) {
+      this.problems.add('compressed_rollouts_unsupported', 'This Node.js runtime cannot read compressed Codex rollouts')
+      return
+    }
+    const key = await statKey(tracked.file)
+    if (key === undefined) return
+    if (key === tracked.statKey) {
+      if (tracked.tooLarge) this.problems.add('rollout_too_large', 'A compressed Codex rollout exceeded the size limit; only its metadata was read')
+      return
+    }
+    tracked.statKey = key
+    const plans = this.config.plans !== false
+    const acc = new CodexAccumulator(this.config.excerpts !== false, plans)
+    try {
+      const stats = await readCompressedJsonl(tracked.file, acc.feed, acc.feedHead, plans ? PLAN_MARKERS : [])
+      if (acc.plan && !acc.plan.hasList()) acc.plan.prepend(stats.marked.flatMap((rec) => codexRecordPlanEvent(rec) ?? []))
+      tracked.acc = acc
+      tracked.read = true
+      tracked.tooLarge = stats.tooLarge
+      if (stats.tooLarge) this.problems.add('rollout_too_large', 'A compressed Codex rollout exceeded the size limit; only its metadata was read')
+      if (stats.badLines > 0) this.problems.add('bad_jsonl_lines', 'Some rollout lines were not valid JSON (partial write or unknown format)')
     } catch {
       this.problems.add('rollout_unreadable', 'A Codex rollout file could not be read')
     }
@@ -380,10 +481,28 @@ async function walkRollouts(dir: string, depth: number): Promise<string[]> {
   }
   for (const e of entries) {
     const p = path.join(dir, e.name)
-    if (e.isFile() && e.name.startsWith('rollout-') && e.name.endsWith('.jsonl')) out.push(p)
+    if (e.isFile() && e.name.startsWith('rollout-') && (e.name.endsWith('.jsonl') || e.name.endsWith(`.jsonl${COMPRESSED_SUFFIX}`))) out.push(p)
     else if (e.isDirectory() && depth > 0) out.push(...(await walkRollouts(p, depth - 1)))
   }
   return out
+}
+
+const isCompressed = (file: string) => file.endsWith(COMPRESSED_SUFFIX)
+
+/** While Codex compresses a rollout both forms exist; the plain one is read. */
+function withoutCompressedTwins(files: Iterable<string>): Set<string> {
+  const all = new Set(files)
+  for (const f of all) if (isCompressed(f) && all.has(f.slice(0, -COMPRESSED_SUFFIX.length))) all.delete(f)
+  return all
+}
+
+async function statKey(file: string): Promise<string | undefined> {
+  try {
+    const st = await fs.stat(file)
+    return `${st.size}:${st.mtimeMs}`
+  } catch {
+    return undefined
+  }
 }
 
 function recentDayDirs(sessionsDir: string, now: number): string[] {

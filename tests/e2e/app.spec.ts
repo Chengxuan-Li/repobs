@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { expect, type Page, test } from '@playwright/test'
+import { expect, type Locator, type Page, test } from '@playwright/test'
 // @ts-expect-error -- plain ESM helper shared with the launcher scripts
 import { mintPairingToken } from '../../scripts/lib.mjs'
 import { claude, writeClaudeSession } from '../../fixtures/session-fixtures.ts'
@@ -41,6 +41,25 @@ async function setOption(page: Page, menuName: string, option: string, checked =
   await expect(menu).toBeHidden()
 }
 
+/**
+ * Hovers something drawn in the lanes. The history is wider than the window, so bring it into view
+ * three quarters across (clear of the sticky label column on the left), let that scroll pass (a
+ * scroll closes hover cards), then move the pointer onto it without the further scrolling a
+ * locator hover may do.
+ */
+async function hoverInLanes(page: Page, target: Locator) {
+  await target.evaluate((el) => new Promise<void>((done) => {
+    el.scrollIntoView({ block: 'center', inline: 'nearest' })
+    let sc = el.parentElement!
+    while (sc.scrollWidth <= sc.clientWidth) sc = sc.parentElement!
+    const view = sc.getBoundingClientRect()
+    sc.scrollLeft += el.getBoundingClientRect().left - (view.left + view.width * 0.75)
+    requestAnimationFrame(() => requestAnimationFrame(() => done()))
+  }))
+  const box = (await target.boundingBox())!
+  await page.mouse.move(box.x + Math.min(box.width / 2, 20), box.y + box.height / 2)
+}
+
 test.describe.serial('repobs dashboard (synthetic data)', () => {
   test('an unpaired browser gets instructions, not data', async ({ page }) => {
     await page.goto('/')
@@ -53,7 +72,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(page.getByRole('heading', { name: /Observe your Git worktrees/ })).toBeVisible()
     await page.getByRole('button', { name: 'Add repositories' }).first().click()
     const dialog = page.getByRole('dialog', { name: 'Add repositories' })
-    const list = dialog.getByRole('list', { name: 'Repositories to add' })
+    const list = dialog.getByRole('list', { name: 'Repositories and folders to add' })
     await expect(list.getByRole('checkbox')).toHaveCount(2)
     await dialog.getByLabel('Select all').check()
     await dialog.getByRole('button', { name: 'Add 2 repositories' }).click()
@@ -68,7 +87,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await page.getByRole('complementary', { name: 'Repositories panel' }).getByRole('button', { name: 'Add', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Add repositories' })
     for (const p of [state().git.repoA, path.join(state().root, 'nowhere')]) {
-      await dialog.getByLabel('Local repository path').fill(p)
+      await dialog.getByLabel('Local repository or folder path').fill(p)
       await dialog.getByRole('button', { name: 'Add to list' }).click()
     }
     await dialog.getByRole('button', { name: 'Add 2 repositories' }).click()
@@ -181,8 +200,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     const group = svg.locator('g[class*="group"]').first()
     await expect(group).toContainText('8')
     expect(await svg.locator('circle[class*="commit"]').count()).toBe(commitsBefore - 8)
-    await group.scrollIntoViewIfNeeded()
-    await group.hover()
+    await hoverInLanes(page, group)
     const card = page.getByRole('dialog', { name: 'Commit details' })
     await expect(card).toContainText('8 quiet commits on claude/scratch-a8de')
     await card.getByText('Scratch step 6').hover()
@@ -456,7 +474,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
   test('hovering an agent card on the timeline shows the same agent details as the list', async ({ page }) => {
     await pair(page)
     const cards = board(page, 'git-status-kit').getByRole('group', { name: 'Agents on the timeline of git-status-kit' })
-    await cards.locator('[data-bar-label]', { hasText: 'Tighten status parser' }).getByText('Tighten status parser').hover()
+    await hoverInLanes(page, cards.locator('[data-bar-label]', { hasText: 'Tighten status parser' }).getByText('Tighten status parser'))
     const hover = page.getByRole('dialog', { name: 'Agent details' })
     await expect(hover).toContainText('Last activity')
     await expect(hover.getByRole('button', { name: /change review state of Tighten status parser/ })).toBeVisible()
@@ -577,9 +595,22 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Zoom in' }).click()
     const at = () => scroller.evaluate((el) => ({ left: el.scrollLeft, top: el.scrollTop }))
     const before = await at()
-    const box = (await scroller.boundingBox())!
-    const x = box.x + box.width - 80
-    const y = box.y + box.height - 60
+    // Press on empty lane background, not on a control, a repository header, a label, a card or a
+    // drawn mark (controls never start a pan, marks open hover cards, and where they all sit
+    // depends on the window size): the lower right of the view, scanning inwards.
+    const { x, y } = await scroller.evaluate((el) => {
+      const busy = 'button, a, input, select, textarea, label, [role="menu"], [role="dialog"], [data-no-pan], [data-nav-row] *, [data-bar-label], [class*="repoHeader"]'
+      const r = el.getBoundingClientRect()
+      for (let dy = 60; dy < r.height / 2; dy += 7) {
+        for (let dx = 80; dx < r.width / 2; dx += 7) {
+          const p = { x: r.right - dx, y: r.bottom - dy }
+          const hit = document.elementFromPoint(p.x, p.y)
+          const mark = hit instanceof SVGElement && !hit.matches('svg[data-lanes]')
+          if (hit && el.contains(hit) && !mark && !hit.closest(busy)) return p
+        }
+      }
+      throw new Error('no empty lane background to press on')
+    })
     await page.mouse.move(x, y)
     await page.mouse.down()
     await page.mouse.move(x + 150, y - 100, { steps: 10 })
@@ -860,6 +891,45 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await panel.getByRole('button', { name: 'Delete rule Flag merge work' }).click()
     await panel.getByRole('button', { name: 'Delete', exact: true }).click()
     await expect(panel.getByText('No rules yet.', { exact: false })).toBeVisible()
+  })
+
+  test('a folder without Git is offered as a folder and shows its agents without commits (ADR 0011)', async ({ page }) => {
+    const folder = path.join(state().root, 'scratch-notes')
+    const quiet = path.join(state().root, 'quiet-notes')
+    for (const dir of [folder, quiet]) fs.mkdirSync(dir, { recursive: true })
+    const id = 'f0f0f0f0-6666-4aaa-8bbb-000000000006'
+    writeClaudeSession(state().claudeHome, folder, id, [claude.title(id, 'Tidy meeting notes'), claude.endTurn(id, folder, Date.now() - 5 * 60_000)])
+    await pair(page)
+    // The dialog asks for suggestions when it opens: wait until the new session has been discovered.
+    await expect
+      .poll(async () => JSON.stringify(await (await page.request.get('/api/v1/repositories/suggestions')).json()), { timeout: 15_000 })
+      .toContain('scratch-notes')
+    await page.getByRole('complementary', { name: 'Repositories panel' }).getByRole('button', { name: 'Add', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Add repositories or folders' })
+    // The session's working directory is suggested as a folder.
+    const suggested = dialog.getByRole('list', { name: 'Repositories and folders to add' }).getByRole('listitem').filter({ hasText: 'scratch-notes' })
+    await expect(suggested).toContainText('folder')
+    await suggested.getByRole('checkbox').check()
+    // A typed path is tried as a repository; Git's refusal is shown with the choice, never a silent fallback.
+    await dialog.getByLabel('Local repository or folder path').fill(quiet)
+    await dialog.getByRole('button', { name: 'Add to list' }).click()
+    await dialog.getByRole('button', { name: 'Add 1 repository and 1 folder' }).click()
+    await expect(dialog.getByRole('alert')).toContainText('Not a Git repository')
+    await dialog.getByRole('button', { name: 'Add as folder' }).click()
+    await dialog.getByRole('button', { name: 'Add folder', exact: true }).click()
+    await expect(dialog).toBeHidden()
+
+    const b = board(page, 'scratch-notes')
+    await expect(b.locator('header')).toContainText('folder')
+    await expect(b.getByRole('listitem', { name: /^Folder without Git/ })).toBeVisible()
+    await expect(b.getByText('Tidy meeting notes').first()).toBeVisible()
+    expect(await b.locator('svg[data-lanes] circle').count()).toBe(0)
+    await expect(board(page, 'quiet-notes').getByRole('listitem', { name: /^Folder without Git/ })).toBeVisible()
+    await expect(page.getByRole('complementary', { name: 'Repositories panel' }).getByLabel('Folder without Git')).toHaveCount(2)
+    await expect(page.getByRole('contentinfo')).toContainText('2 repos • 2 folders • 8 worktrees')
+    // Nothing was written into the folders.
+    expect(fs.readdirSync(folder)).toEqual([])
+    expect(fs.readdirSync(quiet)).toEqual([])
   })
 
   test('removing a repository only removes it from repobs', async ({ page }) => {

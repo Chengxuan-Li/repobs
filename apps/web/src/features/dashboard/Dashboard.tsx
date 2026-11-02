@@ -83,8 +83,10 @@ export function Dashboard({
             ...[...l.commits.values()].filter((p) => !l.groupOf.has(p.commit.oid)).map((p) => ({ key: p.commit.oid, time: p.commit.time * 1000 })),
             ...l.groups.map((g) => ({ key: g.id, time: g.end })),
           ]),
-        activity: filtered
-          .filter((s) => s.repoId && visibleIds.has(s.repoId))
+        // Drawn agent bars only (not those behind "show more"), so hidden agents take no space.
+        activity: [...layouts.entries()]
+          .filter(([repoId]) => visibleIds.has(repoId))
+          .flatMap(([, l]) => l.rows.flatMap((r) => (r.kind === 'session' ? [r.session] : [])))
           .map((s) => ({ start: Date.parse(s.firstSeenAt ?? s.lastActivityAt ?? '') || now, end: Date.parse(s.lastActivityAt ?? '') || now })),
         rangeStart: view.timeRange === 'all' ? null : now - RANGE_MS[view.timeRange],
         now,
@@ -92,7 +94,7 @@ export function Dashboard({
         minSpacing: 22,
         zoom: view.zoom,
       }),
-    [view.axisMode, view.timeRange, view.zoom, layouts, visibleIds, filtered, now, viewport, labelW],
+    [view.axisMode, view.timeRange, view.zoom, layouts, visibleIds, now, viewport, labelW],
   )
 
   // Horizontal zoom keeps the point under the pointer (or the middle of the lanes) in place.

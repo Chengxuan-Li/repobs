@@ -79,6 +79,12 @@ export const MIGRATIONS: Migration[] = [
     name: 'agent plan overrides',
     sql: `ALTER TABLE annotations ADD COLUMN plan_overrides_json TEXT NOT NULL DEFAULT '{}';`,
   },
+  {
+    version: 4,
+    name: 'folders without git',
+    // ADR 0011: folders store an empty common_git_dir.
+    sql: `ALTER TABLE repositories ADD COLUMN kind TEXT NOT NULL DEFAULT 'git';`,
+  },
 ]
 
 export const SCHEMA_VERSION = MIGRATIONS.at(-1)!.version

@@ -1,11 +1,14 @@
 // The horizontal axis shared by every repository on the dashboard.
-//   sequence (default): drawn items — commits, or groups of collapsed commits — are evenly spaced
-//     in time order, merged across all visible repositories, so the axis is the same for every
-//     project; times between items (agent activity) are interpolated between neighbours.
+//   sequence (default): drawn items — commits, or groups of collapsed commits — and the first and
+//     last activity of each drawn agent are evenly spaced in time order, merged across all visible
+//     repositories, so the axis is the same for every project; other times are interpolated
+//     between neighbours.
 //   time: a linear calendar scale over the chosen range.
-//   compressed: calendar order and gaps proportional to elapsed time, but every item keeps at least
-//     minSpacing from the previous one, so bursts of commits never collide; zoom scales only the
-//     time-proportional part of the gaps.
+//   compressed: calendar order and gaps proportional to elapsed time, but every item and agent
+//     activity point keeps at least minSpacing from the previous one, so bursts of commits or
+//     agents never collide; zoom scales only the time-proportional part of the gaps.
+// Agent activity takes part in both ordinal modes, so agents never collapse into one point where
+// there are no commits (folders without Git, ADR 0011) or between two distant commits.
 // Pure and unit-tested (timeline.test.ts).
 
 export type AxisMode = 'sequence' | 'time' | 'compressed'
@@ -34,14 +37,17 @@ export interface TimelineInput {
   mode: AxisMode
   /** Drawn items: commits (key = oid) and collapsed groups (key = group id), time in ms. */
   items: Array<{ key: string; time: number }>
-  /** Start/end of agent activity to include on the axis (ms). */
+  /**
+   * First and last activity of each drawn agent (ms). The ordinal modes place every point before
+   * now as an anchor of its own; calendar time uses the earliest start for its default range.
+   */
   activity: Array<{ start: number; end: number }>
   /** Range start in ms (null = everything loaded). */
   rangeStart: number | null
   now: number
   /** Width available for the lane area; the axis may be wider (horizontal scroll). */
   availableWidth: number
-  /** Minimum distance between commits in sequence and compressed modes. */
+  /** Minimum distance between anchors (commits, agent activity) in sequence and compressed modes. */
   minSpacing: number
   /**
    * Horizontal zoom (default 1). Above 1 the axis widens proportionally; below 1 commits may sit
@@ -73,18 +79,40 @@ function timeAxis(input: TimelineInput): Timeline {
   return { mode: 'time', width, x, commitX, start, end, ticks: timeTicks(start, end, scale, width), nowX: x(input.now) }
 }
 
+interface Anchor {
+  /** Drawn item key; absent for an agent activity point. */
+  key?: string
+  time: number
+}
+
+/**
+ * Points the ordinal axes are built on, in time order: every drawn item in range, and each agent
+ * start/end in range and before now that does not coincide with an anchor already there.
+ */
+function anchorsOf(input: TimelineInput): Anchor[] {
+  const inRange = (t: number) => input.rangeStart === null || t >= input.rangeStart
+  const out: Anchor[] = input.items.filter((i) => inRange(i.time))
+  const taken = new Set(out.map((a) => a.time))
+  for (const a of input.activity) {
+    for (const t of [a.start, a.end]) {
+      if (!Number.isFinite(t) || !inRange(t) || t >= input.now || taken.has(t)) continue
+      taken.add(t)
+      out.push({ time: t })
+    }
+  }
+  return out.sort((a, b) => a.time - b.time || (a.key ?? '').localeCompare(b.key ?? ''))
+}
+
 function sequenceAxis(input: TimelineInput): Timeline {
-  const commits = input.items
-    .filter((c) => input.rangeStart === null || c.time >= input.rangeStart)
-    .sort((a, b) => a.time - b.time || a.key.localeCompare(b.key))
-  // Columns: one per commit, plus a final column for "now" (pending changes, live agents).
+  const commits = anchorsOf(input)
+  // Columns: one per anchor, plus a final column for "now" (pending changes, live agents).
   const n = commits.length + 1
   const fit = (input.availableWidth - 2 * PAD) / Math.max(1, n)
   const zoom = input.zoom ?? 1
   const spacing = zoom >= 1 ? Math.max(fit, input.minSpacing) * zoom : Math.max(fit, input.minSpacing * zoom)
   const width = Math.max(input.availableWidth, 2 * PAD + spacing * n)
   const colX = (i: number) => PAD + spacing * (i + 0.5)
-  const oidX = new Map(commits.map((c, i) => [c.key, colX(i)]))
+  const oidX = new Map(commits.flatMap((c, i) => (c.key === undefined ? [] : [[c.key, colX(i)] as const])))
   const times = commits.map((c) => c.time)
   const nowX = colX(commits.length)
   const start = times[0] ?? input.rangeStart ?? input.now - DAY
@@ -144,9 +172,7 @@ function timeTicks(start: number, end: number, scale: (ms: number) => number, wi
 }
 
 function compressedAxis(input: TimelineInput): Timeline {
-  const items = input.items
-    .filter((c) => input.rangeStart === null || c.time >= input.rangeStart)
-    .sort((a, b) => a.time - b.time || a.key.localeCompare(b.key))
+  const items = anchorsOf(input)
   const gap = input.minSpacing
   const first = items[0]?.time ?? input.rangeStart ?? input.now - DAY
   const start = input.rangeStart ?? Math.min(first, input.now - DAY)
@@ -160,7 +186,7 @@ function compressedAxis(input: TimelineInput): Timeline {
   for (const item of items) {
     if (prev !== undefined) x += Math.max(gap, (item.time - prev) * scale)
     prev = item.time
-    itemX.set(item.key, x)
+    if (item.key !== undefined) itemX.set(item.key, x)
     anchors.push({ t: item.time, x })
   }
   const nowX = prev === undefined ? x : x + Math.max(gap, (input.now - prev) * scale)

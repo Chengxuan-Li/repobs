@@ -215,6 +215,22 @@ export function AgentHover({
 
 export function BranchHover({ row }: { row: BranchRow }) {
   const up = row.branch?.upstream
+  if (row.folder) {
+    return (
+      <>
+        <div className={styles.title}>Folder without Git</div>
+        <dl className={styles.facts}>
+          {row.worktrees.map((w) => (
+            <div key={w.id} style={{ display: 'contents' }}>
+              <dt>Path</dt>
+              <dd className="mono">{w.path}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="small muted">Agents working in this folder. repobs reads no files here, so there are no commits or changes to show.</div>
+      </>
+    )
+  }
   return (
     <>
       <div className={`${styles.title} mono`}>{row.label}</div>

@@ -5,6 +5,7 @@ import type { AgentSession, BranchRef, Repository, Snapshot, Worktree } from '@r
 export function repo(id: string, over: Partial<Repository> = {}): Repository {
   return {
     id,
+    kind: 'git',
     displayName: id,
     registeredPath: `C:\\src\\${id}`,
     primaryPath: `C:\\src\\${id}`,

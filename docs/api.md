@@ -13,9 +13,9 @@ All endpoints live under `/api/v1` on the loopback address and are private unles
 | GET | `/snapshot` | session | — | [Snapshot](#snapshot) | Normalized repositories, refs, worktrees, sessions, annotation summaries and PR metadata. |
 | GET | `/events` | session | — | [SnapshotDiff](#snapshotdiff) | Server-sent events: `hello` {version}, `diff` (SnapshotDiff), `monitor` (MonitorHealth). Refetch /snapshot on a version gap. |
 | GET | `/repositories` | session | — | [Repository[]](#repository) | Registered repositories. |
-| POST | `/repositories` | session+csrf | [RegisterRepositoryRequest](#registerrepositoryrequest) | [Repository](#repository) | Register a validated local Git repository (any path inside it). Read-only for the repository. |
-| POST | `/repositories/batch` | session+csrf | [RegisterRepositoriesRequest](#registerrepositoriesrequest) | [RegisterRepositoriesResponse](#registerrepositoriesresponse) | Register up to 50 repositories at once; each path reports success or its own error. |
-| GET | `/repositories/suggestions` | session | — | [RepositorySuggestion[]](#repositorysuggestion) | Unregistered repositories seen in session working directories, with session counts and last activity (no disk indexing). |
+| POST | `/repositories` | session+csrf | [RegisterRepositoryRequest](#registerrepositoryrequest) | [Repository](#repository) | Register a validated local Git repository (any path inside it), or with `kind: folder` a folder without Git (ADR 0011). Read-only for both. |
+| POST | `/repositories/batch` | session+csrf | [RegisterRepositoriesRequest](#registerrepositoriesrequest) | [RegisterRepositoriesResponse](#registerrepositoriesresponse) | Register up to 50 repositories (`paths`) and folders without Git (`folders`) at once; each path reports success or its own error. |
+| GET | `/repositories/suggestions` | session | — | [RepositorySuggestion[]](#repositorysuggestion) | Unregistered repositories and folders without Git seen in session working directories, with session counts and last activity (no disk indexing). |
 | POST | `/repositories/pick-directory` | session+csrf | — | [PickDirectoryResponse](#pickdirectoryresponse) | Show the native folder chooser on this Windows machine (501 elsewhere). |
 | POST | `/repositories/reorder` | session+csrf | [ReorderRepositoriesRequest](#reorderrepositoriesrequest) | — | Persist repository order. |
 | PATCH | `/repositories/{id}` | session+csrf | [UpdateRepositoryRequest](#updaterepositoryrequest) | — | Rename the dashboard entry. |
@@ -156,7 +156,8 @@ JSON Schema generated from the shared zod contracts.
             "no_lifecycle_records",
             "unrecognized_records",
             "provider_error_event",
-            "source_missing"
+            "source_missing",
+            "metadata_only"
           ]
         },
         "possiblyAwaitingApproval": {
@@ -2353,7 +2354,17 @@ JSON Schema generated from the shared zod contracts.
   "type": "object",
   "properties": {
     "paths": {
-      "minItems": 1,
+      "default": [],
+      "maxItems": 50,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1024
+      }
+    },
+    "folders": {
+      "default": [],
       "maxItems": 50,
       "type": "array",
       "items": {
@@ -2364,7 +2375,8 @@ JSON Schema generated from the shared zod contracts.
     }
   },
   "required": [
-    "paths"
+    "paths",
+    "folders"
   ],
   "additionalProperties": false
 }
@@ -2441,6 +2453,13 @@ JSON Schema generated from the shared zod contracts.
       "type": "string",
       "minLength": 1,
       "maxLength": 120
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "git",
+        "folder"
+      ]
     }
   },
   "required": [
@@ -2483,6 +2502,13 @@ JSON Schema generated from the shared zod contracts.
     "id": {
       "type": "string"
     },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "git",
+        "folder"
+      ]
+    },
     "displayName": {
       "type": "string"
     },
@@ -2496,6 +2522,9 @@ JSON Schema generated from the shared zod contracts.
       "type": "string"
     },
     "isBare": {
+      "type": "boolean"
+    },
+    "gitDetected": {
       "type": "boolean"
     },
     "order": {
@@ -2540,10 +2569,10 @@ JSON Schema generated from the shared zod contracts.
   },
   "required": [
     "id",
+    "kind",
     "displayName",
     "registeredPath",
     "primaryPath",
-    "commonGitDir",
     "isBare",
     "order",
     "addedAt",
@@ -2562,6 +2591,13 @@ JSON Schema generated from the shared zod contracts.
   "properties": {
     "path": {
       "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "git",
+        "folder"
+      ]
     },
     "source": {
       "type": "string",
@@ -2587,6 +2623,7 @@ JSON Schema generated from the shared zod contracts.
   },
   "required": [
     "path",
+    "kind",
     "source",
     "sessionCount",
     "activeSessionCount"
@@ -3036,6 +3073,13 @@ JSON Schema generated from the shared zod contracts.
           "id": {
             "type": "string"
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "git",
+              "folder"
+            ]
+          },
           "displayName": {
             "type": "string"
           },
@@ -3049,6 +3093,9 @@ JSON Schema generated from the shared zod contracts.
             "type": "string"
           },
           "isBare": {
+            "type": "boolean"
+          },
+          "gitDetected": {
             "type": "boolean"
           },
           "order": {
@@ -3093,10 +3140,10 @@ JSON Schema generated from the shared zod contracts.
         },
         "required": [
           "id",
+          "kind",
           "displayName",
           "registeredPath",
           "primaryPath",
-          "commonGitDir",
           "isBare",
           "order",
           "addedAt",
@@ -3460,7 +3507,8 @@ JSON Schema generated from the shared zod contracts.
                   "no_lifecycle_records",
                   "unrecognized_records",
                   "provider_error_event",
-                  "source_missing"
+                  "source_missing",
+                  "metadata_only"
                 ]
               },
               "possiblyAwaitingApproval": {
@@ -3984,6 +4032,13 @@ JSON Schema generated from the shared zod contracts.
               "id": {
                 "type": "string"
               },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "git",
+                  "folder"
+                ]
+              },
               "displayName": {
                 "type": "string"
               },
@@ -3997,6 +4052,9 @@ JSON Schema generated from the shared zod contracts.
                 "type": "string"
               },
               "isBare": {
+                "type": "boolean"
+              },
+              "gitDetected": {
                 "type": "boolean"
               },
               "order": {
@@ -4041,10 +4099,10 @@ JSON Schema generated from the shared zod contracts.
             },
             "required": [
               "id",
+              "kind",
               "displayName",
               "registeredPath",
               "primaryPath",
-              "commonGitDir",
               "isBare",
               "order",
               "addedAt",
@@ -4408,7 +4466,8 @@ JSON Schema generated from the shared zod contracts.
                       "no_lifecycle_records",
                       "unrecognized_records",
                       "provider_error_event",
-                      "source_missing"
+                      "source_missing",
+                      "metadata_only"
                     ]
                   },
                   "possiblyAwaitingApproval": {
