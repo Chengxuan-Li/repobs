@@ -23,6 +23,8 @@ export interface ViewState {
   barLabels: boolean
   /** Steps, tool categories and tokens on agent bars instead of plain tool ticks. */
   activityDetail: ActivityDetail
+  /** Agent lines as tall as the model's context was full at the time (ADR 0013). */
+  contextHeight: boolean
   /** Spawned agents start hidden under their parent (its chevron shows them). */
   collapseSpawned: boolean
   /** Agents whose spawned agents are shown (when collapsing) or hidden (when not); reset when that switch changes. */
@@ -63,6 +65,7 @@ export const DEFAULT_VIEW: ViewState = {
   agentNames: true,
   barLabels: true,
   activityDetail: 'auto',
+  contextHeight: false,
   collapseSpawned: true,
   toggledAgents: [],
   axisMode: 'sequence',
@@ -104,6 +107,7 @@ export function normalizeView(raw: unknown): ViewState {
     agentNames: p.agentNames !== false,
     barLabels: p.barLabels !== false,
     activityDetail: p.activityDetail === 'on' || p.activityDetail === 'off' ? p.activityDetail : 'auto',
+    contextHeight: p.contextHeight === true,
     collapseSpawned: p.collapseSpawned !== false,
     toggledAgents: strings(p.toggledAgents),
     axisMode: p.axisMode === 'time' || p.axisMode === 'compressed' ? p.axisMode : 'sequence',

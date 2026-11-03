@@ -2,7 +2,8 @@ import type { ActivityStep, SessionActivity, TokenCounts, TokenSample, ToolCateg
 import { TOOL_CATEGORY_LABELS } from '@repobs/contracts'
 
 // Agent activity on the timeline (ADR 0013), as pure functions: steps become pixel runs, marks and
-// a context-fill path; and a summary for hover cards. Unit-tested (activity.test.ts).
+// active spans on the agent's line; and a summary, as chips, for hover cards and the details panel.
+// Unit-tested (activity.test.ts).
 //
 // Colour carries three groups only (validated all-pairs: read, edit, shell); Git is shown by shape
 // (◆ change, ○ inspect) and tests/builds by hatching, so no identity depends on colour alone.
@@ -101,19 +102,25 @@ export function stepMarks(steps: ActivityStep[], x: (ms: number) => number): Mar
   return out
 }
 
-/** A step path of the context fill between `top` and `top + height`, scaled to `max` tokens. */
-export function contextPath(tokens: TokenSample[], x: (ms: number) => number, top: number, height: number, max: number, endX: number): string {
-  if (!tokens.length || max <= 0) return ''
-  const yOf = (t: number) => top + height - Math.min(1, t / max) * height
-  const base = top + height
-  let d = `M${x(tokens[0]!.at).toFixed(1)},${base}`
-  tokens.forEach((t, i) => {
-    const x1 = x(t.at)
-    const x2 = i + 1 < tokens.length ? x(tokens[i + 1]!.at) : Math.max(x1 + 2, endX)
-    const y = yOf(t.context).toFixed(1)
-    d += ` L${x1.toFixed(1)},${y} L${x2.toFixed(1)},${y}`
-  })
-  return `${d} L${Math.max(x(tokens.at(-1)!.at) + 2, endX).toFixed(1)},${base} Z`
+/**
+ * When the agent was working (model or tool steps), as pixel spans; spans less than `gap` px apart
+ * merge. Between them the agent's line is drawn faint.
+ */
+export function activeSpans(steps: ActivityStep[], x: (ms: number) => number, gap = 2): Array<{ x1: number; x2: number }> {
+  const raw: Array<{ x1: number; x2: number }> = []
+  for (const s of steps) {
+    if (s.kind !== 'model' && s.kind !== 'tool') continue
+    const x1 = x(s.start)
+    raw.push({ x1, x2: Math.max(x1 + (s.kind === 'tool' ? 2 : 1), x(s.end ?? s.start)) })
+  }
+  raw.sort((a, b) => a.x1 - b.x1)
+  const out: Array<{ x1: number; x2: number }> = []
+  for (const r of raw) {
+    const prev = out.at(-1)
+    if (prev && r.x1 <= prev.x2 + gap) prev.x2 = Math.max(prev.x2, r.x2)
+    else out.push({ ...r })
+  }
+  return out
 }
 
 export interface ActivitySummaryData {
@@ -121,14 +128,19 @@ export interface ActivitySummaryData {
   failed: number
   /** Tool calls per category, most first. */
   categories: Array<[ToolCategory, number]>
-  /** Command verbs, most first (top 6). */
+  /** Shell, Git, test and build calls. */
+  commands: number
+  /** Command verbs, most first (top 12). */
   verbs: Array<[string, number]>
   prompts: number
   compactions: number
   errors: number
   /** Estimated time the model spent responding, and tools running (ms). */
   modelMs: number
+  /** Of which responses with thinking. */
+  thinkingMs: number
   toolMs: number
+  toolMsByGroup: Record<ActivityGroup, number>
   thinkingResponses: number
   responses: number
   totals: TokenCounts
@@ -146,12 +158,15 @@ export function summarize(a: SessionActivity): ActivitySummaryData {
     tools: 0,
     failed: 0,
     categories: [],
+    commands: 0,
     verbs: [],
     prompts: 0,
     compactions: 0,
     errors: 0,
     modelMs: 0,
+    thinkingMs: 0,
     toolMs: 0,
+    toolMsByGroup: { read: 0, edit: 0, shell: 0, other: 0 },
     thinkingResponses: 0,
     responses: 0,
     totals: a.totals,
@@ -162,19 +177,24 @@ export function summarize(a: SessionActivity): ActivitySummaryData {
     if (step.kind === 'tool') {
       s.tools++
       if (step.ok === false) s.failed++
+      if (groupOf(step.category) === 'shell') s.commands++
       if (step.category) categories.set(step.category, (categories.get(step.category) ?? 0) + 1)
       if (step.verb) verbs.set(step.verb, (verbs.get(step.verb) ?? 0) + 1)
-      if (step.end !== undefined) s.toolMs += step.end - step.start
+      if (step.end !== undefined) {
+        s.toolMs += step.end - step.start
+        s.toolMsByGroup[groupOf(step.category)] += step.end - step.start
+      }
     } else if (step.kind === 'model') {
       s.responses++
       if (step.thinking) s.thinkingResponses++
       s.modelMs += (step.end ?? step.start) - step.start
+      if (step.thinking) s.thinkingMs += (step.end ?? step.start) - step.start
     } else if (step.kind === 'prompt') s.prompts++
     else if (step.kind === 'compaction') s.compactions++
     else if (step.kind === 'error') s.errors++
   }
   s.categories = [...categories.entries()].sort((x, y) => y[1] - x[1])
-  s.verbs = [...verbs.entries()].sort((x, y) => y[1] - x[1]).slice(0, 6)
+  s.verbs = [...verbs.entries()].sort((x, y) => y[1] - x[1]).slice(0, 12)
   if (a.tokens.length) {
     s.latestContext = a.tokens.at(-1)!.context
     s.peakContext = Math.max(...a.tokens.map((t) => t.context))
@@ -197,3 +217,112 @@ export function formatDuration(ms: number): string {
 }
 
 export const categoryLabel = (c: ToolCategory) => TOOL_CATEGORY_LABELS[c]
+
+export type Tone = ActivityGroup | 'model' | 'thinking' | 'failed'
+
+export interface Chip {
+  /** None: the value alone. */
+  label?: string
+  value: string
+  /** A command verb: shown as typed, not in label case. */
+  mono?: boolean
+  /** The dashboard colour of what it counts, if it has one. */
+  tone?: Tone
+}
+
+/** One part of a stacked bar: its share is `amount` of the bar's total. */
+export interface Part extends Chip {
+  label: string
+  amount: number
+}
+
+/**
+ * A field of the activity summary. `bar`: a stacked bar of parts in one unit (counts or time), with
+ * `extras` (other quantities) shown only in its breakdown. `chips`: figures on one line.
+ */
+export type ActivityField = { kind: 'bar'; label: string; total: string; parts: Part[]; extras: Chip[] } | { kind: 'chips'; label: string; chips: Chip[] }
+
+const GROUP_ORDER: ActivityGroup[] = ['read', 'edit', 'shell', 'other']
+const TIME_LABELS: Record<ActivityGroup, string> = { read: 'Read and search', edit: 'Edit', shell: 'Shell, Git, tests', other: 'Other tools' }
+
+/**
+ * The summary as fields: tools, commands and time as stacked bars (parts grouped by colour, larger
+ * first); tokens, cache hit rate and current context as figures.
+ */
+export function activityFields(s: ActivitySummaryData): ActivityField[] {
+  const t = s.totals
+  const input = t.input + t.cacheRead + t.cacheWrite
+  const part = (label: string, amount: number, value: string, tone?: Tone, mono?: boolean): Part[] =>
+    amount > 0 ? [{ label, amount, value, ...(tone ? { tone } : {}), ...(mono ? { mono } : {}) }] : []
+  const quantity = (label: string, n: number, tone?: Tone): Chip[] => (n ? [{ label, value: String(n), ...(tone ? { tone } : {}) }] : [])
+  const byGroup = [...s.categories].sort((a, b) => GROUP_ORDER.indexOf(groupOf(a[0])) - GROUP_ORDER.indexOf(groupOf(b[0])) || b[1] - a[1])
+  const named = s.verbs.reduce((n, [, c]) => n + c, 0)
+  const fields: ActivityField[] = [
+    {
+      kind: 'bar',
+      label: 'Tools',
+      total: String(s.tools),
+      parts: byGroup.flatMap(([c, n]) => part(categoryLabel(c), n, String(n), groupOf(c))),
+      extras: quantity('Failed', s.failed, 'failed'),
+    },
+    {
+      kind: 'bar',
+      label: 'Commands',
+      total: String(s.commands),
+      parts: [...s.verbs.flatMap(([v, n]) => part(v, n, String(n), 'shell', true)), ...part('Other commands', s.commands - named, String(s.commands - named))],
+      extras: [],
+    },
+    {
+      kind: 'bar',
+      label: 'Time',
+      total: formatDuration(s.modelMs + s.toolMs),
+      parts: [
+        ...part('Model, thinking', s.thinkingMs, formatDuration(s.thinkingMs), 'thinking'),
+        ...part('Model', s.modelMs - s.thinkingMs, formatDuration(s.modelMs - s.thinkingMs), 'model'),
+        ...GROUP_ORDER.flatMap((g) => part(TIME_LABELS[g], s.toolMsByGroup[g], formatDuration(s.toolMsByGroup[g]), g)),
+      ],
+      extras: [...quantity('Prompts', s.prompts), ...quantity('Responses', s.responses), ...quantity('With thinking', s.thinkingResponses, 'thinking'), ...quantity('Errors', s.errors, 'failed')],
+    },
+    {
+      kind: 'chips',
+      label: 'Tokens',
+      chips: input + t.output ? [{ label: 'In', value: formatTokens(input) }, { label: 'Out', value: formatTokens(t.output) }] : [],
+    },
+    { kind: 'chips', label: 'Cache hit', chips: input ? [{ value: `${Math.round((t.cacheRead / input) * 100)} %` }] : [] },
+    {
+      kind: 'chips',
+      label: 'Context',
+      chips: s.latestContext !== undefined ? [{ value: formatTokens(s.latestContext) + (s.contextWindow ? ` / ${formatTokens(s.contextWindow)}` : '') }] : [],
+    },
+  ]
+  return fields.filter((f) => (f.kind === 'bar' ? f.parts.length : f.chips.length))
+}
+
+/**
+ * The context window an agent's line is scaled to: as recorded (Codex), else the smallest standard
+ * window its peak fits (200k, then 1M), else its peak.
+ */
+export function contextScale(a: SessionActivity): number {
+  const peak = Math.max(0, ...a.tokens.map((t) => t.context))
+  if (a.contextWindow && a.contextWindow >= peak) return a.contextWindow
+  return [200_000, 1_000_000].find((w) => w >= peak) ?? peak
+}
+
+/**
+ * A clip path for the agent's line, symmetric about `y`: at each response, `maxHalf` times the share
+ * of `max` in context (at least `minHalf`), held until the next; from `from` to past `to`.
+ */
+export function contextClip(tokens: TokenSample[], x: (ms: number) => number, y: number, maxHalf: number, max: number, from: number, to: number, minHalf = 1): string {
+  if (!tokens.length || max <= 0) return ''
+  const half = (c: number) => Math.max(minHalf, Math.min(1, c / max) * maxHalf)
+  const xs = tokens.map((t) => x(t.at))
+  const end = Math.max(to, xs.at(-1)!) + 4
+  const steps = tokens.map((t, i) => ({ x1: i ? xs[i]! : Math.min(from, xs[0]!), x2: i + 1 < xs.length ? xs[i + 1]! : end, h: half(t.context) }))
+  const f = (n: number) => n.toFixed(1)
+  const top = steps.map((p) => `L${f(p.x1)},${f(y - p.h)} L${f(p.x2)},${f(y - p.h)}`).join(' ')
+  const bottom = [...steps]
+    .reverse()
+    .map((p) => `L${f(p.x2)},${f(y + p.h)} L${f(p.x1)},${f(y + p.h)}`)
+    .join(' ')
+  return `M${f(steps[0]!.x1)},${f(y)} ${top} ${bottom} Z`
+}

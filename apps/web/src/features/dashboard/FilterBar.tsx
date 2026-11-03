@@ -294,6 +294,17 @@ export function FilterBar({
                   onSelect: () => setView({ activityDetail: m }),
                 })),
               },
+              {
+                heading: 'Agent line',
+                items: [
+                  {
+                    type: 'check',
+                    label: 'Height: context used',
+                    checked: view.contextHeight,
+                    onToggle: () => setView((v) => ({ contextHeight: !v.contextHeight })),
+                  },
+                ],
+              },
             ]}
           />
           <Dropdown

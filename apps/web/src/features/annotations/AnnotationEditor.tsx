@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { type AgentSession, type AnnotationInput, type AnnotationSummary, LIMITS, REVIEW_LABELS, type ReviewState, type SessionAnnotation } from '@repobs/contracts'
 import { api, ApiError } from '../../app/api'
+import { Dropdown } from '../../components/Dropdown'
 import { InlineAlert } from '../../components/primitives'
 import { Checklist, type DraftItem } from './Checklist'
 import { TagInput } from './TagInput'
@@ -35,7 +36,7 @@ export function AnnotationEditor({ session, summary, knownTags }: { session: Age
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const lastSavedAt = useRef<string | undefined>(undefined)
   const sessionId = session.id
-  const ids = { alias: useId(), note: useId(), review: useId() }
+  const ids = { alias: useId(), note: useId() }
 
   const flush = useCallback(
     async (id: string) => {
@@ -103,22 +104,19 @@ export function AnnotationEditor({ session, summary, knownTags }: { session: Age
     timer.current = setTimeout(() => void flush(sessionId), immediate ? 0 : 700)
   }
 
+  const chooseReview = (review: ReviewState) => update({ review }, true)
+
   if (loadError) return <InlineAlert tone="danger">{loadError}</InlineAlert>
   if (!loaded) return <p className="muted small">Loading annotations…</p>
 
   return (
-    <div className={styles.editor}>
-      <div className={styles.field}>
-        <label className="label" htmlFor={ids.review}>
-          Review state
-        </label>
-        <select id={ids.review} className="input" value={draft.review} onChange={(e) => update({ review: e.target.value as ReviewState }, true)}>
-          {(Object.keys(REVIEW_LABELS) as ReviewState[]).map((r) => (
-            <option key={r} value={r}>
-              {REVIEW_LABELS[r]}
-            </option>
-          ))}
-        </select>
+    // Saving is silent unless it fails; data-save tells tests when a save has landed.
+    <div className={styles.editor} data-save={save.kind}>
+      <div className={styles.inline}>
+        <span className="label" aria-hidden="true">
+          State
+        </span>
+        <ReviewDropdown review={draft.review} onChange={chooseReview} />
       </div>
       <div className={styles.field}>
         <label className="label" htmlFor={ids.alias}>
@@ -152,11 +150,14 @@ export function AnnotationEditor({ session, summary, knownTags }: { session: Age
         />
       </div>
       <div className={styles.field}>
-        <span className="label">Checklist</span>
-        <Checklist items={draft.checklist} onChange={(checklist) => update({ checklist }, true)} />
-      </div>
-      <div className={styles.saveRow} aria-live="polite">
-        <SaveIndicator state={save} onRetry={() => void flush(sessionId)} />
+        <div className={styles.fieldHead}>
+          <span className="label">Checklist</span>
+          {confirmClear ? null : (
+            <button type="button" className="btn btn-quiet btn-danger" onClick={() => setConfirmClear(true)}>
+              Clear annotations…
+            </button>
+          )}
+        </div>
         {confirmClear ? (
           <span className={styles.confirm}>
             Delete all notes, tags and checklist for this session?
@@ -179,32 +180,46 @@ export function AnnotationEditor({ session, summary, knownTags }: { session: Age
               Cancel
             </button>
           </span>
-        ) : (
-          <button type="button" className="btn btn-quiet btn-danger" onClick={() => setConfirmClear(true)}>
-            Clear annotations…
-          </button>
-        )}
+        ) : null}
+        <Checklist items={draft.checklist} onChange={(checklist) => update({ checklist }, true)} />
+      </div>
+      <div aria-live="polite">
+        <SaveError state={save} onRetry={() => void flush(sessionId)} />
       </div>
     </div>
   )
 }
 
-function SaveIndicator({ state, onRetry }: { state: SaveState; onRetry: () => void }) {
-  switch (state.kind) {
-    case 'idle':
-      return <span className="small muted">Changes save automatically</span>
-    case 'saving':
-      return <span className="small muted">Saving…</span>
-    case 'saved':
-      return <span className="small muted">Saved {new Date(state.at).toLocaleTimeString()}</span>
-    case 'error':
-      return (
-        <span className="small" role="alert" style={{ color: 'var(--tone-danger-text)' }}>
-          Not saved: {state.message}{' '}
-          <button type="button" className="btn" onClick={onRetry}>
-            Retry
-          </button>
-        </span>
-      )
-  }
+/** Notes save automatically and quietly; only a failure is shown, with a retry. */
+function SaveError({ state, onRetry }: { state: SaveState; onRetry: () => void }) {
+  if (state.kind !== 'error') return null
+  return (
+    <span className="small" role="alert" style={{ color: 'var(--tone-danger-text)' }}>
+      Not saved: {state.message}{' '}
+      <button type="button" className="btn" onClick={onRetry}>
+        Retry
+      </button>
+    </span>
+  )
+}
+
+/** The review state as a dashboard dropdown showing its value; named "Review state" for assistive technology. */
+function ReviewDropdown({ review, onChange }: { review: ReviewState; onChange: (review: ReviewState) => void }) {
+  return (
+    <Dropdown
+      label="Review state"
+      value={REVIEW_LABELS[review]}
+      valueOnly
+      sections={[
+        {
+          items: (Object.keys(REVIEW_LABELS) as ReviewState[]).map((r) => ({
+            type: 'radio' as const,
+            label: REVIEW_LABELS[r],
+            checked: review === r,
+            onSelect: () => onChange(r),
+          })),
+        },
+      ]}
+    />
+  )
 }

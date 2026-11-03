@@ -289,24 +289,27 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     expect(await focused.getAttribute('aria-expanded')).toBeNull()
     await page.keyboard.press('Enter')
     await expect(details(page).getByRole('heading', { level: 2 })).toBeVisible()
-    await expect(details(page).getByLabel('Review state')).toBeVisible()
+    await expect(details(page).getByRole('button', { name: /^Review state: / })).toBeVisible()
   })
 
   test('notes: review dropdown, tag autocomplete, multi-line notes, checklist, persistence', async ({ page }) => {
     await pair(page)
     await openCard(page, 'Review ref grouping')
     const d = details(page)
-    await d.getByLabel('Review state').selectOption('flagged')
+    // The review state: its name and value on one dashboard dropdown.
+    await d.getByRole('button', { name: 'Review state: Unreviewed' }).click()
+    await page.getByRole('menu', { name: 'Review state' }).getByRole('menuitemradio', { name: 'Flagged', exact: true }).click()
+    await expect(d.getByRole('button', { name: 'Review state: Flagged' })).toBeVisible()
     await d.getByRole('combobox', { name: 'Tags' }).fill('needs-tests')
     await d.getByRole('combobox', { name: 'Tags' }).press('Enter')
     await d.getByLabel('Notes').fill('Line one\nLine two')
     await d.getByLabel('New checklist item').fill('Verify fixture coverage')
     await d.getByLabel('New checklist item').press('Enter')
-    await expect(d.getByText(/^Saved /)).toBeVisible()
+    await expect(d.locator('[data-save]')).toHaveAttribute('data-save', 'saved')
     await d.getByRole('checkbox', { name: 'Verify fixture coverage' }).click() // stays listed when everything is done
     await expect(d.getByRole('checkbox', { name: 'Verify fixture coverage' })).toBeChecked()
     await expect(d.getByText(/checklist items? complete/i)).toHaveCount(0)
-    await expect(d.getByText(/^Saved /)).toBeVisible()
+    await expect(d.locator('[data-save]')).toHaveAttribute('data-save', 'saved')
 
     // Another session: typing a prefix and Tab completes the existing tag.
     await openCard(page, 'Tighten status parser')
@@ -314,12 +317,12 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(d.getByRole('option', { name: 'needs-tests' })).toBeVisible()
     await d.getByRole('combobox', { name: 'Tags' }).press('Tab')
     await expect(d.getByRole('button', { name: 'Remove tag needs-tests' })).toBeVisible()
-    await expect(d.getByText(/^Saved /)).toBeVisible()
+    await expect(d.locator('[data-save]')).toHaveAttribute('data-save', 'saved')
 
     await page.reload()
     await openCard(page, 'Review ref grouping')
     await expect(d.getByLabel('Notes')).toHaveValue('Line one\nLine two')
-    await expect(d.getByLabel('Review state')).toHaveValue('flagged')
+    await expect(d.getByRole('button', { name: 'Review state: Flagged' })).toBeVisible()
     await expect(d.getByRole('checkbox', { name: 'Verify fixture coverage' })).toBeChecked()
 
     // The hover card shows notes (with the line break) and tags; the tag filter narrows.
@@ -428,7 +431,8 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     // The details panel shows the same plan above your notes; unticking returns to the agent's status.
     await openCard(page, 'Tighten status parser')
     const plan = details(page).getByRole('region', { name: 'Agent plan' })
-    await expect(plan).toContainText('Claude task list')
+    // Its source and update time on the age beside the title.
+    await expect(plan.getByTitle(/^Claude task list, updated /)).toContainText(/ ago$/)
     await expect(plan.getByRole('checkbox', { name: /Add parser tests/ })).toBeChecked()
     await plan.getByRole('checkbox', { name: /Add parser tests/ }).uncheck()
     await expect(pill).toHaveText('1/3')
@@ -468,14 +472,17 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(list).toContainText('unticked by you')
     await page.keyboard.press('Escape')
     await openCard(page, 'Track Claude task steps')
-    await expect(details(page).getByRole('region', { name: 'Agent plan' })).toContainText('Claude Code tasks')
+    await expect(details(page).getByRole('region', { name: 'Agent plan' }).getByTitle(/^Claude Code tasks, updated /)).toBeVisible()
   })
 
-  test('hovering an agent card on the timeline shows the same agent details as the list', async ({ page }) => {
+  test('hovering an agent card on the timeline shows the same agent details as the list, after a pause', async ({ page }) => {
     await pair(page)
     const cards = board(page, 'git-status-kit').getByRole('group', { name: 'Agents on the timeline of git-status-kit' })
     await hoverInLanes(page, cards.locator('[data-bar-label]', { hasText: 'Tighten status parser' }).getByText('Tighten status parser'))
     const hover = page.getByRole('dialog', { name: 'Agent details' })
+    // Agents in the lanes open their card after half a second, so the pointer can cross them.
+    await page.waitForTimeout(200)
+    await expect(hover).toHaveCount(0)
     await expect(hover).toContainText('Last activity')
     await expect(hover.getByRole('button', { name: /change review state of Tighten status parser/ })).toBeVisible()
   })
@@ -589,22 +596,38 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await setOption(page, 'Agents', 'Agent labels on timeline')
   })
 
-  test('agent bars tick each tool call; activity detail draws steps and the card counts them (ADR 0013)', async ({ page }) => {
+  test('agent lines tick each tool call; activity detail draws steps on the line; the card shows tools, commands and time as bars (ADR 0013)', async ({ page }) => {
     await pair(page)
     const svg = board(page, 'git-status-kit').locator('svg[data-lanes]')
-    await expect(svg.locator('g[class*="ticks"] line').first()).toBeAttached()
+    await expect(svg.locator('g[class*="agentTrace"] g[class*="ticks"] line').first()).toBeAttached()
     await expect(svg.locator('g[class*="actBand"]')).toHaveCount(0)
     await setOption(page, 'Agents', 'Always')
     await expect(svg.locator('g[class*="actBand"] rect').first()).toBeAttached()
     await expect(svg.locator('g[class*="ticks"]')).toHaveCount(0)
-    // Two plan updates and a shell call, from the synthetic transcript; never its text.
+    // Two plan updates and a shell call, from the synthetic transcript; never its text. Tools as a
+    // stacked bar with its total; clicks on it list the parts with amounts, then shares, then hide them.
     await row(page, /^Tighten status parser/).getByText('Tighten status parser', { exact: true }).hover()
     const card = page.getByRole('dialog', { name: 'Agent details' })
-    await expect(card).toContainText('3 calls')
-    await expect(card).toContainText('Plan 2')
+    await expect(card).toContainText('Tools (3)')
+    const bar = card.getByRole('button', { name: /^Tools, 3: / })
+    await expect(bar).toHaveAccessibleName(/Plan 2 \(67 %\)\. Show the amounts$/)
+    await bar.click()
+    await expect(bar).toHaveAttribute('aria-expanded', 'true')
+    await expect(card).toContainText('Plan2')
+    await bar.click()
+    await expect(bar).toHaveAttribute('aria-expanded', 'true')
+    await expect(card).toContainText('Plan67 %')
+    await expect(card).not.toContainText('Plan2')
+    await bar.click()
+    await expect(bar).toHaveAttribute('aria-expanded', 'false')
+    await expect(card).not.toContainText('Plan67 %')
     await page.mouse.move(5, 5)
     await setOption(page, 'Agents', 'Auto (from 300% zoom)')
     await expect(svg.locator('g[class*="actBand"]')).toHaveCount(0)
+    // Height by context: the synthetic transcripts record no tokens, so the lines stay as they are.
+    await setOption(page, 'Agents', 'Height: context used')
+    await expect(svg.locator('g[class*="agentTrace"]').first()).toBeAttached()
+    await setOption(page, 'Agents', 'Height: context used', false)
   })
 
   test('dragging with the mouse pans the view like a map; a plain click still selects', async ({ page }) => {
@@ -948,6 +971,21 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     // Nothing was written into the folders.
     expect(fs.readdirSync(folder)).toEqual([])
     expect(fs.readdirSync(quiet)).toEqual([])
+  })
+
+  test('an agent active only before the history range still shows: a mark at the left edge and its card', async ({ page }) => {
+    await pair(page)
+    await setOption(page, 'Timeline', 'Calendar time')
+    await setOption(page, 'Timeline', '24 hours')
+    // The bulk agents of storefront-web were last active up to two weeks ago.
+    const b = board(page, 'storefront-web')
+    await b.getByText(/^Show \d+ more agents/).click()
+    await expect(b.locator('svg[data-lanes] path[class*="bar_"]').first()).toBeAttached()
+    const rows = await b.locator('[data-session-id]').count()
+    expect(rows).toBeGreaterThan(0)
+    await expect(b.locator('[data-bar-label]')).toHaveCount(rows)
+    await setOption(page, 'Timeline', 'All loaded')
+    await setOption(page, 'Timeline', 'Commit order')
   })
 
   test('removing a repository only removes it from repobs', async ({ page }) => {

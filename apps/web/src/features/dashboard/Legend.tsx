@@ -6,7 +6,7 @@ import styles from './legend.module.css'
 
 const fill = (token: string) => ({ fill: `var(${token})` })
 
-export function Legend({ axisMode, activityDetail }: { axisMode: AxisMode; activityDetail: boolean }) {
+export function Legend({ axisMode, activityDetail, contextHeight }: { axisMode: AxisMode; activityDetail: boolean; contextHeight: boolean }) {
   return (
     <div className={styles.legend} role="region" aria-label="Legend">
       <Item label="Commit on a remote branch (pushed)">
@@ -39,20 +39,25 @@ export function Legend({ axisMode, activityDetail }: { axisMode: AxisMode; activ
       <Item label="Collapsed quiet commits (count; hover to list, click to expand)">
         <rect x="1" y="3" width="18" height="10" rx="5" className={styles.group} />
       </Item>
-      <Item label="Agent activity, first to last message (colour = status)">
-        <rect x="1" y="5" width="7" height="6" className={styles.barWorking} />
-        <rect x="11" y="5" width="7" height="6" className={styles.barAttention} />
+      <Item label="Agent activity, first to last message (colour = status); solid while working, dotted between">
+        <rect x="1" y="5" width="6" height="6" className={styles.barWorking} />
+        <line x1="8" x2="13" y1="8" y2="8" className={styles.idle} />
+        <rect x="13" y="5" width="6" height="6" className={styles.barAttention} />
       </Item>
       <Item label="Agent card at the end of its work: name, last activity, status (click to set your review)">
         <rect x="1" y="6" width="5" height="5" className={styles.barWorking} />
         <rect x="8.5" y="3.5" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1" />
+      </Item>
+      <Item label="Agent active only before the start of the axis (its card says when)">
+        <path d="M2,8 L8,4 L8,12 Z" className={styles.barWorking} />
+        <line x1="10" x2="19" y1="8" y2="8" className={styles.idle} />
       </Item>
       <Item label="Spawned by the agent above (indented card; › n on the parent shows them)">
         <path d="M4,0 V9 H12" className={styles.spawn} fill="none" />
       </Item>
       {activityDetail ? (
         <>
-          <Item label="Model responding (an estimate from record times); darker: with thinking">
+          <Item label="On the agent’s line: model responding (an estimate from record times); darker: with thinking">
             <rect x="1" y="4" width="8" height="8" style={fill('--activity-model')} />
             <rect x="11" y="4" width="8" height="8" style={fill('--activity-thinking')} />
           </Item>
@@ -79,16 +84,18 @@ export function Legend({ axisMode, activityDetail }: { axisMode: AxisMode; activ
             <rect x="6" y="11" width="6" height="2" fill="var(--tone-danger-text)" />
             <path d="M14,5 l5,5 m0,-5 l-5,5" stroke="var(--tone-danger-text)" strokeWidth="1.5" />
           </Item>
-          <Item label="Context: tokens in the model's context at each response (dashed line: compacted)">
-            <path d="M1,14 L1,10 L8,10 L8,6 L19,6 L19,14 Z" fill="color-mix(in srgb, var(--color-text) 20%, var(--color-bg))" stroke="var(--color-text-muted)" />
-          </Item>
         </>
       ) : (
-        <Item label={`Tool calls (ticks on the bar). Zoom to ${ACTIVITY_DETAIL_ZOOM * 100} % or more, or Agents → Activity detail, for steps, tool kinds and tokens`}>
+        <Item label={`Tool calls (ticks on the bar). Zoom to ${ACTIVITY_DETAIL_ZOOM * 100} % or more, or Agents → Activity detail, for steps and tool kinds on the line`}>
           <rect x="1" y="5" width="18" height="6" className={styles.barWorking} />
           <path d="M5,3 V13 M9,3 V13 M10,3 V13 M15,3 V13" stroke="var(--color-text)" strokeOpacity="0.55" />
         </Item>
       )}
+      {contextHeight ? (
+        <Item label="Line height: context used at the time, of the model's window (as recorded, else 200k or 1M, the smallest it fits)">
+          <path d="M1,9.5 V6.5 H7 V4.5 H13 V2 H19 V14 H13 V11.5 H7 V9.5 Z" className={styles.barWorking} />
+        </Item>
+      ) : null}
       <Item label="Now">
         <line x1="10" y1="0" x2="10" y2="16" className={styles.now} />
       </Item>

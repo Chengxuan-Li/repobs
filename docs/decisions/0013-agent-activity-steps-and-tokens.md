@@ -16,12 +16,20 @@ A read-only survey of the owner's machine (2026-11-02; key names, enum values an
 
 ### Two levels of detail
 
-1. **Default: tool ticks.** Each drawn agent bar carries a thin tick for every recorded tool call, all in one ink: when the agent was busy with tools, nothing about which.
-2. **Activity detail** (*Agents → Activity detail*: *Auto*, *Always*, *Off*; *Auto* by default). In *Auto* it turns on at 300 % zoom and above. Agent rows grow taller and show, under the bar:
-   - a band of model spans (darker with thinking) and tool spans; failed calls underlined; prompts, compactions and errors as marks;
-   - Git as shapes: ◆ a change (`git commit`, `push`, …), ○ an inspection (`status`, `diff`, …);
-   - a context-fill band: tokens in the model's context at each response.
-3. **Summary** in the agent's hover card and the details panel, at any level: tool calls by category and failures, the top command verbs, model and tool time, input (and the share from cache), output and reasoning tokens, current and peak context, compactions.
+Activity is drawn **on the agent's own line** (first to last activity), never as a separate track (owner review, 2026-11-03): the line is solid where the agent was working (model or tool steps; spans under 2 px apart merge) and dotted between (status colour), so idle stretches read as gaps and never as the solid, fainter row separators. A truncated read draws the unread start solid, as without activity.
+
+1. **Default: tool ticks.** The solid parts keep the status colour, with a thin tick for every recorded tool call, all in one ink: when the agent was busy with tools, nothing about which.
+2. **Activity detail** (*Agents → Activity detail*: *Auto*, *Always*, *Off*; *Auto* by default). In *Auto* it turns on at 300 % zoom and above. The solid parts become, on the same line and at the same row height:
+   - model spans (darker with thinking) and tool spans; failed calls underlined; prompts, compactions and errors as marks;
+   - Git as shapes: ◆ a change (`git commit`, `push`, …), ○ an inspection (`status`, `diff`, …).
+
+   Context is not drawn as a separate band (owner review). Instead *Agents → Agent line → Height: context used* (off by default) makes the solid parts as tall as the model's context was full at each response, up to the row height less 2 px above and below: the share of the window recorded (Codex), else of the smallest standard window the agent's peak fits (200k, then 1M), else of its peak. Drawn as a clip path over the line, so ticks and marks keep their size.
+3. **Summary** in the agent's hover card and the details panel, at any level: always shown, one line per field, the total after the field's name.
+   - *Tools (n)*, *Commands (n)*, *Time (total)*: a stacked bar, as wide as the field allows, of its parts in proportion — tool calls by category, grouped by colour; command verbs and other commands; model time (with and without thinking) and tool time by colour group. A click on the bar (shown as selected while hovered or open) lists each part under it as a chip with its amount, then quantities in another unit (failed calls; prompts, responses, responses with thinking, errors), which are not in the bar; a second click shows each part's share instead of its amount; a third hides them. In plain hover cards the bar does not open.
+   - *Tokens*: in and out, one line. *Cache hit*: the share of input read from cache. *Context*: the current context (and the window, when recorded). Never folded.
+   - Chips are styled like the status badge — a label and, in the right half, the value — bordered and tinted in the colour the timeline uses for what they count (read, edit, shell, other, model, thinking; failures and errors in the danger tone).
+
+Agent cards in the lanes (bars and the cards at their ends) open after the pointer rests 0.5 s, so the pointer can cross the lanes without cards flashing open; the label column opens them at once.
 
 Colour follows the dataviz method: three hues only — *Read and search* (blue), *Edit* (orange), *Shell, Git, tests and builds* (aqua) — with everything else neutral. The three pass the palette checks with all pairs compared in both themes (worst CVD ΔE 9.2 light, 9.4 dark); four or more did not. Git is carried by shape and tests and builds by hatching, so no identity depends on colour; light-mode aqua is under 3:1 against white, so every step is also named in text (legend, hover card).
 
@@ -59,6 +67,6 @@ Categories: *Read*, *Search*, *Edit*, *Shell*, *Git: inspect*, *Git: change*, *T
 
 ## Consequences
 
-- The default dashboard stays light: one fetch per drawn agent, ticks only.
+- The default dashboard stays light: one fetch per drawn agent, ticks only; row heights do not change with detail.
 - The detail adds a category palette to the legend; it must stay readable in both themes and at 300 % zoom.
 - New providers or tool names fall into *Other* until mapped; a new allowlisted verb is a code change with a test.

@@ -6,6 +6,11 @@
 .editor > p {
   margin: 0;
 }
+.inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
 .field {
   display: flex;
   flex-direction: column;
@@ -43,14 +48,12 @@
   flex: 1;
   min-width: 120px;
 }
-.saveRow {
+/* A field title with a control at the right end of its row (the checklist's Clear annotations). */
+.fieldHead {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
   gap: var(--space-2);
-  border-top: 1px solid var(--color-border);
-  padding-top: var(--space-2);
 }
 .confirm {
   display: inline-flex;

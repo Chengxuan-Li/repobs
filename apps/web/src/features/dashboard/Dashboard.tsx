@@ -171,14 +171,25 @@ export function Dashboard({
   const collapsed = useMemo(() => new Set(view.collapsedRepos), [view.collapsedRepos])
 
   // Interactive cards (commit lists) stay open briefly so the pointer can move onto them.
+  // Some cards open after a pause (agents in the lanes); leaving before then cancels them.
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const showTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const interactiveOpen = useRef(false)
   const showHover: ShowHover = useCallback((content, e, options) => {
-    clearTimeout(hideTimer.current)
-    interactiveOpen.current = !!options?.interactive
-    setHover(hoverAt(content, e, options))
+    clearTimeout(showTimer.current)
+    // A delayed card lets the open one close as usual meanwhile.
+    if (!options?.delay) clearTimeout(hideTimer.current)
+    const state = hoverAt(content, e, options)
+    const open = () => {
+      clearTimeout(hideTimer.current)
+      interactiveOpen.current = !!options?.interactive
+      setHover(state)
+    }
+    if (options?.delay) showTimer.current = setTimeout(open, options.delay)
+    else open()
   }, [])
   const hideHover = useCallback(() => {
+    clearTimeout(showTimer.current)
     clearTimeout(hideTimer.current)
     hideTimer.current = setTimeout(() => setHover(undefined), interactiveOpen.current ? 250 : 0)
   }, [])
@@ -253,7 +264,7 @@ export function Dashboard({
         shown={filtered.length}
         total={snapshot.sessions.length}
       />
-      {view.legendOpen ? <Legend axisMode={view.axisMode} activityDetail={activityDetail} /> : null}
+      {view.legendOpen ? <Legend axisMode={view.axisMode} activityDetail={activityDetail} contextHeight={view.contextHeight} /> : null}
       <div
         ref={scrollRef}
         className={styles.scroller}
@@ -312,6 +323,7 @@ export function Dashboard({
                 barLabels={view.barLabels}
                 activity={activity}
                 activityDetail={activityDetail}
+                contextHeight={view.contextHeight}
                 viewportWidth={viewport}
                 now={now}
                 collapsed={collapsed.has(repo.id)}

@@ -14,9 +14,9 @@ import {
 } from '@repobs/contracts'
 import { pageZoom } from '../../components/placement'
 import { Badge, formatAge } from '../../components/primitives'
-import { ActivityDetail, ActivityTicks, DETAIL, HatchDef } from './ActivityTrack'
+import { AgentLine, HatchDef } from './ActivityTrack'
 import { AgentRow } from './AgentRow'
-import { AgentHover, BranchHover, CommitHover, GroupHover, PendingHover, type ShowHover } from './HoverCard'
+import { AGENT_HOVER_DELAY, AgentHover, BranchHover, CommitHover, GroupHover, PendingHover, type HoverOptions, type ShowHover } from './HoverCard'
 import type { BoardRow, BranchRow, RepoLayout, SessionRow } from './layout'
 import { type ChecklistEntry, checklistEntries, PLAN_SOURCE_LABELS } from './checklistEntries'
 import { ChecklistPill } from './ChecklistPill'
@@ -54,6 +54,8 @@ export interface RepoBoardProps {
   activity: Map<string, SessionActivity>
   /** Draw activity in detail (taller agent rows) instead of tool ticks. */
   activityDetail: boolean
+  /** Agent lines as tall as the context was full (ADR 0013). */
+  contextHeight: boolean
   viewportWidth: number
   now: number
   collapsed: boolean
@@ -103,7 +105,7 @@ export const RepoBoard = memo(function RepoBoard(props: RepoBoardProps) {
 
   const total = props.labelWidth + timeline.width
   return (
-    <section className={`${styles.repo} ${props.activityDetail ? styles.detail : ''}`} aria-label={`${repo.displayName} repository`} id={`repo-${repo.id}`} style={{ width: total }}>
+    <section className={styles.repo} aria-label={`${repo.displayName} repository`} id={`repo-${repo.id}`} style={{ width: total }}>
       <header className={styles.repoHeader}>
         <div className={styles.repoHeaderInner} style={{ width: Math.min(total, props.viewportWidth) }}>
           <button type="button" className={styles.collapse} onClick={props.onToggleCollapsed} aria-expanded={!collapsed} aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${repo.displayName}`}>
@@ -284,8 +286,8 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     if (!r) return undefined
     return r.top + (id.startsWith('session:') ? 13 : 14)
   }
-  const hoverProps = (content: () => React.ReactNode) => ({
-    onMouseEnter: (e: React.MouseEvent) => showHover(content(), e),
+  const hoverProps = (content: () => React.ReactNode, options?: HoverOptions) => ({
+    onMouseEnter: (e: React.MouseEvent) => showHover(content(), e, options),
     onMouseLeave: hideHover,
   })
   const els: React.ReactNode[] = []
@@ -443,21 +445,41 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     const status = workflowStatus(s, annotations.get(s.id))
     const tone = WORKFLOW_TONES[status]
     const act = props.activity.get(s.id)
-    const hover = hoverProps(() => (
-      <AgentHover session={s} annotation={row.annotation} activity={act} now={now} children={props.childCount.get(s.id) ?? 0} parentTitle={s.parentSessionId ? props.sessionsById.get(s.parentSessionId)?.title : undefined} />
-    ))
-    const top = geo.rows[row.id]!.top
-    const detail = props.activityDetail && act
+    // Agents in the lanes open their card after a pause, so the pointer can cross them.
+    const hover = hoverProps(
+      () => (
+        <AgentHover session={s} annotation={row.annotation} activity={act} now={now} children={props.childCount.get(s.id) ?? 0} parentTitle={s.parentSessionId ? props.sessionsById.get(s.parentSessionId)?.title : undefined} />
+      ),
+      { delay: AGENT_HOVER_DELAY },
+    )
+    // By context: up to the row's height, less a margin above and below.
+    const r = geo.rows[row.id]!
+    if (span.before) {
+      // Active only before the axis starts: a mark at its left edge; the card says when.
+      els.push(
+        <g key={`b-${row.id}`} {...hover}>
+          <rect x={x1 - 4} y={y - 8} width={x2 - x1 + 8} height={16} className={styles.hit} />
+          <path d={`M${x1},${y} L${x1 + 6},${y - 4} L${x1 + 6},${y + 4} Z`} className={`${styles.bar} ${styles[`bar_${tone}`]}`} />
+          <line x1={x1 + 8} x2={x2} y1={y} y2={y} className={`${styles.bar} ${styles[`bar_${tone}`]} ${styles.idle}`} />
+        </g>,
+      )
+      continue
+    }
+    const context = props.contextHeight ? { maxHalf: Math.max(3, Math.min(y - r.top, r.top + r.height - y) - 2), clipId: `ctx-${hatchId}-${row.id.replace(/[^\w-]/g, '_')}` } : undefined
     els.push(
       <g key={`b-${row.id}`} {...hover}>
-        <rect x={x1} y={y - 7} width={x2 - x1} height={detail ? DETAIL.contextTop + DETAIL.contextHeight - (y - 7 - top) : 14} className={styles.hit} />
-        <rect x={x1} y={y - 3} width={x2 - x1} height={6} className={`${styles.bar} ${styles[`bar_${tone}`]}`} />
-        {act && !detail ? <ActivityTicks activity={act} timeline={timeline} y={y} /> : null}
-        {detail ? (
-          <g className={styles.actBand}>
-            <ActivityDetail activity={act} timeline={timeline} top={top} endX={x2} hatchId={hatchId} />
-          </g>
-        ) : null}
+        <rect x={x1} y={y - 8} width={x2 - x1} height={16} className={styles.hit} />
+        <AgentLine
+          activity={act}
+          timeline={timeline}
+          x1={x1}
+          x2={x2}
+          y={y}
+          barClass={`${styles.bar} ${styles[`bar_${tone}`]}`}
+          detail={props.activityDetail}
+          hatchId={hatchId}
+          {...(context ? { context } : {})}
+        />
       </g>,
     )
   }
@@ -471,11 +493,16 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
   return <>{els}</>
 }
 
-/** Horizontal extent of an agent's activity bar: first to last activity, at least 4 px. */
-function barSpan(s: AgentSession, timeline: Timeline): { x1: number; x2: number } | undefined {
+/**
+ * Horizontal extent of an agent's activity bar: first to last activity, at least 4 px. An agent
+ * active only before the axis starts (an earlier history range) gets a short span at the left edge,
+ * marked `before`, so its row is never empty.
+ */
+function barSpan(s: AgentSession, timeline: Timeline): { x1: number; x2: number; before?: boolean } | undefined {
   const start = Date.parse(s.firstSeenAt ?? s.lastActivityAt ?? '')
   const end = Date.parse(s.lastActivityAt ?? s.firstSeenAt ?? '') || start
-  if (!start || end < timeline.start) return undefined
+  if (!start) return undefined
+  if (end < timeline.start) return { x1: PAD / 2, x2: PAD / 2 + 14, before: true }
   const x1 = timeline.x(start)
   return { x1, x2: Math.max(x1 + 4, timeline.x(end)) }
 }
@@ -524,7 +551,7 @@ function BarCard(props: { row: SessionRow; top: number; span: { x1: number; x2: 
       data-bar-label={s.id}
       onClick={() => onSelect(row.id)}
       // The same agent details as the label column, below the card so the pointer can move onto it.
-      onMouseEnter={(e) => showHover(<AgentDetailsHover {...props} />, e, { interactive: true, label: 'Agent details' })}
+      onMouseEnter={(e) => showHover(<AgentDetailsHover {...props} />, e, { interactive: true, label: 'Agent details', delay: AGENT_HOVER_DELAY })}
       onMouseLeave={hideHover}
     >
       <span className={styles.providerMark} title={s.provider === 'claude' ? 'Claude Code' : 'Codex'}>
