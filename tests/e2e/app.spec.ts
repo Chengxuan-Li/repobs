@@ -15,7 +15,7 @@ async function pair(page: Page) {
 }
 
 /** Runs a ribbon menu command (File or View). */
-async function runMenu(page: Page, menuName: 'File' | 'View', item: string) {
+async function runMenu(page: Page, menuName: 'File' | 'View' | 'Help', item: string) {
   await page.getByRole('button', { name: menuName, exact: true }).click()
   const menu = page.getByRole('menu', { name: `${menuName} menu` })
   await menu.getByRole('menuitem', { name: item }).or(menu.getByRole('menuitemcheckbox', { name: item })).click()
@@ -160,11 +160,25 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await expect(tip).toBeVisible()
     await expect(tip).toContainText('Local only — not pushed')
     await page.mouse.move(5, 5)
-    await page.getByRole('button', { name: 'Legend' }).click()
-    const legend = page.getByRole('region', { name: 'Legend' })
-    await expect(legend).toContainText('Local only, not pushed')
-    await expect(legend).toContainText('Agent activity')
-    await page.getByRole('button', { name: 'Hide legend' }).click()
+    // Help → Legend and controls: every mark, the axis modes and the mouse and keyboard controls.
+    await runMenu(page, 'Help', 'Legend and controls')
+    const legend = page.getByRole('dialog', { name: 'Legend and controls' })
+    await expect(legend.getByRole('region', { name: 'Commits and branches' })).toContainText('Commit only on this computer, not pushed')
+    await expect(legend.getByRole('region', { name: 'Activity detail' })).toContainText('Git change / Git inspection')
+    await expect(legend.getByRole('region', { name: 'Timeline' })).toContainText('this view')
+    await expect(legend.getByRole('table', { name: 'Keyboard' })).toContainText('Search commands')
+    await page.keyboard.press('Escape')
+    await expect(legend).toBeHidden()
+    // The same from the command palette; the Help menu also links to the documentation and the repository.
+    await page.keyboard.press('Control+K')
+    await page.getByRole('dialog', { name: 'Search commands' }).getByRole('combobox').fill('legend')
+    await page.keyboard.press('Enter')
+    await expect(legend).toBeVisible()
+    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Help', exact: true }).click()
+    const help = page.getByRole('menu', { name: 'Help menu' })
+    for (const item of ['Tutorial', 'Documentation home', 'repobs on GitHub', 'Report an issue']) await expect(help.getByRole('menuitem', { name: item })).toBeVisible()
+    await page.keyboard.press('Escape')
   })
 
   test('branch connectors are orthogonal with rounded corners', async ({ page }) => {

@@ -4,15 +4,15 @@ import type { LucideIcon } from 'lucide-react'
 import { boxOf } from '../components/placement'
 import styles from './ribbon.module.css'
 
-// The ribbon (EnergyAtlas family layout): the wordmark, the File and View menus, a "Search
+// The ribbon (EnergyAtlas family layout): the wordmark, the File, View and Help menus, a "Search
 // commands" field that opens the command palette, and icon buttons for the side panels and the
 // theme. Every command lives in one list, so menus, palette, buttons and shortcuts agree; groups
 // without a menu (the current view's display options, repository order) are reached from the
 // palette and from their own controls.
 
-export type CommandGroup = 'File' | 'View' | 'Current view' | 'Repositories'
+export type CommandGroup = 'File' | 'View' | 'Help' | 'Current view' | 'Repositories'
 /** Groups with a ribbon menu, in order. */
-export const MENU_GROUPS: CommandGroup[] = ['File', 'View']
+export const MENU_GROUPS: CommandGroup[] = ['File', 'View', 'Help']
 
 export interface Command {
   id: string

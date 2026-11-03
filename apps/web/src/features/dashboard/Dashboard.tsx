@@ -9,7 +9,6 @@ import type { ChecklistEntry } from './checklistEntries'
 import { FilterBar } from './FilterBar'
 import { AgentHover, HoverCard, hoverAt, type HoverState, type ShowHover } from './HoverCard'
 import type { RepoLayout } from './layout'
-import { Legend } from './Legend'
 import { LABEL_W, LABEL_W_NARROW, RepoBoard } from './RepoBoard'
 import type { RepoSummary } from './RepoListPanel'
 import { buildTimeline, timeAt } from './timeline'
@@ -294,7 +293,6 @@ export function Dashboard({
         shown={filtered.length}
         total={snapshot.sessions.length}
       />
-      {view.legendOpen ? <Legend axisMode={view.axisMode} activityDetail={activityDetail} contextHeight={view.contextHeight} /> : null}
       <div
         ref={scrollRef}
         className={styles.scroller}

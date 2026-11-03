@@ -19,7 +19,7 @@ hide:
 
 A read-only dashboard for developers who run many coding agents across Git worktrees and branches: each repository's branches on one timeline, with the Claude Code and Codex agents that worked on them, what they are doing now, and what you still need to review.
 
-[Download](https://github.com/Chengxuan-Li/repobs/releases/latest){ .md-button .md-button--primary } [Get started](getting-started.md){ .md-button }
+[Download](https://github.com/Chengxuan-Li/repobs/releases/latest){ .md-button .md-button--primary } [Get started](tutorial/start.md){ .md-button }
 
 </div>
 
@@ -136,7 +136,7 @@ See [Privacy & security](privacy-security.md).
 *See your agents on one timeline.*
 { .ui-tagline }
 
-[Download](https://github.com/Chengxuan-Li/repobs/releases/latest){ .md-button .md-button--primary } [Get started](getting-started.md){ .md-button }
+[Download](https://github.com/Chengxuan-Li/repobs/releases/latest){ .md-button .md-button--primary } [Get started](tutorial/start.md){ .md-button }
 
 </div>
 

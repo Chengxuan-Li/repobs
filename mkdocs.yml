@@ -68,8 +68,13 @@ nav:
   - Home: index.md
   - User guide:
       - guide/index.md
-      - Getting started: getting-started.md
-      - Using repobs: user-guide.md
+      - Tutorial:
+          - tutorial/index.md
+          - Install and add projects: tutorial/start.md
+          - Read the dashboard: tutorial/dashboard.md
+          - Follow your agents: tutorial/agents.md
+          - Review and take notes: tutorial/review.md
+          - Arrange your workspace: tutorial/workspace.md
       - Status semantics: status-semantics.md
       - Integrations: integrations.md
       - Privacy & security: privacy-security.md

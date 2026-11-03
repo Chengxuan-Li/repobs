@@ -2,6 +2,22 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 44 — 2026-11-03: Help menu and a tutorial with screenshots (branch `feature/help-and-tutorial`, from `feature/agent-activity`)
+
+Owner request: move the legend and the control guide into a popup opened from the command palette or a new *Help* menu, which also links to the documentation and the repository; rewrite the user documentation as a tutorial in a few chapters with screenshots for most operations, in plain instructions.
+
+| Area | Change |
+| --- | --- |
+| Help menu | `Ribbon.tsx`: group *Help* after *File* and *View*. `WorkbenchShell.tsx`: *Legend and controls* (dialog) and links in new tabs: *Documentation* (Tutorial, What the statuses mean, Privacy and security, Documentation home) and *Project* (repobs on GitHub, Releases, Report an issue) |
+| Legend and controls | `Legend.tsx` is now `LegendDialog`: commits and branches, agents, activity detail (all entries, whatever the view's settings), the three timeline modes (the current one tagged *this view*), mouse and keyboard tables. The view's *Legend* button, its bar and `legendOpen` are gone (an old stored value is ignored) |
+| App fixes | *1 session* (not *1 sessions*) in the Add dialog; agent line groups carry `data-agent` |
+| Tutorial | `docs/tutorial/` index and five chapters (start, dashboard, agents, review, workspace) replace `getting-started.md` and `user-guide.md`; nav, guide index, landing-page button, README and the docs UI spec updated |
+| Screenshots | `tests/e2e/docs-tutorial.spec.ts` (run with `REPOBS_DOCS_SCREENSHOT=1 npx playwright test docs-tutorial`): 31 pictures in light and dark (62 PNGs, 3.1 MB) in `docs/assets/tutorial/`, on the e2e demo plus a synthetic folder and a synthetic agent with two hours of tools, Git, tests, thinking and tokens; temporary paths replaced by `C:\src`, the fixtures' placeholder reply by a plain sentence |
+
+Commands: `npm run typecheck`, `npm run lint`, `npm run test` (275 passed), `npm run build`, `npx playwright test` (39 passed, 2 skipped: the two screenshot specs), `npm run docs:build` (strict). Checked: every picture by eye; the built site's *Follow your agents* and *Review and take notes* pages in the browser.
+
+Not done: the old page addresses `/getting-started/` and `/user-guide/` are gone (no redirect plugin); views side by side are described, not pictured.
+
 ## Checkpoint 43 — 2026-11-03: smooth wheel zoom (branch `feature/agent-activity`)
 
 Owner request: smoother zoom; every wheel notch redrew the dashboard. A first attempt previewed the zoom by stretching the drawn lanes with a CSS transform and redrew once the wheel settled; the owner saw it as "a resize and a shift, blinking things" (shapes snapped from stretched to drawn, and the commit kept the same *fraction* of the width under the pointer, which is not the same moment on the ordinal or compressed axes). Replaced.
