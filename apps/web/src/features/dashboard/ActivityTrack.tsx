@@ -35,11 +35,17 @@ export function AgentLine({
   /** Scale the solid parts by the context used at the time, up to `maxHalf` px each side of the line. */
   context?: { maxHalf: number; clipId: string }
 }) {
-  if (!activity?.steps.length) return <rect x={x1} y={y - HALF.line} width={x2 - x1} height={HALF.line * 2} className={barClass} />
-  const steps = activity.steps
+  // Steps before the axis would all pile up at its left edge: only those that reach into it.
+  const steps = activity?.steps.filter((s) => (s.end ?? s.start) >= timeline.start) ?? []
+  if (!activity || !steps.length) return <rect x={x1} y={y - HALF.line} width={x2 - x1} height={HALF.line * 2} className={barClass} />
+  let fromToken = 0
+  activity.tokens.forEach((t, i) => {
+    if (t.at <= timeline.start) fromToken = i
+  })
+  const tokens = activity.tokens.slice(fromToken)
   const first = timeline.x(steps.find((s) => s.kind === 'model' || s.kind === 'tool')?.start ?? steps[0]!.start)
   // By context: drawn full height, clipped to the context used at each response.
-  const clip = context && activity.tokens.length ? contextClip(activity.tokens, timeline.x, y, context.maxHalf, contextScale(activity), x1, x2) : ''
+  const clip = context && tokens.length ? contextClip(tokens, timeline.x, y, context.maxHalf, contextScale(activity), x1, x2) : ''
   const half = clip && context ? context.maxHalf : detail ? HALF.detail : HALF.line
   const clipped = clip && context ? `url(#${context.clipId})` : undefined
   const clipDef =

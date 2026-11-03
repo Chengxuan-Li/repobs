@@ -469,6 +469,7 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     els.push(
       <g key={`b-${row.id}`} {...hover}>
         <rect x={x1} y={y - 8} width={x2 - x1} height={16} className={styles.hit} />
+        {span.earlier ? <path d={`M${x1 - 8},${y} L${x1 - 2},${y - 4} L${x1 - 2},${y + 4} Z`} className={`${styles.bar} ${styles[`bar_${tone}`]}`} /> : null}
         <AgentLine
           activity={act}
           timeline={timeline}
@@ -496,15 +497,16 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
 /**
  * Horizontal extent of an agent's activity bar: first to last activity, at least 4 px. An agent
  * active only before the axis starts (an earlier history range) gets a short span at the left edge,
- * marked `before`, so its row is never empty.
+ * marked `before`, so its row is never empty; one that started before it is marked `earlier`.
  */
-function barSpan(s: AgentSession, timeline: Timeline): { x1: number; x2: number; before?: boolean } | undefined {
+function barSpan(s: AgentSession, timeline: Timeline): { x1: number; x2: number; before?: boolean; earlier?: boolean } | undefined {
   const start = Date.parse(s.firstSeenAt ?? s.lastActivityAt ?? '')
   const end = Date.parse(s.lastActivityAt ?? s.firstSeenAt ?? '') || start
   if (!start) return undefined
   if (end < timeline.start) return { x1: PAD / 2, x2: PAD / 2 + 14, before: true }
   const x1 = timeline.x(start)
-  return { x1, x2: Math.max(x1 + 4, timeline.x(end)) }
+  // Started before the axis: the line is cut at its start and marked as going on earlier.
+  return { x1, x2: Math.max(x1 + 4, timeline.x(end)), ...(start < timeline.start ? { earlier: true } : {}) }
 }
 
 /**

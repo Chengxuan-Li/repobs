@@ -104,7 +104,7 @@ Excerpts are read mechanically from the provider's files, truncated, with obviou
 
 ### What an agent did
 
-Each agent's line runs from its first to its last activity; an agent active only before the start of the history range shows a small ◂ mark at the left edge, with its card saying when. Once its history is read, the line is **solid where the agent was working** and dotted between, with a thin **tick for every tool call** it made. Zoom the history to 300 % or more (or choose **Agents → Activity detail → Always**) and the solid parts show its **activity in detail**, on the same line:
+Each agent's line runs from its first to its last activity; an agent active only before the start of the history range shows a small ◂ mark at the left edge, with its card saying when, and a line that began before it starts with ◂ (its earlier steps are left out rather than piled up at the edge). Once its history is read, the line is **solid where the agent was working** and dotted between, with a thin **tick for every tool call** it made. Zoom the history to 300 % or more (or choose **Agents → Activity detail → Always**) and the solid parts show its **activity in detail**, on the same line:
 
 - **Steps:** grey spans while the model was responding (darker with thinking), then its tool calls coloured by kind — blue *read and search*, orange *edit*, aqua *shell* (hatched: tests and builds); other tools (web, MCP, agents, plan, questions to you) in grey. A red underline marks a failed call; a dark line a new prompt; a red × an error; a dashed line a compaction.
 - **Git:** ◆ a Git change (`git commit`, `git push`, …), ○ a Git inspection (`git status`, `git diff`, …).

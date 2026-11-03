@@ -48,7 +48,7 @@ export function Legend({ axisMode, activityDetail, contextHeight }: { axisMode: 
         <rect x="1" y="6" width="5" height="5" className={styles.barWorking} />
         <rect x="8.5" y="3.5" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1" />
       </Item>
-      <Item label="Agent active only before the start of the axis (its card says when)">
+      <Item label="Agent active before the start of the axis: alone, only then (its card says when); before a line, since then">
         <path d="M2,8 L8,4 L8,12 Z" className={styles.barWorking} />
         <line x1="10" x2="19" y1="8" y2="8" className={styles.idle} />
       </Item>
