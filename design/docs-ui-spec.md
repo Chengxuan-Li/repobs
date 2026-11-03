@@ -194,7 +194,7 @@ container; the page never overflows horizontally.
   (`guide/index.md`, `developer/index.md`, `navigation.indexes`) that lists its pages in reading order. *User guide*:
   getting started, using repobs, status semantics, integrations, privacy and security, limitations. *Developer*:
   architecture, HTTP API, testing, progress, the decisions, the reference audit and the original handoff. Grouping
-  changes no page URL; the page `user-guide.md` is titled *Using repobs* so it does not repeat its part's name.
+  changes no page URL; the user guide's tutorial is five chapter pages under `docs/tutorial/` (2026-11-03; they replaced `getting-started.md` and `user-guide.md`), each with screenshots from `tests/e2e/docs-tutorial.spec.ts` in both themes (`#only-light` / `#only-dark`).
 - No `repo_url`: Material would query the GitHub API from the visitor's browser for the repository's statistics, and the
   site makes no request beyond its own origin.
 

@@ -331,9 +331,6 @@ export function FilterBar({
               },
             ]}
           />
-          <button type="button" className="btn btn-quiet" aria-pressed={view.legendOpen} onClick={() => setView({ legendOpen: !view.legendOpen })}>
-            {view.legendOpen ? 'Hide legend' : 'Legend'}
-          </button>
         </div>
       </div>
     </div>

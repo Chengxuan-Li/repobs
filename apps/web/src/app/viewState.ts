@@ -36,7 +36,6 @@ export interface ViewState {
   collapseQuiet: boolean
   /** Collapsed groups the user opened (reset when collapsing is switched on again). */
   expandedGroups: string[]
-  legendOpen: boolean
   branchMode: BranchMode
   showRemoteOnly: boolean
   timeRange: TimeRange
@@ -72,7 +71,6 @@ export const DEFAULT_VIEW: ViewState = {
   zoom: 1,
   collapseQuiet: false,
   expandedGroups: [],
-  legendOpen: false,
   branchMode: 'all',
   showRemoteOnly: false,
   timeRange: 'all',
@@ -114,7 +112,6 @@ export function normalizeView(raw: unknown): ViewState {
     zoom: clamp(Number(p.zoom) || 1, MIN_ZOOM, MAX_ZOOM),
     collapseQuiet: p.collapseQuiet === true,
     expandedGroups: strings(p.expandedGroups),
-    legendOpen: p.legendOpen === true,
     branchMode: p.branchMode === 'checked_out' || p.branchMode === 'with_agents' ? p.branchMode : 'all',
     showRemoteOnly: p.showRemoteOnly === true,
     // Views saved before the commit-order axis existed defaulted to a 7-day window.

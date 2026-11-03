@@ -1,23 +1,91 @@
-.legend {
-  flex: none;
+/* Help → Legend and controls (Legend.tsx): legend entries in columns, then the controls. */
+.dialog {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 16px;
-  padding: 6px var(--space-3);
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface-raised);
+  flex-direction: column;
+  gap: var(--space-4);
   font-size: var(--font-size-small);
 }
+.heading {
+  margin: 0 0 6px;
+  font-family: var(--label-font);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  text-transform: var(--label-case);
+  font-size: var(--label-size);
+  color: var(--color-text-muted);
+}
+.items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 6px 16px;
+}
 .item {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  white-space: nowrap;
+  gap: 8px;
+}
+.item svg {
+  flex: none;
 }
 .note {
-  flex-basis: 100%;
+  margin: 6px 0;
+  color: var(--color-text-muted);
+}
+.axes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px 16px;
   margin: 0;
+}
+.axes dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.axes dd {
+  margin: 2px 0 0;
+  color: var(--color-text-muted);
+}
+.currentTag {
+  padding: 0 4px;
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  font-family: var(--label-font);
+  font-weight: var(--label-weight);
+  font-size: var(--font-size-label);
+  text-transform: var(--label-case);
+}
+.tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-3) var(--space-4);
+  align-items: start;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table caption {
+  padding-bottom: 4px;
+  text-align: left;
+  font-weight: 600;
+}
+.table th,
+.table td {
+  padding: 3px 8px 3px 0;
+  border-top: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+  font-weight: normal;
+}
+.table th {
+  width: 45%;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  color: var(--color-text);
+}
+.table td {
   color: var(--color-text-muted);
 }
 .pushed {

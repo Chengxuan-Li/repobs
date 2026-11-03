@@ -259,7 +259,7 @@ export function AddRepositoryDialog({ onClose, onAdded }: { onClose: () => void;
                 <span className="small muted">
                   {c.manual
                     ? 'added by path'
-                    : `${c.sessionCount} sessions${c.activeSessionCount ? `, ${c.activeSessionCount} active` : ''} · ${formatAge(c.lastActivityAt, now)}`}
+                    : `${c.sessionCount} ${c.sessionCount === 1 ? 'session' : 'sessions'}${c.activeSessionCount ? `, ${c.activeSessionCount} active` : ''} · ${formatAge(c.lastActivityAt, now)}`}
                 </span>
               </label>
             </li>

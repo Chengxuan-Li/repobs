@@ -467,7 +467,7 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     }
     const context = props.contextHeight ? { maxHalf: Math.max(3, Math.min(y - r.top, r.top + r.height - y) - 2), clipId: `ctx-${hatchId}-${row.id.replace(/[^\w-]/g, '_')}` } : undefined
     els.push(
-      <g key={`b-${row.id}`} {...hover}>
+      <g key={`b-${row.id}`} {...hover} data-agent={s.id}>
         <rect x={x1} y={y - 8} width={x2 - x1} height={16} className={styles.hit} />
         {span.earlier ? <path d={`M${x1 - 8},${y} L${x1 - 2},${y - 4} L${x1 - 2},${y + 4} Z`} className={`${styles.bar} ${styles[`bar_${tone}`]}`} data-mark="earlier" /> : null}
         <AgentLine

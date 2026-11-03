@@ -77,7 +77,7 @@ Details: [privacy and security](docs/privacy-security.md) and [SECURITY.md](SECU
 
 ## Documentation
 
-The documentation site is at **[chengxuan-li.github.io/repobs](https://chengxuan-li.github.io/repobs/)**, in two parts: the [user guide](https://chengxuan-li.github.io/repobs/guide/) (getting started, using repobs, status semantics, integrations, privacy and limitations) and the [developer documentation](https://chengxuan-li.github.io/repobs/developer/).
+The documentation site is at **[chengxuan-li.github.io/repobs](https://chengxuan-li.github.io/repobs/)**, in two parts: the [user guide](https://chengxuan-li.github.io/repobs/guide/) (a [tutorial](https://chengxuan-li.github.io/repobs/tutorial/) in five chapters, then status semantics, integrations, privacy and limitations) and the [developer documentation](https://chengxuan-li.github.io/repobs/developer/).
 
 ## Development
 

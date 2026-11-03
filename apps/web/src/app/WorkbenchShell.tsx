@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type IJsonModel, Layout, Model, TabNode } from 'flexlayout-react'
 import 'flexlayout-react/style/light.css'
-import { Moon, PanelLeft, PanelRight, Sun, SunMoon, Zap } from 'lucide-react'
+import { ExternalLink, Moon, PanelLeft, PanelRight, Sun, SunMoon, Zap } from 'lucide-react'
 import {
   type AgentSession,
   AnnotationExport,
@@ -20,6 +20,7 @@ import {
 import { Dialog, Toast, useNow } from '../components/primitives'
 import { type ChecklistEntry, planKeyOf } from '../features/dashboard/checklistEntries'
 import { BranchDetails, SessionDetails } from '../features/dashboard/DetailsPanel'
+import { LegendDialog } from '../features/dashboard/Legend'
 import { knownTags as collectTags } from '../features/dashboard/filters'
 import { type BranchRow, type RepoLayout, repositoryLastActivity } from '../features/dashboard/layout'
 import { RepoListPanel, type RepoSummary } from '../features/dashboard/RepoListPanel'
@@ -43,13 +44,26 @@ import styles from './shell.module.css'
 // in side bars that can be moved, split, collapsed or closed — and the status bar. Only the panels
 // scroll; the page itself never does.
 
+const DOCS = 'https://chengxuan-li.github.io/repobs/'
+const REPO = 'https://github.com/Chengxuan-Li/repobs'
+/** Help menu links (open in a new tab): id, label, submenu, address. */
+const HELP_LINKS: Array<[string, string, string, string]> = [
+  ['tutorial', 'Tutorial', 'Documentation', `${DOCS}tutorial/`],
+  ['status', 'What the statuses mean', 'Documentation', `${DOCS}status-semantics/`],
+  ['privacy', 'Privacy and security', 'Documentation', `${DOCS}privacy-security/`],
+  ['docs', 'Documentation home', 'Documentation', DOCS],
+  ['repo', 'repobs on GitHub', 'Project', REPO],
+  ['releases', 'Releases', 'Project', `${REPO}/releases`],
+  ['issue', 'Report an issue', 'Project', `${REPO}/issues/new`],
+]
+
 /** File format of File → Export / Open. */
 const EXPORT_FORMAT = 'repobs-export'
 
 export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snapshot; connection: Connection; error?: string }) {
   const bench = useWorkbenchState()
   const { state, settingsFor, setView, setShared, keepViews, replaceViews } = bench
-  const [dialog, setDialog] = useState<'add' | 'settings' | 'diagnostics' | 'rename' | undefined>()
+  const [dialog, setDialog] = useState<'add' | 'settings' | 'diagnostics' | 'rename' | 'legend' | undefined>()
   const [confirmRemove, setConfirmRemove] = useState<Repository | undefined>()
   const [theme, setTheme] = useState<ThemePreference>(() => (localStorage.getItem('repobs.theme') as ThemePreference | null) ?? 'system')
   // The latest notice: a confirmation (info) leaves by itself; a failure or refusal stays until dismissed.
@@ -341,7 +355,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     pressed: dock.isPanelVisible(panel),
     run: () => dock.togglePanel(panel),
   })
-  const toggle = (id: string, label: string, key: 'legendOpen' | 'agentNames' | 'barLabels' | 'showRemoteOnly' | 'collapseQuiet' | 'collapseSpawned'): Command => ({
+  const toggle = (id: string, label: string, key: 'agentNames' | 'barLabels' | 'showRemoteOnly' | 'collapseQuiet' | 'collapseSpawned'): Command => ({
     id,
     label,
     group: 'Current view',
@@ -392,7 +406,6 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     },
 
     { id: 'current.rename', label: `Rename view (${current?.name ?? ''})…`, group: 'Current view', paletteOnly: true, run: () => setDialog('rename') },
-    toggle('current.legend', 'Legend', 'legendOpen'),
     toggle('current.agentNames', 'Agent names in list', 'agentNames'),
     toggle('current.barLabels', 'Agent labels on timeline', 'barLabels'),
     toggle('current.spawned', 'Collapse spawned agents', 'collapseSpawned'),
@@ -411,6 +424,9 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
     { id: 'current.zoomReset', label: 'Reset zoom', group: 'Current view', paletteOnly: true, run: () => setCurrentView({ zoom: 1 }) },
 
     { id: 'repos.add', label: 'Add repositories or folders…', group: 'Repositories', paletteOnly: true, run: () => setDialog('add') },
+
+    { id: 'help.legend', label: 'Legend and controls', group: 'Help', run: () => setDialog('legend') },
+    ...HELP_LINKS.map(([id, label, submenu, url]) => ({ id: `help.${id}`, label, group: 'Help' as const, submenu, icon: ExternalLink, run: () => void window.open(url, '_blank', 'noopener,noreferrer') })),
     ...(['activity', 'active', 'name', 'manual'] as RepoSort[]).map((sort) => ({
       id: `repos.sort.${sort}`,
       label: `Sort by ${{ activity: 'last activity', active: 'active agents', name: 'name', manual: 'manual order' }[sort]}`,
@@ -473,6 +489,7 @@ export function WorkbenchShell({ snapshot, connection, error }: { snapshot: Snap
         />
       ) : null}
       {dialog === 'diagnostics' ? <DiagnosticsPanel onClose={() => setDialog(undefined)} /> : null}
+      {dialog === 'legend' ? <LegendDialog axisMode={view.axisMode} onClose={() => setDialog(undefined)} /> : null}
       {dialog === 'rename' && current ? <RenameDialog name={current.name} onClose={() => setDialog(undefined)} onRename={(name) => dock.renameView(current.id, name)} /> : null}
       {confirmRemove ? (
         <Dialog
