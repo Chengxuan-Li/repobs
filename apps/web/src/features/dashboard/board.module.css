@@ -427,3 +427,78 @@
 .group:hover .groupPill {
   fill: var(--color-selected-bg);
 }
+
+/* Agent activity (ADR 0013). Default: a tick per tool call over the bar. Detail: taller session
+   rows with a band of model and tool spans and a context-fill band below the bar. Colour carries
+   three groups (read, edit, shell); Git is a shape, tests and builds a hatch. */
+.ticks line {
+  stroke: var(--color-text);
+  stroke-width: 1;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.detail .row_session {
+  min-height: 52px;
+}
+.act_model {
+  fill: var(--activity-model);
+}
+.act_thinking {
+  fill: var(--activity-thinking);
+}
+.act_read {
+  fill: var(--activity-read);
+}
+.act_edit {
+  fill: var(--activity-edit);
+}
+.act_shell {
+  fill: var(--activity-shell);
+}
+.act_other {
+  fill: var(--activity-other);
+}
+.actHatch {
+  stroke: var(--color-bg);
+  stroke-width: 1.5;
+}
+.actFailed {
+  fill: var(--tone-danger-text);
+}
+.actGitWrite {
+  fill: var(--color-text);
+  stroke: var(--color-bg);
+  stroke-width: 2;
+  paint-order: stroke;
+}
+.actGitRead {
+  fill: var(--color-bg);
+  stroke: var(--color-text);
+  stroke-width: 1.5;
+}
+.actPrompt {
+  stroke: var(--color-text);
+  stroke-width: 1.5;
+}
+.actCompaction {
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+}
+.actError {
+  stroke: var(--tone-danger-text);
+  stroke-width: 1.5;
+  fill: none;
+}
+.actContext {
+  fill: color-mix(in srgb, var(--color-text) 20%, var(--color-bg));
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+}
+.actHit {
+  fill: transparent;
+}
+.ticks,
+.actBand {
+  pointer-events: none;
+}

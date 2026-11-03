@@ -1,6 +1,6 @@
 import { Search } from 'lucide-react'
 import { PROVIDER_LABELS, type Provider, REVIEW_LABELS, type ReviewState, WORKFLOW_LABELS, WORKFLOW_STATUSES, type WorkflowStatus } from '@repobs/contracts'
-import type { TimeRange, ViewPatch, ViewState } from '../../app/viewState'
+import { ACTIVITY_DETAIL_ZOOM, type ActivityDetail, type TimeRange, type ViewPatch, type ViewState } from '../../app/viewState'
 import { Dropdown, type DropdownSection } from '../../components/Dropdown'
 import { ReviewDot } from '../../components/primitives'
 import { TagInput } from '../annotations/TagInput'
@@ -20,6 +20,12 @@ const BRANCH_MODES: Array<[BranchMode, string]> = [
   ['checked_out', 'Checked out'],
   ['with_agents', 'With agents'],
 ]
+const ACTIVITY_DETAIL_MODES: Array<[ActivityDetail, string]> = [
+  ['auto', `Auto (from ${ACTIVITY_DETAIL_ZOOM * 100}% zoom)`],
+  ['on', 'Always'],
+  ['off', 'Off: tool ticks only'],
+]
+
 const AXIS_MODES: Array<[AxisMode, string]> = [
   ['sequence', 'Commit order'],
   ['time', 'Calendar time'],
@@ -278,6 +284,15 @@ export function FilterBar({
                     onToggle: () => setView((v) => ({ barLabels: !v.barLabels })),
                   },
                 ],
+              },
+              {
+                heading: 'Activity detail',
+                items: ACTIVITY_DETAIL_MODES.map(([m, label]) => ({
+                  type: 'radio' as const,
+                  label,
+                  checked: view.activityDetail === m,
+                  onSelect: () => setView({ activityDetail: m }),
+                })),
               },
             ]}
           />

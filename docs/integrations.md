@@ -44,6 +44,20 @@ Lifecycle mapping: `event_msg` `task_started` → turn in progress; `task_comple
 
 On by default (owner decision, [ADR 0003](decisions/0003-dashboard-commit-graph-and-excerpts.md)); Settings → Privacy turns them off, after which adapters stop extracting them. Excerpts are capped at 280 characters, have whitespace collapsed and obvious secrets (private keys, `sk-`/`ghp_`/`github_pat_`/`xox*-` tokens, AWS keys, JWTs, `Bearer` values, `password=…`-style assignments) redacted, and exist only in memory and in the live snapshot sent to your paired browser — never in the database, logs, diagnostics or exports.
 
+## Agent activity
+
+Read on demand for the agents a view draws (`GET /sessions/{id}/activity`, [ADR 0013](decisions/0013-agent-activity-steps-and-tokens.md)), from the session's own files: the last 24 MiB of each (decompressed for `.zst`), at most 4,000 steps and 2,000 token samples, two sessions at a time, cached until the files change.
+
+| | Claude Code | Codex |
+| --- | --- | --- |
+| Tool call | `tool_use` (name, id), ended by the `tool_result` with that id; `is_error` → failed | `function_call` / `custom_tool_call` (name, `call_id`), ended by its `*_output`; outcome unknown |
+| Shell command (classified, then dropped) | `input.command` of `Bash` / `PowerShell` | the `exec` input string, or `cmd` / `command` of `exec_command`-style calls |
+| Model span | from a prompt or tool result to the response's last record; thinking when a `thinking` block is present | from a prompt, user message or tool output to the next `reasoning`, message or call |
+| Marks | prompts; `system` `compact_boundary`; `api_error` and `isApiErrorMessage` | `task_started`; `compacted`; `error` / `stream_error` |
+| Tokens | `message.usage` once per message id: input, cache read, cache creation, output | `token_count.info.last_token_usage` (repeats dropped by the running total); `model_context_window` |
+
+Sidechain records and a forked Codex sub-agent's copy of its parent's history are skipped. Tool names map to categories in `apps/server/src/sessions/activity/classify.ts`; MCP tools are reported by server (`mcp:<server>`). Commands are split on `&&`, `;`, `|` and new lines; setup words (`cd`, `export`, environment assignments) are skipped; Git subcommands, package-manager scripts and a fixed set of programs are named, everything else is *Shell* without a name.
+
 ## Agent plans
 
 On by default ([ADR 0009](decisions/0009-agent-plans-in-checklists.md)); Settings → Privacy turns them off. Only structured plan tool calls are read, replayed in transcript order; free text is never interpreted.

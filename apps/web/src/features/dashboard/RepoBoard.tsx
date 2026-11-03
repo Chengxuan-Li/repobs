@@ -7,12 +7,14 @@ import {
   type PullRequest,
   type Repository,
   type ReviewState,
+  type SessionActivity,
   WORKFLOW_LABELS,
   WORKFLOW_TONES,
   workflowStatus,
 } from '@repobs/contracts'
 import { pageZoom } from '../../components/placement'
 import { Badge, formatAge } from '../../components/primitives'
+import { ActivityDetail, ActivityTicks, DETAIL, HatchDef } from './ActivityTrack'
 import { AgentRow } from './AgentRow'
 import { AgentHover, BranchHover, CommitHover, GroupHover, PendingHover, type ShowHover } from './HoverCard'
 import type { BoardRow, BranchRow, RepoLayout, SessionRow } from './layout'
@@ -48,6 +50,10 @@ export interface RepoBoardProps {
   agentNames: boolean
   /** Agent cards at the end of their activity bars. */
   barLabels: boolean
+  /** Steps and tokens of the drawn agents, as they arrive (ADR 0013). */
+  activity: Map<string, SessionActivity>
+  /** Draw activity in detail (taller agent rows) instead of tool ticks. */
+  activityDetail: boolean
   viewportWidth: number
   now: number
   collapsed: boolean
@@ -86,7 +92,7 @@ export const RepoBoard = memo(function RepoBoard(props: RepoBoardProps) {
     const next = { rows, height: el.scrollHeight }
     setGeo((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
   }, [])
-  useLayoutEffect(() => measure(), [measure, layout, collapsed])
+  useLayoutEffect(() => measure(), [measure, layout, collapsed, props.activityDetail])
   useLayoutEffect(() => {
     const el = rowsRef.current
     if (!el || typeof ResizeObserver === 'undefined') return
@@ -97,7 +103,7 @@ export const RepoBoard = memo(function RepoBoard(props: RepoBoardProps) {
 
   const total = props.labelWidth + timeline.width
   return (
-    <section className={styles.repo} aria-label={`${repo.displayName} repository`} id={`repo-${repo.id}`} style={{ width: total }}>
+    <section className={`${styles.repo} ${props.activityDetail ? styles.detail : ''}`} aria-label={`${repo.displayName} repository`} id={`repo-${repo.id}`} style={{ width: total }}>
       <header className={styles.repoHeader}>
         <div className={styles.repoHeaderInner} style={{ width: Math.min(total, props.viewportWidth) }}>
           <button type="button" className={styles.collapse} onClick={props.onToggleCollapsed} aria-expanded={!collapsed} aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${repo.displayName}`}>
@@ -213,11 +219,12 @@ function Row(props: { row: BoardRow } & RepoBoardProps) {
 }
 
 /** The agent details card with its review menu, the same from the label column and the timeline card. */
-function AgentDetailsHover({ row, now, sessionsById, childCount, hideHover, onReview, onHide }: { row: SessionRow } & RepoBoardProps) {
+function AgentDetailsHover({ row, now, sessionsById, childCount, hideHover, onReview, onHide, activity }: { row: SessionRow } & RepoBoardProps) {
   const s = row.session
   return (
     <AgentHover
       session={s}
+      activity={activity.get(s.id)}
       annotation={row.annotation}
       now={now}
       parentTitle={s.parentSessionId ? sessionsById.get(s.parentSessionId)?.title : undefined}
@@ -282,6 +289,9 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     onMouseLeave: hideHover,
   })
   const els: React.ReactNode[] = []
+  // Tests and builds are hatched (a pattern per board: ids are document-wide).
+  const hatchId = `hatch-${props.repo.id.replace(/[^\w-]/g, '_')}`
+  if (props.activityDetail) els.push(<HatchDef key="hatch" id={hatchId} />)
   const branchRows = layout.rows.filter((r): r is BranchRow => r.kind === 'branch')
 
   for (const row of branchRows) {
@@ -432,11 +442,22 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     barStart.set(row.id, x1)
     const status = workflowStatus(s, annotations.get(s.id))
     const tone = WORKFLOW_TONES[status]
-    const hover = hoverProps(() => <AgentHover session={s} annotation={row.annotation} now={now} children={props.childCount.get(s.id) ?? 0} parentTitle={s.parentSessionId ? props.sessionsById.get(s.parentSessionId)?.title : undefined} />)
+    const act = props.activity.get(s.id)
+    const hover = hoverProps(() => (
+      <AgentHover session={s} annotation={row.annotation} activity={act} now={now} children={props.childCount.get(s.id) ?? 0} parentTitle={s.parentSessionId ? props.sessionsById.get(s.parentSessionId)?.title : undefined} />
+    ))
+    const top = geo.rows[row.id]!.top
+    const detail = props.activityDetail && act
     els.push(
       <g key={`b-${row.id}`} {...hover}>
-        <rect x={x1} y={y - 7} width={x2 - x1} height={14} className={styles.hit} />
+        <rect x={x1} y={y - 7} width={x2 - x1} height={detail ? DETAIL.contextTop + DETAIL.contextHeight - (y - 7 - top) : 14} className={styles.hit} />
         <rect x={x1} y={y - 3} width={x2 - x1} height={6} className={`${styles.bar} ${styles[`bar_${tone}`]}`} />
+        {act && !detail ? <ActivityTicks activity={act} timeline={timeline} y={y} /> : null}
+        {detail ? (
+          <g className={styles.actBand}>
+            <ActivityDetail activity={act} timeline={timeline} top={top} endX={x2} hatchId={hatchId} />
+          </g>
+        ) : null}
       </g>,
     )
   }

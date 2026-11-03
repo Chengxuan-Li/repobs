@@ -26,6 +26,14 @@
   --tone-danger-bg: #faeded;
   --tone-neutral-text: #3f4b5b;
   --tone-neutral-bg: #f8fafc;
+  /* Agent activity (ADR 0013): three categorical hues, validated all-pairs with the dataviz
+     palette checks (light surface #fff; dark #000); other categories stay neutral. */
+  --activity-read: #2a78d6;
+  --activity-edit: #eb6834;
+  --activity-shell: #1baf7a;
+  --activity-other: #8a95a3;
+  --activity-model: color-mix(in srgb, var(--color-text) 24%, var(--color-bg));
+  --activity-thinking: color-mix(in srgb, var(--color-text) 44%, var(--color-bg));
   --shadow-popover: 0 6px 16px rgb(0 0 0 / 14%);
 
   --font-sans: 'Geist Variable', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -87,6 +95,10 @@
   --tone-danger-bg: #270b09;
   --tone-neutral-text: #b3b3b3;
   --tone-neutral-bg: #262b32;
+  --activity-read: #3987e5;
+  --activity-edit: #d95926;
+  --activity-shell: #199e70;
+  --activity-other: #7d7d7d;
   --shadow-popover: 0 8px 24px rgb(0 0 0 / 55%);
 }
 
@@ -115,6 +127,10 @@
     --tone-danger-bg: #270b09;
     --tone-neutral-text: #b3b3b3;
     --tone-neutral-bg: #262b32;
+    --activity-read: #3987e5;
+    --activity-edit: #d95926;
+    --activity-shell: #199e70;
+    --activity-other: #7d7d7d;
     --shadow-popover: 0 8px 24px rgb(0 0 0 / 55%);
   }
 }

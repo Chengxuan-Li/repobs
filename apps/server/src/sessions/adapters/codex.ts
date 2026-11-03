@@ -9,6 +9,7 @@ import { codexRecordPlanEvent, PLAN_MARKERS, PlanTracker } from '../plan.ts'
 import { isActivePhase, type Lifecycle, resolveState } from '../status.ts'
 import { readCompressedJsonl, zstdAvailable } from '../zstd-jsonl.ts'
 import { CodexStateIndex } from './codex-state.ts'
+import type { ActivitySources } from '../activity/service.ts'
 import {
   type AdapterConfig,
   type AdapterStatus,
@@ -206,6 +207,14 @@ export class CodexAdapter implements SessionAdapter {
   watchTargets(): string[] {
     if (!this.config.enabled) return []
     return [path.join(this.home.root, 'sessions'), path.join(this.home.root, 'archived_sessions')]
+  }
+
+  activitySources(providerSessionId: string): ActivitySources | undefined {
+    const files = [...this.files.values()]
+      .filter((t) => t.acc.threadId === providerSessionId)
+      .sort((a, b) => (a.acc.firstTs ?? '').localeCompare(b.acc.firstTs ?? '') || a.file.localeCompare(b.file))
+      .map((t) => ({ file: t.file, compressed: isCompressed(t.file) }))
+    return files.length ? { provider: 'codex', files } : undefined
   }
 
   status(): AdapterStatus {

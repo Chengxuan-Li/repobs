@@ -30,6 +30,7 @@ export const API_ENDPOINTS: EndpointSpec[] = [
   { method: 'POST', path: '/pull-requests/refresh', auth: 'session+csrf', summary: 'Refresh PR metadata now (409 while the integration is disabled).' },
   { method: 'GET', path: '/sessions', auth: 'session', response: 'AgentSession[]', summary: 'Sessions associated with registered repositories (and annotated orphans).' },
   { method: 'GET', path: '/sessions/{id}', auth: 'session', response: 'AgentSession', summary: 'One session with its annotation.' },
+  { method: 'GET', path: '/sessions/{id}/activity', auth: 'session', response: 'SessionActivity', summary: 'Steps, tool categories, allowlisted command verbs and token counts of one session, read on demand from its files (ADR 0013). Never prompts, replies, reasoning text, tool inputs or outputs.' },
   { method: 'GET', path: '/sessions/{id}/annotation', auth: 'session', response: 'SessionAnnotation', summary: 'Human annotation (or null).' },
   { method: 'PUT', path: '/sessions/{id}/annotation', auth: 'session+csrf', request: 'AnnotationInput', response: 'SessionAnnotation', summary: 'Upsert tags, review state, note, alias and checklist (app-local only).' },
   { method: 'DELETE', path: '/sessions/{id}/annotation', auth: 'session+csrf', summary: 'Explicitly delete a session annotation.' },

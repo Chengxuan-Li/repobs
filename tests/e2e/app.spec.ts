@@ -589,6 +589,24 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     await setOption(page, 'Agents', 'Agent labels on timeline')
   })
 
+  test('agent bars tick each tool call; activity detail draws steps and the card counts them (ADR 0013)', async ({ page }) => {
+    await pair(page)
+    const svg = board(page, 'git-status-kit').locator('svg[data-lanes]')
+    await expect(svg.locator('g[class*="ticks"] line').first()).toBeAttached()
+    await expect(svg.locator('g[class*="actBand"]')).toHaveCount(0)
+    await setOption(page, 'Agents', 'Always')
+    await expect(svg.locator('g[class*="actBand"] rect').first()).toBeAttached()
+    await expect(svg.locator('g[class*="ticks"]')).toHaveCount(0)
+    // Two plan updates and a shell call, from the synthetic transcript; never its text.
+    await row(page, /^Tighten status parser/).getByText('Tighten status parser', { exact: true }).hover()
+    const card = page.getByRole('dialog', { name: 'Agent details' })
+    await expect(card).toContainText('3 calls')
+    await expect(card).toContainText('Plan 2')
+    await page.mouse.move(5, 5)
+    await setOption(page, 'Agents', 'Auto (from 300% zoom)')
+    await expect(svg.locator('g[class*="actBand"]')).toHaveCount(0)
+  })
+
   test('dragging with the mouse pans the view like a map; a plain click still selects', async ({ page }) => {
     await pair(page)
     const scroller = page.getByLabel(/^Branches and agents\. Use the arrow keys/)

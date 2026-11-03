@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Minus, Plus } from 'lucide-react'
 import { type AgentSession, type AnnotationSummary, type ReviewState, type Snapshot, statusNeedsAttention, workflowStatus } from '@repobs/contracts'
 import { wheelPixels } from '../../app/uiScale'
-import { clamp, MAX_ZOOM, MIN_ZOOM, RANGE_MS, type ViewPatch, type ViewState } from '../../app/viewState'
+import { ACTIVITY_DETAIL_ZOOM, clamp, MAX_ZOOM, MIN_ZOOM, RANGE_MS, type ViewPatch, type ViewState } from '../../app/viewState'
 import { pageZoom } from '../../components/placement'
 import { AgentRow } from './AgentRow'
 import type { ChecklistEntry } from './checklistEntries'
@@ -14,6 +14,7 @@ import { LABEL_W, LABEL_W_NARROW, RepoBoard } from './RepoBoard'
 import type { RepoSummary } from './RepoListPanel'
 import { buildTimeline } from './timeline'
 import { useDragPan } from './useDragPan'
+import { useActivity } from './useActivity'
 import boardStyles from './board.module.css'
 import styles from './dashboard.module.css'
 
@@ -150,6 +151,17 @@ export function Dashboard({
     el.scrollLeft = el.scrollWidth
   }, [viewport, view.axisMode, view.timeRange, timeline.width])
 
+  // Steps and tokens of the agents this view draws (ADR 0013), fetched as they are needed.
+  const drawnSessions = useMemo(
+    () =>
+      [...layouts.entries()]
+        .filter(([repoId]) => visibleIds.has(repoId) && !view.collapsedRepos.includes(repoId))
+        .flatMap(([, l]) => l.rows.flatMap((r) => (r.kind === 'session' ? [r.session] : []))),
+    [layouts, visibleIds, view.collapsedRepos],
+  )
+  const activity = useActivity(drawnSessions, true)
+  const activityDetail = view.activityDetail === 'on' || (view.activityDetail === 'auto' && view.zoom >= ACTIVITY_DETAIL_ZOOM)
+
   const sessionsById = useMemo(() => new Map(snapshot.sessions.map((s) => [s.id, s])), [snapshot.sessions])
   const childCount = useMemo(() => {
     const m = new Map<string, number>()
@@ -241,7 +253,7 @@ export function Dashboard({
         shown={filtered.length}
         total={snapshot.sessions.length}
       />
-      {view.legendOpen ? <Legend axisMode={view.axisMode} /> : null}
+      {view.legendOpen ? <Legend axisMode={view.axisMode} activityDetail={activityDetail} /> : null}
       <div
         ref={scrollRef}
         className={styles.scroller}
@@ -298,6 +310,8 @@ export function Dashboard({
                 labelWidth={labelW}
                 agentNames={view.agentNames}
                 barLabels={view.barLabels}
+                activity={activity}
+                activityDetail={activityDetail}
                 viewportWidth={viewport}
                 now={now}
                 collapsed={collapsed.has(repo.id)}

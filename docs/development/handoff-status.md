@@ -2,6 +2,24 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 41 — 2026-11-02: what an agent did — steps, tools and tokens (ADR 0013, branch `feature/agent-activity`)
+
+Owner request: visualise what happens inside each agent (tool calls, Git and system commands, reasoning) and its token usage; a summarised default, and a detailed view that turns on when zoomed in. Recorded in [ADR 0013](../decisions/0013-agent-activity-steps-and-tokens.md), which extends ADR 0001's metadata-only rule to tool names, allowlisted command verbs, step times, outcomes and token counts, read on demand and never stored.
+
+Survey first (read-only, key names, enum values and counts only): Claude Code 952 transcripts with 112,869 `tool_use`s (2,840 errors), 73,415 `thinking` blocks, `usage` on every response; Codex 314 rollouts with `reasoning` items, tool calls by `call_id`, `token_count` events, the shell command as a free-form `exec` string and no exit codes.
+
+| Area | Change |
+| --- | --- |
+| Contracts | `activity.ts`: `ActivityStep` (model, tool, prompt, compaction, error), `ToolCategory` (13), `TokenSample`, `SessionActivity`; setting `privacy.readAgentActivity` (on); endpoint `GET /sessions/{id}/activity` |
+| Server | `sessions/activity/classify.ts` (tool names → categories; commands split on `&&`/`;`/`|`/newline, setup words skipped, Git subcommands incl. changing forms, package-manager scripts and a fixed program list named; anything else unnamed), `builder.ts` (Claude and Codex builders: model spans between inputs and outputs, tool spans by id, marks, usage once per message id / `token_count` deduplicated by running total, forked sub-agent history skipped, 4,000 steps / 2,000 samples), `service.ts` (24 MiB tail per file, plain or `.zst`, two parses at a time, cache by size and mtime). Adapters expose `activitySources`; `Monitor.activity` honours the setting |
+| Web | `useActivity.ts` (drawn agents only, newest first, three at a time, refetched when last activity changes); `activity.ts` (pure: pixel runs merged per kind, ticks, marks, context path, summary); `ActivityTrack.tsx` (ticks; detail band, Git ◆/○, prompt/error/compaction marks, context band; summary for hover card and details panel); *Agents → Activity detail* (*Auto* from 300 %, *Always*, *Off*); legend entries; Settings checkbox |
+| Colour | dataviz method: validator run on candidates; five hues failed all-pairs (normal-vision ΔE 12.9 light, CVD 1.6 dark), so three hues (read, edit, shell) plus neutral, Git by shape and tests/builds by hatching; tokens in both themes |
+| Tests | `tests/sessions/activity.test.ts` (28: classification table, allowlist leaks with a canary, both builders, bounds, cache, compressed read), `tests/api/activity.int.test.ts` (endpoint, 404, setting off), `apps/web/.../activity.test.ts` (5), e2e: ticks, detail, hover counts |
+
+Verified in the preview (port 47325, copy of the owner's data): 26 drawn agents fetched in a median 8 ms (slowest 90 ms); detail drawn for the long *repobs* session (408 tool calls, 6 failed; 61M input tokens, 99 % from cache; context 276k after 2 compactions) in dark and light themes. Found there: in *Calendar, compressed* the minimum gap does not grow with zoom, so a short agent's detail stays narrow; *Calendar time* shows real proportions (documented in the ADR and user guide).
+
+Not done or unverified: per-step hover (the hover card summarises the agent, not the step under the pointer); turns as extra axis anchors in the ordinal modes; Codex tool outcomes (not recorded); a provider-recorded wait for permission (none exists, checkpoint 40).
+
 ## Checkpoint 40 — 2026-11-02: *Needs input* only for explicit requests (branch `feature/agent-activity`)
 
 Owner report: agents showed *Needs input* when nothing was asked of them. Cause: any Claude Code tool call without a result yet set `possiblyAwaitingApproval`, and `workflowStatus` turned that into *Needs input* for every live session — so every running test, build or long shell command looked like a permission prompt.

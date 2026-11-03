@@ -102,6 +102,18 @@ Cards never grow on the dashboard; the details are a hover or a click away:
 
 Excerpts are read mechanically from the provider's files, truncated, with obvious secrets redacted, and never stored; Settings → Privacy turns them off.
 
+### What an agent did
+
+Each agent's bar shows a thin **tick for every tool call** it made. Zoom the history to 300 % or more (or choose **Agents → Activity detail → Always**) and agent rows grow to show its **activity in detail**, under the bar:
+
+- **Steps:** grey spans while the model was responding (darker with thinking), then its tool calls coloured by kind — blue *read and search*, orange *edit*, aqua *shell* (hatched: tests and builds); other tools (web, MCP, agents, plan, questions to you) in grey. A red underline marks a failed call; a dark line a new prompt; a red × an error; a dashed line a compaction.
+- **Git:** ◆ a Git change (`git commit`, `git push`, …), ○ a Git inspection (`git status`, `git diff`, …).
+- **Context:** a grey band below shows how many tokens were in the model's context at each response; it drops after a compaction.
+
+The agent's hover card and details panel sum it up at any zoom: tool calls by kind and how many failed, the most used commands (`npm test ×5`), time spent by the model and by tools, input tokens (and the share served from cache), output and reasoning tokens, and the current and peak context. *Activity detail → Off* keeps the ticks only. Detail reads best in **Timeline → Calendar time**, where steps keep their real lengths; in the other modes an agent's bar is as wide as its columns.
+
+All of this is counted from the agents' own history files on demand: tool names, command names such as `git commit` or `npm test` (from a fixed list; arguments, paths and other programs are never kept), times, outcomes and token counts. Records are parsed in memory and only those fields kept; nothing is stored, and no prompt, reply, thinking or tool output leaves the reader. Settings → Privacy → *Read agents’ activity* turns it off ([ADR 0013](decisions/0013-agent-activity-steps-and-tokens.md)).
+
 **Where agent names appear** — two independent toggles in the **Agents** dropdown:
 
 - **Agent labels on timeline** (on by default): each agent's bar ends with a card like the one in the list: provider mark, name, how long ago it was last active and its status, which opens the same review menu. You read who worked when right in the history and can review there. Near the right edge the card moves to the left of the bar; click it to select the agent.
@@ -145,7 +157,7 @@ The agent count follows the filters, and **Clear filters** resets them (includin
 
 - **Repositories**: all repositories, or tick the ones this view shows (the same as the ticks in the repositories panel).
 - **Branches**: all branches, checked-out ones, or branches with agents; *Remote-only branches*; *Collapse quiet commits*.
-- **Agents**: *Collapse spawned agents*, *Agent names in list*, *Agent labels on timeline*.
+- **Agents**: *Collapse spawned agents*, *Agent names in list*, *Agent labels on timeline*, and *Activity detail* (*Auto* from 300 % zoom, *Always*, or *Off*: tool ticks only).
 - **Timeline**: the axis mode and how much history to show.
 - **Legend** explains every mark.
 

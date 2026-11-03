@@ -24,6 +24,7 @@ All endpoints live under `/api/v1` on the loopback address and are private unles
 | POST | `/pull-requests/refresh` | session+csrf | — | — | Refresh PR metadata now (409 while the integration is disabled). |
 | GET | `/sessions` | session | — | [AgentSession[]](#agentsession) | Sessions associated with registered repositories (and annotated orphans). |
 | GET | `/sessions/{id}` | session | — | [AgentSession](#agentsession) | One session with its annotation. |
+| GET | `/sessions/{id}/activity` | session | — | [SessionActivity](#sessionactivity) | Steps, tool categories, allowlisted command verbs and token counts of one session, read on demand from its files (ADR 0013). Never prompts, replies, reasoning text, tool inputs or outputs. |
 | GET | `/sessions/{id}/annotation` | session | — | [SessionAnnotation](#sessionannotation) | Human annotation (or null). |
 | PUT | `/sessions/{id}/annotation` | session+csrf | [AnnotationInput](#annotationinput) | [SessionAnnotation](#sessionannotation) | Upsert tags, review state, note, alias and checklist (app-local only). |
 | DELETE | `/sessions/{id}/annotation` | session+csrf | — | — | Explicitly delete a session annotation. |
@@ -2632,6 +2633,199 @@ JSON Schema generated from the shared zod contracts.
 }
 ```
 
+### SessionActivity
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "disabled",
+        "unavailable"
+      ]
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "model",
+              "tool",
+              "prompt",
+              "compaction",
+              "error"
+            ]
+          },
+          "start": {
+            "type": "number"
+          },
+          "end": {
+            "type": "number"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "read",
+              "search",
+              "edit",
+              "shell",
+              "git_read",
+              "git_write",
+              "test_build",
+              "web",
+              "agents",
+              "plan",
+              "ask",
+              "mcp",
+              "other"
+            ]
+          },
+          "tool": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "verb": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "thinking": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "start"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "tokens": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "cacheRead": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "cacheWrite": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "output": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "reasoning": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "at": {
+            "type": "number"
+          },
+          "context": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "input",
+          "cacheRead",
+          "cacheWrite",
+          "output",
+          "reasoning",
+          "at",
+          "context"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "totals": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "cacheRead": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "cacheWrite": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "output": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "reasoning": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "input",
+        "cacheRead",
+        "cacheWrite",
+        "output",
+        "reasoning"
+      ],
+      "additionalProperties": false
+    },
+    "contextWindow": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "sessionId",
+    "state",
+    "steps",
+    "tokens",
+    "totals",
+    "truncated",
+    "version"
+  ],
+  "additionalProperties": false
+}
+```
+
 ### SessionAnnotation
 
 ```json
@@ -2878,11 +3072,15 @@ JSON Schema generated from the shared zod contracts.
         },
         "readAgentPlans": {
           "type": "boolean"
+        },
+        "readAgentActivity": {
+          "type": "boolean"
         }
       },
       "required": [
         "showMessageExcerpts",
-        "readAgentPlans"
+        "readAgentPlans",
+        "readAgentActivity"
       ],
       "additionalProperties": false
     },
@@ -3025,6 +3223,9 @@ JSON Schema generated from the shared zod contracts.
           "type": "boolean"
         },
         "readAgentPlans": {
+          "type": "boolean"
+        },
+        "readAgentActivity": {
           "type": "boolean"
         }
       },

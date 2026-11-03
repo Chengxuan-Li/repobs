@@ -9,6 +9,9 @@ import type { AxisMode } from '../features/dashboard/timeline'
 // all views share. Conveniences, not user data: annotations and settings live on the server.
 
 export type TimeRange = '1d' | '7d' | '30d' | '90d' | '365d' | 'all'
+/** Activity detail on agent bars (ADR 0013): `auto` turns on at ACTIVITY_DETAIL_ZOOM and above. */
+export type ActivityDetail = 'auto' | 'on' | 'off'
+export const ACTIVITY_DETAIL_ZOOM = 3
 export type RepoSort = 'activity' | 'active' | 'name' | 'manual'
 
 /** Settings of one view (dashboard tab). */
@@ -18,6 +21,8 @@ export interface ViewState {
   agentNames: boolean
   /** Agent labels at the end of each activity bar on the timeline. */
   barLabels: boolean
+  /** Steps, tool categories and tokens on agent bars instead of plain tool ticks. */
+  activityDetail: ActivityDetail
   /** Spawned agents start hidden under their parent (its chevron shows them). */
   collapseSpawned: boolean
   /** Agents whose spawned agents are shown (when collapsing) or hidden (when not); reset when that switch changes. */
@@ -57,6 +62,7 @@ export const DEFAULT_VIEW: ViewState = {
   filters: DEFAULT_FILTERS,
   agentNames: true,
   barLabels: true,
+  activityDetail: 'auto',
   collapseSpawned: true,
   toggledAgents: [],
   axisMode: 'sequence',
@@ -97,6 +103,7 @@ export function normalizeView(raw: unknown): ViewState {
     },
     agentNames: p.agentNames !== false,
     barLabels: p.barLabels !== false,
+    activityDetail: p.activityDetail === 'on' || p.activityDetail === 'off' ? p.activityDetail : 'auto',
     collapseSpawned: p.collapseSpawned !== false,
     toggledAgents: strings(p.toggledAgents),
     axisMode: p.axisMode === 'time' || p.axisMode === 'compressed' ? p.axisMode : 'sequence',

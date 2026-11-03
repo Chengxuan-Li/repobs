@@ -8,6 +8,7 @@ import { JsonlCursor, readSmallJson, scanBackward } from '../jsonl.ts'
 import { claudeRecordPlanEvents } from '../plan.ts'
 import { CLAUDE_PLAN_MARKERS, ClaudePlanReader } from '../claude-plan.ts'
 import { isActivePhase, type Lifecycle, type RegistryEvidence, resolveState } from '../status.ts'
+import type { ActivitySources } from '../activity/service.ts'
 import {
   type AdapterConfig,
   type AdapterStatus,
@@ -237,6 +238,14 @@ export class ClaudeAdapter implements SessionAdapter {
   watchTargets(): string[] {
     if (!this.config.enabled) return []
     return [path.join(this.home.root, 'projects'), path.join(this.home.root, 'sessions')]
+  }
+
+  activitySources(providerSessionId: string): ActivitySources | undefined {
+    for (const tracked of this.files.values()) {
+      const sid = tracked.acc.sessionId ?? path.basename(tracked.cursor.file, '.jsonl')
+      if (sid === providerSessionId) return { provider: 'claude', files: [{ file: tracked.cursor.file, compressed: false }] }
+    }
+    return undefined
   }
 
   status(): AdapterStatus {

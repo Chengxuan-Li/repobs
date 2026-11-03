@@ -9,6 +9,7 @@ import {
   type PullRequest,
   REVIEW_LABELS,
   type ReviewState,
+  type SessionActivity,
   stateLabel,
   WORKFLOW_LABELS,
   WORKFLOW_TONES,
@@ -17,6 +18,7 @@ import {
 import { type Box, boxOf, type Placement, pageZoom, placeFloating, WIDE_ANCHOR, windowSize } from '../../components/placement'
 import { Badge, formatAge } from '../../components/primitives'
 import type { BranchRow } from './layout'
+import { ActivitySummary } from './ActivityTrack'
 import { checklistEntries } from './checklistEntries'
 import { ReviewMenu } from './ReviewMenu'
 import styles from './hover.module.css'
@@ -126,9 +128,12 @@ export function AgentHover({
   children,
   onReview,
   onHide,
+  activity,
 }: {
   session: AgentSession
   annotation?: AnnotationSummary
+  /** Steps and tokens, when read (ADR 0013). */
+  activity?: SessionActivity
   now: number
   parentTitle?: string
   children: number
@@ -193,6 +198,7 @@ export function AgentHover({
             </dd>
           </>
         ) : null}
+        {activity ? <ActivitySummary activity={activity} /> : null}
       </dl>
       {session.lastMessage ? (
         <p className={styles.excerpt}>

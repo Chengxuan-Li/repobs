@@ -1,9 +1,12 @@
+import { ACTIVITY_DETAIL_ZOOM } from '../../app/viewState'
 import type { AxisMode } from './timeline'
 import styles from './legend.module.css'
 
 // What the graph marks mean. Shapes and line styles carry the meaning; colours repeat it.
 
-export function Legend({ axisMode }: { axisMode: AxisMode }) {
+const fill = (token: string) => ({ fill: `var(${token})` })
+
+export function Legend({ axisMode, activityDetail }: { axisMode: AxisMode; activityDetail: boolean }) {
   return (
     <div className={styles.legend} role="region" aria-label="Legend">
       <Item label="Commit on a remote branch (pushed)">
@@ -47,6 +50,45 @@ export function Legend({ axisMode }: { axisMode: AxisMode }) {
       <Item label="Spawned by the agent above (indented card; › n on the parent shows them)">
         <path d="M4,0 V9 H12" className={styles.spawn} fill="none" />
       </Item>
+      {activityDetail ? (
+        <>
+          <Item label="Model responding (an estimate from record times); darker: with thinking">
+            <rect x="1" y="4" width="8" height="8" style={fill('--activity-model')} />
+            <rect x="11" y="4" width="8" height="8" style={fill('--activity-thinking')} />
+          </Item>
+          <Item label="Tool: read or search">
+            <rect x="1" y="4" width="18" height="8" style={fill('--activity-read')} />
+          </Item>
+          <Item label="Tool: edit">
+            <rect x="1" y="4" width="18" height="8" style={fill('--activity-edit')} />
+          </Item>
+          <Item label="Tool: shell; hatched: tests and builds">
+            <rect x="1" y="4" width="8" height="8" style={fill('--activity-shell')} />
+            <rect x="11" y="4" width="8" height="8" style={fill('--activity-shell')} />
+            <path d="M11,8 l4,-4 M11,12 l8,-8 M15,12 l4,-4" stroke="var(--color-bg)" strokeWidth="1.5" />
+          </Item>
+          <Item label="Other tools: web, MCP, agents, plan, questions">
+            <rect x="1" y="4" width="18" height="8" style={fill('--activity-other')} />
+          </Item>
+          <Item label="Git change (commit, push, …) / Git inspection (status, diff, …)">
+            <rect x="2.5" y="4.5" width="6" height="6" transform="rotate(45 5.5 7.5)" fill="var(--color-text)" />
+            <circle cx="15" cy="8" r="3" fill="var(--color-bg)" stroke="var(--color-text)" strokeWidth="1.5" />
+          </Item>
+          <Item label="Prompt (a turn starts) / failed tool call / error">
+            <line x1="3" y1="2" x2="3" y2="14" stroke="var(--color-text)" strokeWidth="1.5" />
+            <rect x="6" y="11" width="6" height="2" fill="var(--tone-danger-text)" />
+            <path d="M14,5 l5,5 m0,-5 l-5,5" stroke="var(--tone-danger-text)" strokeWidth="1.5" />
+          </Item>
+          <Item label="Context: tokens in the model's context at each response (dashed line: compacted)">
+            <path d="M1,14 L1,10 L8,10 L8,6 L19,6 L19,14 Z" fill="color-mix(in srgb, var(--color-text) 20%, var(--color-bg))" stroke="var(--color-text-muted)" />
+          </Item>
+        </>
+      ) : (
+        <Item label={`Tool calls (ticks on the bar). Zoom to ${ACTIVITY_DETAIL_ZOOM * 100} % or more, or Agents → Activity detail, for steps, tool kinds and tokens`}>
+          <rect x="1" y="5" width="18" height="6" className={styles.barWorking} />
+          <path d="M5,3 V13 M9,3 V13 M10,3 V13 M15,3 V13" stroke="var(--color-text)" strokeOpacity="0.55" />
+        </Item>
+      )}
       <Item label="Now">
         <line x1="10" y1="0" x2="10" y2="16" className={styles.now} />
       </Item>

@@ -149,6 +149,14 @@ export function SettingsPanel({ onClose, onSaved }: { onClose: () => void; onSav
           The step lists agents keep with their planning tools (Claude’s task list or to-do list, Codex’s plan) are read from the session files and kept in
           memory only. Your ticks on them are stored by item key, without their text.
         </p>
+        <label className={styles.check}>
+          <input type="checkbox" checked={settings.privacy.readAgentActivity} onChange={(e) => set({ privacy: { ...settings.privacy, readAgentActivity: e.target.checked } })} />
+          Read agents’ activity: steps, tool kinds and tokens
+        </label>
+        <p className="small muted">
+          Counted from the session files when an agent is shown: tool names, command names from a fixed list (such as git commit or npm test, never their
+          arguments), step times, outcomes and token counts. Kept in memory only. Turn this off to show agent bars without tool ticks or activity detail.
+        </p>
       </fieldset>
 
       <fieldset className={styles.group}>

@@ -95,6 +95,7 @@ nav:
           - Interface size and wheel: decisions/0010-ui-size-and-wheel-controls.md
           - Folders without Git: decisions/0011-folders-without-git.md
           - Codex compressed rollouts and state database: decisions/0012-codex-compressed-rollouts-and-state-database.md
+          - Agent activity, steps and tokens: decisions/0013-agent-activity-steps-and-tokens.md
 # Reveals the landing page's header once the page scrolls (design/docs-ui-spec.md, 0.7).
 extra_javascript:
   - assets/javascripts/opening.js

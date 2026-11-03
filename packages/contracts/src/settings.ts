@@ -32,6 +32,8 @@ export const Settings = z.object({
     showMessageExcerpts: z.boolean(),
     /** Read the step lists agents keep with their planning tools (ADR 0009); in memory only. */
     readAgentPlans: z.boolean(),
+    /** Read agents' steps, tool categories and token counts on demand (ADR 0013); in memory only. */
+    readAgentActivity: z.boolean(),
   }),
   github: z.object({
     /** Opt-in: read open pull requests with the GitHub CLI. Off by default. */
@@ -54,7 +56,7 @@ export const DEFAULT_SETTINGS: Settings = {
     watchWorkingTrees: true,
   },
   status: { staleAfterMinutes: 30, historicalAfterHours: 24 },
-  privacy: { showMessageExcerpts: true, readAgentPlans: true },
+  privacy: { showMessageExcerpts: true, readAgentPlans: true, readAgentActivity: true },
   github: { enabled: false, pollMinutes: 10 },
 }
 

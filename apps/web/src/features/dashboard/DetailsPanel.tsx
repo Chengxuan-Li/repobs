@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   type AgentSession,
   type AnnotationSummary,
@@ -15,6 +15,8 @@ import { type ChecklistEntry, checklistEntries, PLAN_SOURCE_LABELS } from './che
 import { entryNote, useOptimisticTicks } from './ChecklistPill'
 import { Badge, CopyButton, formatAge, formatTime, InlineAlert, shortOid, StatusIndicator } from '../../components/primitives'
 import type { BranchRow } from './layout'
+import { ActivitySummary } from './ActivityTrack'
+import { useActivity } from './useActivity'
 import styles from './dashboard.module.css'
 
 // Right side panel: details of the selected agent (evidence + your notes) or branch row.
@@ -127,6 +129,8 @@ export function SessionDetails({
   const parent = session.parentSessionId ? snapshot.sessions.find((s) => s.id === session.parentSessionId) : undefined
   const children = snapshot.sessions.filter((s) => s.parentSessionId === session.id)
   const st = session.state
+  const sessions = useMemo(() => [session], [session])
+  const activity = useActivity(sessions, true).get(session.id)
   return (
     <div className={styles.details}>
       <header>
@@ -162,6 +166,15 @@ export function SessionDetails({
           </div>
         ) : null}
       </section>
+      {activity ? (
+        <section className={styles.detailsSection}>
+          <div className="label">Activity</div>
+          <dl className="facts">
+            <ActivitySummary activity={activity} />
+          </dl>
+          <p className="small muted">Counted from the provider's session file: tool names, command verbs, times and token counts only; nothing stored.</p>
+        </section>
+      ) : null}
       <AgentPlanSection session={session} annotation={snapshot.annotations.find((a) => a.sessionId === session.id)} now={now} onChecklist={onChecklist} />
       <section className={styles.detailsSection}>
         <div className="label">Your notes</div>

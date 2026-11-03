@@ -300,6 +300,16 @@ export function createRequestHandler(app: AppContext) {
     },
     {
       method: 'GET',
+      pattern: /^\/sessions\/([^/]+)\/activity$/,
+      auth: true,
+      handler: async (ctx) => {
+        const activity = await monitor.activity(sessionParam(ctx))
+        if (!activity) throw new HttpError(404, 'not_found', 'Session not found')
+        return activity
+      },
+    },
+    {
+      method: 'GET',
       pattern: /^\/sessions\/([^/]+)\/annotation$/,
       auth: true,
       handler: (ctx) => ({ annotation: store.getAnnotation(sessionParam(ctx)) ?? null }),
