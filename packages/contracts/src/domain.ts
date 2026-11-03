@@ -158,7 +158,11 @@ export const ObservedAgentState = z.object({
   /** When the evidence was produced (provider timestamp), not when repobs looked. */
   observedAt: IsoDate.optional(),
   detail: StateDetail.optional(),
-  /** The tool call may be executing or waiting for permission; repobs cannot tell which. */
+  /**
+   * A tool call is pending in a session whose recorded permission mode or approval policy allows
+   * prompts: it may be executing or waiting for permission; repobs cannot tell which. A hint only:
+   * it never makes a session "needs input".
+   */
   possiblyAwaitingApproval: z.boolean().optional(),
 })
 export type ObservedAgentState = z.infer<typeof ObservedAgentState>

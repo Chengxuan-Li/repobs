@@ -2,7 +2,9 @@ import type { ObservedAgentState } from '@repobs/contracts'
 
 // Provider-neutral state resolution. Inputs are structural facts extracted by adapters; output is
 // an ObservedAgentState with evidence. Rules are documented in docs/status-semantics.md and pinned
-// by tests/sessions/status.test.ts. Inactivity never becomes "waiting approval".
+// by tests/sessions/status.test.ts. Inactivity never becomes "waiting approval", and neither does a
+// pending tool call: it is running work, possibly awaiting permission only when the recorded
+// permission mode or approval policy allows prompts. Only an explicit request needs input.
 
 export type LifecyclePhase =
   | 'none'
@@ -18,6 +20,11 @@ export interface Lifecycle {
   phase: LifecyclePhase
   /** Provider timestamp of the record that set the phase. */
   at?: string
+  /**
+   * Whether tool calls can stop for permission, from the recorded permission mode (Claude Code) or
+   * approval policy (Codex): `never` when they cannot; absent when not recorded.
+   */
+  approvals?: 'never' | 'possible'
 }
 
 export interface RegistryEvidence {
@@ -44,9 +51,15 @@ const age = (now: number, at?: string) => (at ? now - Date.parse(at) : Number.PO
 
 export function resolveState(input: StateInput): ObservedAgentState {
   const { lifecycle, registry, now, staleAfterMs } = input
-  const pending = lifecycle.phase === 'tool_pending'
+  // A pending tool call may be waiting for permission unless the session cannot ask.
+  const pending = lifecycle.phase === 'tool_pending' && lifecycle.approvals !== 'never'
 
   if (registry && registry.alive === true) {
+    // An explicit request recorded in the transcript is more specific than the process's busy/idle.
+    if (lifecycle.phase === 'user_input_requested' || lifecycle.phase === 'approval_requested') {
+      const waiting = lifecycle.phase === 'user_input_requested' ? 'waiting_user' : 'waiting_approval'
+      return { kind: waiting, confidence: 'inferred', source: input.source, observedAt: lifecycle.at, detail: lifecycle.phase }
+    }
     const source = input.registrySource ?? `${input.source}.registry`
     if (registry.status === 'busy') {
       return {
@@ -96,8 +109,9 @@ export function resolveState(input: StateInput): ObservedAgentState {
       return { kind: 'running', confidence: 'inferred', ...base, detail: 'turn_in_progress' }
     case 'tool_pending':
       if (stale) return staleState()
-      // A pending tool call is either executing or waiting for permission; the log cannot tell which.
-      return { kind: 'unknown', confidence: 'unknown', ...base, detail: 'tool_pending', possiblyAwaitingApproval: true }
+      // The turn is running a tool. Where permission prompts are possible it may instead be waiting
+      // for one; the log cannot tell which, so that stays a hint, never "needs input".
+      return { kind: 'running', confidence: 'inferred', ...base, detail: 'tool_pending', ...(pending ? { possiblyAwaitingApproval: true } : {}) }
     case 'approval_requested':
       if (stale) return staleState()
       return { kind: 'waiting_approval', confidence: 'inferred', ...base, detail: 'approval_requested' }

@@ -32,12 +32,25 @@ describe('resolveState', () => {
     })
   })
 
-  it('flags busy with a pending tool call as possibly awaiting approval, not as waiting_approval', () => {
+  it('flags busy with a pending tool call as possibly awaiting approval only where prompts are possible', () => {
     const s = resolveState(
       base({ registry: { status: 'busy', alive: true }, lifecycle: { phase: 'tool_pending', at: minutesAgo(1) } }),
     )
     expect(s.kind).toBe('running')
     expect(s.possiblyAwaitingApproval).toBe(true)
+    const never = resolveState(
+      base({ registry: { status: 'busy', alive: true }, lifecycle: { phase: 'tool_pending', at: minutesAgo(1), approvals: 'never' } }),
+    )
+    expect(never).toMatchObject({ kind: 'running', confidence: 'direct' })
+    expect(never.possiblyAwaitingApproval).toBeUndefined()
+  })
+
+  it('an explicit request in the transcript wins over a live busy or idle process', () => {
+    for (const status of ['busy', 'idle']) {
+      expect(
+        resolveState(base({ registry: { status, alive: true }, lifecycle: { phase: 'user_input_requested', at: minutesAgo(40) } })),
+      ).toMatchObject({ kind: 'waiting_user', confidence: 'inferred', detail: 'user_input_requested' })
+    }
   })
 
   it('a dead registry process means ended (inferred)', () => {
@@ -60,7 +73,10 @@ describe('resolveState', () => {
 
   it('never turns a pending tool call or inactivity into waiting_approval', () => {
     const fresh = resolveState(base({ lifecycle: { phase: 'tool_pending', at: minutesAgo(2) } }))
-    expect(fresh).toMatchObject({ kind: 'unknown', detail: 'tool_pending', possiblyAwaitingApproval: true })
+    expect(fresh).toMatchObject({ kind: 'running', confidence: 'inferred', detail: 'tool_pending', possiblyAwaitingApproval: true })
+    const bypass = resolveState(base({ lifecycle: { phase: 'tool_pending', at: minutesAgo(2), approvals: 'never' } }))
+    expect(bypass).toMatchObject({ kind: 'running', detail: 'tool_pending' })
+    expect(bypass.possiblyAwaitingApproval).toBeUndefined()
     const stale = resolveState(base({ lifecycle: { phase: 'tool_pending', at: minutesAgo(90) } }))
     expect(stale.kind).toBe('unknown')
     expect(stale.possiblyAwaitingApproval).toBeUndefined()

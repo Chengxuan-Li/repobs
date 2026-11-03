@@ -32,15 +32,17 @@ const claudeCommon = (sessionId: string, cwd: string, at: number) => ({
 })
 
 export const claude = {
-  prompt: (sid: string, cwd: string, at: number) => ({
+  /** A prompt; Claude Code records the permission mode in force on prompts (`bypassPermissions`, `auto`, `default`, …). */
+  prompt: (sid: string, cwd: string, at: number, permissionMode?: string) => ({
     ...claudeCommon(sid, cwd, at),
     type: 'user',
+    ...(permissionMode ? { permissionMode } : {}),
     message: { role: 'user', content: 'synthetic prompt' },
   }),
-  toolUse: (sid: string, cwd: string, at: number) => ({
+  toolUse: (sid: string, cwd: string, at: number, name = 'Bash') => ({
     ...claudeCommon(sid, cwd, at),
     type: 'assistant',
-    message: { role: 'assistant', stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: {} }] },
+    message: { role: 'assistant', stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 't1', name, input: {} }] },
   }),
   toolResult: (sid: string, cwd: string, at: number) => ({
     ...claudeCommon(sid, cwd, at),
@@ -164,7 +166,8 @@ export const codex = {
   }),
   turnContext: (cwd: string, at: number) => ({ timestamp: iso(at), type: 'turn_context', payload: { cwd, model: 'synthetic' } }),
   event: (type: string, at: number) => ({ timestamp: iso(at), type: 'event_msg', payload: { type } }),
-  item: (at: number) => ({ timestamp: iso(at), type: 'response_item', payload: { type: 'function_call', name: 'shell', arguments: '{}' } }),
+  item: (at: number, name = 'shell', callId = `call-${at}`) => ({ timestamp: iso(at), type: 'response_item', payload: { type: 'function_call', name, arguments: '{}', call_id: callId } }),
+  output: (at: number, callId: string) => ({ timestamp: iso(at), type: 'response_item', payload: { type: 'function_call_output', call_id: callId, output: 'synthetic output' } }),
   /** An update_plan call (ADR 0009); Codex passes the arguments as a JSON string. */
   updatePlan: (at: number, plan: Array<{ step: string; status: string }>) => ({
     timestamp: iso(at),

@@ -2,6 +2,22 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 40 — 2026-11-02: *Needs input* only for explicit requests (branch `feature/agent-activity`)
+
+Owner report: agents showed *Needs input* when nothing was asked of them. Cause: any Claude Code tool call without a result yet set `possiblyAwaitingApproval`, and `workflowStatus` turned that into *Needs input* for every live session — so every running test, build or long shell command looked like a permission prompt.
+
+Evidence (read-only scans of the owner's histories printing key names, enum values and counts only): of about 80,000 Claude Code `permissionDecision`s, 168 came from a person (`source: user_temporary`), 138 of them `AskUserQuestion`; the rest were decided by the mode, a rule, the classifier or a hook. Prompts record `permissionMode` (mostly `bypassPermissions`, then `auto`). The Claude registry only reports `idle`/`busy`. Codex rollouts hold no approval events; `turn_context.approval_policy` was `never` in 1,152 of 1,163 turns; questions to the person are `request_user_input` function calls (35 `_async`, 1 blocking).
+
+| Area | Change |
+| --- | --- |
+| State | A fresh pending tool call is *running* (inferred, `tool_pending`), never *Needs input*; `possiblyAwaitingApproval` stays as a hint only when prompts are possible (`Lifecycle.approvals`). An explicit request in the transcript wins over a live registry's busy/idle |
+| Claude adapter | Latest `permissionMode` on prompts: `bypassPermissions` → approvals never; `default`, `acceptEdits`, `plan`, `auto` → possible; none recorded → unknown (hint kept). A pending `AskUserQuestion` or `ExitPlanMode` → input requested |
+| Codex adapter | A `request_user_input` function call → input requested until its output (the `_async` variant is not a wait) |
+| Presentation | `workflowStatus` and `sessionNeedsAttention` no longer use the hint; the busy label reads *tool running or awaiting permission* |
+| Tests and docs | Status and adapter tests (bypass, auto, question, plan exit, answered question, Codex request and answer); status semantics and integrations |
+
+Verification (Git Bash, 2026-11-02): `npm run typecheck`, `npm run lint` passed; `npm test` 28 files, 239 tests; `npm run test:integration` 8 files, 93 tests; `npm run docs:api` no change; `npm run build`; `npx playwright test` 37 passed, 1 skipped. Not verified against a live permission prompt: none was waiting during the change.
+
 ## Checkpoint 39 — 2026-11-02: `main` merged into `feature/non-git-folders`; ADRs and checkpoints renumbered
 
 Before the pull request, `main` (PRs #6–#8: folder picker, interface size, wheel zoom) was merged into the branch. Both sides had numbered new work from the same base:

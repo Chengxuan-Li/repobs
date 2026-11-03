@@ -22,6 +22,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ### Fixed
 
+- Agents showed *Needs input* while a tool was simply running (a test run, a build, a long command). Only an explicit question now needs you: Claude Code's `AskUserQuestion` or `ExitPlanMode`, or Codex's blocking `request_user_input`. A running tool shows *Working*, with *tool running or awaiting permission* only where the session can prompt for permission.
 - *Commit order* and *Calendar, compressed* stacked the agents of a folder without Git at one point, and squeezed agents that ran before the first commit or between two distant commits into one gap. Each agent's first and last activity now takes its own place on those axes, like a commit (ADR 0003, amended).
 - Codex history: most Codex threads were missing, because Codex 0.166 compresses older rollouts (`rollout-*.jsonl.zst`) and repobs read only plain ones. Compressed rollouts are now read in memory, over the first scans after start, with the same state, excerpt and plan rules. Codex's `state_5.sqlite` thread index is read read-only for thread names and lists threads without a readable rollout as *Unknown · only thread metadata is available*; it never reads prompt columns and never creates files or takes blocking locks in the Codex home (ADR 0012). Codex working directories lose their `\\?\` prefix.
 - A forked Codex sub-agent's rollout was credited to its parent thread, whose `session_meta` it repeats after its own; the sub-agent now appears as its own session.

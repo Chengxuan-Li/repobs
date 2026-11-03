@@ -46,7 +46,7 @@ export const DETAIL_LABELS: Record<StateDetail, string> = {
   provider_reports_other: 'Provider reported a status repobs does not recognize',
   process_not_running: 'The recorded provider process is no longer running',
   turn_in_progress: 'Prompt or tool result recorded; model turn in progress',
-  tool_pending: 'Tool call pending: executing or awaiting permission',
+  tool_pending: 'Tool call running; awaiting permission is possible only where the session can prompt',
   turn_completed: 'Turn completed',
   turn_aborted: 'Turn interrupted',
   approval_requested: 'Approval request recorded',
@@ -86,7 +86,7 @@ export const REVIEW_TONES: Record<ReviewState, Tone> = {
 
 export function stateLabel(state: ObservedAgentState): string {
   if (state.kind === 'unknown' && state.possiblyAwaitingApproval) return 'Unknown · tool pending'
-  if (state.kind === 'running' && state.possiblyAwaitingApproval) return 'Busy · tool pending'
+  if (state.kind === 'running' && state.possiblyAwaitingApproval) return 'Busy · tool running or awaiting permission'
   return STATE_LABELS[state.kind]
 }
 
@@ -97,7 +97,6 @@ export function isLiveKind(kind: ObservedStateKind): boolean {
 export function sessionNeedsAttention(session: AgentSession, annotation?: AnnotationSummary): boolean {
   const s = session.state
   if (s.kind === 'waiting_approval' || s.kind === 'waiting_user' || s.kind === 'error') return true
-  if (s.possiblyAwaitingApproval && !session.historical) return true
   if (annotation && (annotation.review === 'needs_review' || annotation.review === 'flagged')) return true
   return false
 }
@@ -163,8 +162,8 @@ export function statusNeedsAttention(status: WorkflowStatus): boolean {
 
 export function workflowStatus(session: AgentSession, annotation?: AnnotationSummary): WorkflowStatus {
   const s = session.state
+  // Only an explicit request (or an error) needs you; a pending tool call is running work.
   if (s.kind === 'waiting_approval' || s.kind === 'waiting_user' || s.kind === 'error') return 'needs_input'
-  if (s.possiblyAwaitingApproval && !session.historical) return 'needs_input'
   if (s.kind === 'running' || s.kind === 'running_subagents') return 'working'
   const review = annotation?.review
   if (review && review !== 'unreviewed') return review

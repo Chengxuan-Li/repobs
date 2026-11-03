@@ -98,6 +98,12 @@ export class CodexAccumulator {
       this.cwd = asString(payload.cwd) ?? this.cwd
       return
     }
+    // A blocking question to the person (observed with Codex 0.166 as a function call); its output
+    // ends the wait. The `_async` variant does not block the turn.
+    if (rec.type === 'response_item' && payload?.type === 'function_call' && payload.name === 'request_user_input') {
+      this.lifecycle = { phase: 'user_input_requested', at: ts ?? this.lifecycle.at }
+      return
+    }
     if (rec.type === 'event_msg' && payload && typeof payload.type === 'string') {
       const phase = codexEventPhase(payload.type)
       if (phase) {

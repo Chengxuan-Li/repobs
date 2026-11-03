@@ -15,6 +15,10 @@ import {
   writeCodexRollout,
 } from '../../fixtures/session-fixtures.ts'
 import { makeTempDir, removeDir } from '../helpers/tmp.ts'
+import { type AgentSession, workflowStatus } from '@repobs/contracts'
+
+/** The workflow status a discovered session shows: it depends on the observed state only here. */
+const wf = (s: { state: AgentSession['state'] }) => workflowStatus({ state: s.state } as AgentSession)
 
 let root: string
 let claudeHome: string
@@ -46,8 +50,34 @@ describe('Claude adapter', () => {
     expect(byId['s-one']).toMatchObject({ title: 'Fix parser', cwd: cwdA, state: { kind: 'idle_or_turn_finished', confidence: 'inferred' } })
     expect(byId['s-two']!.title).toBeUndefined()
     expect(byId['s-two']!.state).toMatchObject({ kind: 'running', confidence: 'inferred', detail: 'turn_in_progress' })
-    expect(byId['s-three']!.state).toMatchObject({ kind: 'unknown', possiblyAwaitingApproval: true })
+    // A pending tool call is running work; with no recorded permission mode it may await permission.
+    expect(byId['s-three']!.state).toMatchObject({ kind: 'running', detail: 'tool_pending', possiblyAwaitingApproval: true })
     expect(byId['s-three']!.firstSeenAt).toBe(new Date(ago(2)).toISOString())
+  })
+
+  it('needs input only for an explicit question, never for a running tool (bypass mode: no permission hint)', async () => {
+    writeClaudeSession(claudeHome, cwdA, 'bypass', [claude.prompt('bypass', cwdA, ago(3), 'bypassPermissions'), claude.toolUse('bypass', cwdA, ago(2))])
+    writeClaudeSession(claudeHome, cwdA, 'auto', [claude.prompt('auto', cwdA, ago(3), 'auto'), claude.toolUse('auto', cwdA, ago(2))])
+    writeClaudeSession(claudeHome, cwdA, 'asks', [claude.prompt('asks', cwdA, ago(3), 'bypassPermissions'), claude.toolUse('asks', cwdA, ago(2), 'AskUserQuestion')])
+    writeClaudeSession(claudeHome, cwdA, 'plan', [claude.prompt('plan', cwdA, ago(3), 'plan'), claude.toolUse('plan', cwdA, ago(2), 'ExitPlanMode')])
+    writeClaudeSession(claudeHome, cwdA, 'answered', [
+      claude.prompt('answered', cwdA, ago(3), 'bypassPermissions'),
+      claude.toolUse('answered', cwdA, ago(2), 'AskUserQuestion'),
+      claude.toolResult('answered', cwdA, ago(1)),
+    ])
+    const adapter = new ClaudeAdapter()
+    adapter.configure(config(claudeHome))
+    const byId = Object.fromEntries((await adapter.discover(now)).map((s) => [s.providerSessionId, s]))
+    expect(byId['bypass']!.state).toMatchObject({ kind: 'running', detail: 'tool_pending' })
+    expect(byId['bypass']!.state.possiblyAwaitingApproval).toBeUndefined()
+    expect(wf(byId['bypass']!)).toBe('working')
+    expect(byId['auto']!.state).toMatchObject({ kind: 'running', possiblyAwaitingApproval: true })
+    expect(wf(byId['auto']!)).toBe('working')
+    for (const id of ['asks', 'plan']) {
+      expect(byId[id]!.state).toMatchObject({ kind: 'waiting_user', detail: 'user_input_requested' })
+      expect(wf(byId[id]!)).toBe('needs_input')
+    }
+    expect(byId['answered']!.state).toMatchObject({ kind: 'running', detail: 'turn_in_progress' })
   })
 
   it('uses the live registry: busy is direct, dead pid is ended, *.key files are never opened', async () => {
@@ -174,6 +204,29 @@ describe('Claude adapter', () => {
 })
 
 describe('Codex adapter', () => {
+  it('a blocking request_user_input call needs input until its output arrives', async () => {
+    const waiting = 'thread-wait-0001'
+    const answered = 'thread-done-0002'
+    writeCodexRollout(codexHome, codexRolloutPath(codexHome, waiting, ago(5)), [
+      codex.meta(waiting, cwdA, ago(5)),
+      codex.event('task_started', ago(4)),
+      codex.item(ago(3), 'request_user_input', 'ask-1'),
+    ])
+    writeCodexRollout(codexHome, codexRolloutPath(codexHome, answered, ago(5)), [
+      codex.meta(answered, cwdA, ago(5)),
+      codex.event('task_started', ago(4)),
+      codex.item(ago(3), 'request_user_input', 'ask-2'),
+      codex.output(ago(2), 'ask-2'),
+    ])
+    const adapter = new CodexAdapter()
+    adapter.configure(config(codexHome))
+    const byId = Object.fromEntries((await adapter.discover(now)).map((s) => [s.providerSessionId, s]))
+    expect(byId[waiting]!.state).toMatchObject({ kind: 'waiting_user', detail: 'user_input_requested' })
+    expect(wf(byId[waiting]!)).toBe('needs_input')
+    expect(byId[answered]!.state).toMatchObject({ kind: 'running' })
+    expect(wf(byId[answered]!)).toBe('working')
+  })
+
   it('groups rollouts by thread, titles from the index, subagents attached to the parent', async () => {
     const t1 = 'thread-aaaa-1111'
     const t2 = 'thread-bbbb-2222'
