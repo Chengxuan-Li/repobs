@@ -2,6 +2,15 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 45 — 2026-11-03: release preparation, v0.4.0 (branch `release/0.4.0`, from `main` b495a69)
+
+- Version 0.4.0 in all package manifests, the lockfile's workspace entries and `APP_VERSION` (reported by `/health`); the README's upgrade note names 0.4.0 (schema v4, backed up before migrating, not readable by 0.3.0).
+- `CHANGELOG.md`: the Unreleased entries became `[0.4.0] — 2026-11-03`. The wheel-zoom entry is *Live wheel zoom* and says that zooming a large view can still look jumpy (owner feedback after checkpoint 43; still open).
+
+Verification (2026-11-03, this machine): `npm run typecheck`, `npm run lint`, `npm test` (282 tests), `npm run test:integration` (96), `npm run build`, `npx playwright test` (39 passed, 2 skipped: the screenshot specs), `npm run docs:build` and `npm run package` (`release\repobs-0.4.0.zip`, 833 files, 2001 KiB) all succeeded. The zip unpacked with `Expand-Archive`; its server, started on an empty data folder (`REPOBS_DATA_DIR`, `REPOBS_PORT=47461`), reported version 0.4.0 at `/api/v1/health`, served `/`, and returned 401 for an unpaired `/api/v1/snapshot`.
+
+Next: push `main` and the annotated tag `v0.4.0` (owner approval); the Release workflow publishes the zip, its checksum and the notes.
+
 ## Checkpoint 44 — 2026-11-03: Help menu and a tutorial with screenshots (branch `feature/help-and-tutorial`, from `feature/agent-activity`)
 
 Owner request: move the legend and the control guide into a popup opened from the command palette or a new *Help* menu, which also links to the documentation and the repository; rewrite the user documentation as a tutorial in a few chapters with screenshots for most operations, in plain instructions.

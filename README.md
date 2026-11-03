@@ -21,7 +21,7 @@ You need Node.js 24 LTS (24.11+) and Git for Windows.
 
 Stop it with **Ctrl+C**. `npm run open` opens a new browser link to a running repobs.
 
-**Upgrading:** unzip the new release and start it; your data stays in `%LOCALAPPDATA%\repobs`. When a version changes the database (0.3.0 does), it first saves a backup next to it, and older versions cannot open the updated database. See the [changelog](CHANGELOG.md).
+**Upgrading:** unzip the new release and start it; your data stays in `%LOCALAPPDATA%\repobs`. When a version changes the database (0.4.0 does), it first saves a backup next to it, and older versions cannot open the updated database. See the [changelog](CHANGELOG.md).
 
 **From source:**
 
