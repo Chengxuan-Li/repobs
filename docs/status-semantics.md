@@ -32,7 +32,8 @@ Every state carries a **source** (e.g. `claude.session-registry`, `claude.transc
 
 - **Inactivity is never "waiting for approval".** A quiet session is quiet, not blocked.
 - **File modification time never proves anything.** A recently written file is not shown as green or "done"; running is shown in the info color, not the success color.
-- **A pending tool call is ambiguous.** When the latest record is a tool call without a result, the tool may be executing *or* waiting for your permission. repobs shows *Unknown · tool pending* (or *Busy · tool pending* when the provider reports busy), lists it in the Attention filter, and says it cannot tell which.
+- **A pending tool call is running work, not a request.** When the latest record is a tool call without a result, the tool is usually executing: a test run, a build, a long shell command. repobs shows *Working* (*Busy*). Only where the session can prompt for permission (a recorded Claude Code permission mode other than `bypassPermissions`, or none recorded) does it add *tool running or awaiting permission*, as a hint; it is never *Needs input* and never in the Attention filter. On the owner's machine (November 2026), 30 of about 80,000 recorded Claude Code permission decisions came from a person, and Codex ran with `approval_policy=never` in 1,152 of 1,163 turns.
+- **Needs input is explicit.** A pending question to you — Claude Code's `AskUserQuestion` or `ExitPlanMode`, Codex's blocking `request_user_input` call — is *Awaiting input* until its answer is recorded. It wins over a live process's *busy* or *idle*.
 - **Stale evidence is downgraded.** Inferred *running* / *waiting* evidence older than the stale threshold (Settings, default 30 minutes) becomes *Unknown — stale evidence*. A completed turn stays *Idle / turn finished*, since that is a fact about the last record.
 - **Historical** sessions are those without activity for longer than the historical threshold (default 24 hours) and not reported live by the provider.
 - **Provider-reported states repobs does not recognize** are shown as *Unknown* with the reason *provider reported a status repobs does not recognize*.
@@ -51,7 +52,7 @@ Dashboard cards and the *Status* filter combine the observed state with your rev
 
 | Workflow status | When |
 | --- | --- |
-| Needs input | Awaiting approval / input, an error, or a pending tool call that may be waiting for permission (not for historical sessions) |
+| Needs input | Awaiting approval / input (an explicit request recorded by the agent) or an error |
 | Working | Running or running subagents |
 | Flagged | You marked it *Flagged* |
 | Needs review | You marked it *Needs review* |

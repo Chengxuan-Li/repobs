@@ -64,7 +64,8 @@
 
 .row {
   display: flex;
-  border-bottom: 1px solid var(--color-border);
+  /* Recessive in the lanes, so agent lines stand out; the label column draws its own full border. */
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent);
   outline: none;
   /* The lanes show the dashboard's grab cursor (drag to pan); the label column stays an arrow. */
   cursor: inherit;
@@ -338,19 +339,24 @@
   pointer-events: none;
 }
 .bar_info {
-  fill: var(--tone-info-text);
+  --tone: var(--tone-info-text);
+  fill: var(--tone);
 }
 .bar_warning {
-  fill: var(--tone-warning-text);
+  --tone: var(--tone-warning-text);
+  fill: var(--tone);
 }
 .bar_success {
-  fill: var(--tone-success-text);
+  --tone: var(--tone-success-text);
+  fill: var(--tone);
 }
 .bar_neutral {
-  fill: var(--color-text-muted);
+  --tone: var(--color-text-muted);
+  fill: var(--tone);
 }
 .bar_danger {
-  fill: var(--tone-danger-text);
+  --tone: var(--tone-danger-text);
+  fill: var(--tone);
 }
 /* Agent cards at the end of their bars: above the lanes, under the sticky label column. */
 .barCards {
@@ -426,4 +432,252 @@
 }
 .group:hover .groupPill {
   fill: var(--color-selected-bg);
+}
+
+/* Agent activity (ADR 0013), on the agent's own line: solid where it was working, a faint line
+   between. Default: status colour and a tick per tool call. Detail: model and tool spans; colour
+   carries three groups (read, edit, shell); Git is a shape, tests and builds a hatch. */
+/* Idle stretches: a dotted line in the status colour, unlike the solid row separators. */
+.bar.idle {
+  fill: none;
+  stroke: var(--tone);
+  stroke-width: 1.5;
+  stroke-dasharray: 0 4;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+.ticks {
+  fill: none;
+  stroke: var(--color-text);
+  stroke-width: 1;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.act_model {
+  fill: var(--activity-model);
+}
+.act_thinking {
+  fill: var(--activity-thinking);
+}
+.act_read {
+  fill: var(--activity-read);
+}
+.act_edit {
+  fill: var(--activity-edit);
+}
+.act_shell {
+  fill: var(--activity-shell);
+}
+.act_other {
+  fill: var(--activity-other);
+}
+.actHatch {
+  stroke: var(--color-bg);
+  stroke-width: 1.5;
+}
+.actFailed {
+  fill: var(--tone-danger-text);
+}
+.actGitWrite {
+  fill: var(--color-text);
+  stroke: var(--color-bg);
+  stroke-width: 2;
+  paint-order: stroke;
+}
+.actGitRead {
+  fill: var(--color-bg);
+  stroke: var(--color-text);
+  stroke-width: 1.5;
+}
+.actPrompt {
+  fill: none;
+  stroke: var(--color-text);
+  stroke-width: 1.5;
+}
+.actCompaction {
+  fill: none;
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+}
+.actError {
+  stroke: var(--tone-danger-text);
+  stroke-width: 1.5;
+  fill: none;
+}
+.agentTrace,
+.ticks,
+.actBand {
+  pointer-events: none;
+}
+
+/* Activity figures (ADR 0013), a line per field: tools, commands and time as stacked bars of
+   their parts (constant width, coloured as on the timeline; a click lists the parts with their
+   amounts and shares); tokens, cache hit rate and context as chips styled like the status badge,
+   a label and in the right half its value. */
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.field {
+  display: grid;
+  grid-template-columns: 8.5em minmax(0, 1fr);
+  column-gap: 6px;
+  row-gap: 4px;
+  align-items: center;
+  min-width: 0;
+}
+.fieldLabel {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.fieldTotal {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+.fieldItems {
+  grid-column: 2;
+}
+/* The bar's frame: a click lists its parts; hovered or open, it shows as selected. */
+.stackButton {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 18px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+button.stackButton {
+  cursor: pointer;
+}
+button.stackButton:hover,
+button.stackButton[aria-expanded='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-selected-bg);
+}
+button.stackButton:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+.stack {
+  flex: 1;
+  display: flex;
+  gap: 1px;
+  height: 8px;
+  min-width: 0;
+}
+.seg {
+  flex: 1 1 0;
+  min-width: 1px;
+  background: var(--tone-neutral-text);
+}
+.seg_read {
+  background: var(--activity-read);
+}
+.seg_edit {
+  background: var(--activity-edit);
+}
+.seg_shell {
+  background: var(--activity-shell);
+}
+.seg_other {
+  background: var(--activity-other);
+}
+.seg_model {
+  background: var(--activity-model);
+}
+.seg_thinking {
+  background: var(--activity-thinking);
+}
+.seg_failed {
+  background: var(--tone-danger-text);
+}
+.chipLine {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+.chipWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+.chip {
+  --chip-color: var(--tone-neutral-text);
+  --chip-bg: var(--tone-neutral-bg);
+  display: inline-flex;
+  align-items: stretch;
+  flex: none;
+  height: 18px;
+  border: 1px solid var(--chip-color);
+  color: var(--color-text);
+  background: var(--chip-bg);
+  font-family: var(--label-font);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  font-size: var(--font-size-label);
+  line-height: 1;
+  white-space: nowrap;
+}
+.chip_read {
+  --chip-color: var(--activity-read);
+  --chip-bg: color-mix(in srgb, var(--activity-read) 22%, var(--color-surface));
+}
+.chip_edit {
+  --chip-color: var(--activity-edit);
+  --chip-bg: color-mix(in srgb, var(--activity-edit) 22%, var(--color-surface));
+}
+.chip_shell {
+  --chip-color: var(--activity-shell);
+  --chip-bg: color-mix(in srgb, var(--activity-shell) 22%, var(--color-surface));
+}
+.chip_other {
+  --chip-color: var(--activity-other);
+  --chip-bg: color-mix(in srgb, var(--activity-other) 30%, var(--color-surface));
+}
+.chip_model {
+  --chip-color: var(--activity-model);
+  --chip-bg: color-mix(in srgb, var(--activity-model) 45%, var(--color-surface));
+}
+.chip_thinking {
+  --chip-color: var(--activity-thinking);
+  --chip-bg: color-mix(in srgb, var(--activity-thinking) 45%, var(--color-surface));
+}
+.chip_failed {
+  --chip-color: var(--tone-danger-text);
+  --chip-bg: var(--tone-danger-bg);
+}
+.chipLabel,
+.chipValue {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+}
+.chipLabel {
+  text-transform: var(--label-case);
+}
+.chipMono {
+  font-family: var(--font-mono);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.chipValue {
+  border-left: 1px solid var(--chip-color);
+  background: var(--color-surface);
+  font-variant-numeric: tabular-nums;
+}
+.chipValueOnly {
+  border-left: 0;
+}
+.chipNote {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
 }

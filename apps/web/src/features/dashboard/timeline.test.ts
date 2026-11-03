@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CommitGraph, CommitNode } from '@repobs/contracts'
-import { buildTimeline, PAD } from './timeline'
+import { buildTimeline, PAD, timeAt } from './timeline'
 
 const DAY = 86_400_000
 const now = Date.parse('2026-10-30T12:00:00Z')
@@ -153,5 +153,18 @@ describe('shared timeline', () => {
     expect(few.width).toBe(500)
     const time = buildTimeline({ ...base, mode: 'time', zoom: 3 })
     expect(time.width).toBe(1500)
+  })
+
+  it('finds the time drawn at a pixel, so zoom keeps the moment under the pointer on every axis', () => {
+    const items = itemsOf(graphs)
+    for (const mode of ['sequence', 'time', 'compressed'] as const) {
+      for (const zoom of [1, 2.5]) {
+        const t = buildTimeline({ mode, items, activity: [], rangeStart: null, now, availableWidth: 600, minSpacing: 20, zoom })
+        for (const ago of [250, 50, 1.5]) {
+          const at = now - ago * DAY
+          expect(Math.abs(t.x(timeAt(t, t.x(at))) - t.x(at))).toBeLessThan(0.5)
+        }
+      }
+    }
   })
 })

@@ -349,3 +349,10 @@
   color: var(--color-text-muted);
   text-decoration: line-through;
 }
+
+/* A section title with a note on the same line (the agent plan's age). */
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}

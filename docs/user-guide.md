@@ -85,7 +85,7 @@ All repositories share one horizontal axis, labelled at the top; scroll sideways
 - **Timeline → Calendar, compressed**: gaps follow elapsed time, but commits and agent starts and ends close together are pushed apart to a minimum spacing, so a burst of commits or agents stays readable, with or without Git. Distances are only proportional between well-separated points; date labels mark where days and months start. Zooming stretches or shrinks the time gaps, never below that minimum spacing.
 - **Timeline → History** limits how far back the axis goes (24 hours … 1 year, or everything loaded — the newest 400 commits per repository).
 - **Pan** like a map: press the mouse button on the history (or the label column) and drag; the view follows the pointer in both directions. A press that barely moves is still a click, so selecting rows and expanding groups work as before. Controls (status menus, chevrons, buttons) do not start a pan.
-- **Zoom** stretches or compresses the axis horizontally: the **−** / **+** buttons at the left of the axis, the **mouse wheel** over the dashboard (10% per notch, around the pointer), or **+**, **−** and **0** (reset) while the dashboard has focus. The percentage button resets to 100%. Zooming out below 100% only packs commits closer when history is wider than the window. To move through history, drag with the mouse in any direction, or swipe sideways on a touchpad (Shift + wheel also scrolls sideways); text in the dashboard cannot be selected, so a drag never selects.
+- **Zoom** stretches or compresses the axis horizontally: the **−** / **+** buttons at the left of the axis, the **mouse wheel** over the dashboard (10% per notch, around the pointer, redrawn as you turn it; the moment under the pointer stays put), or **+**, **−** and **0** (reset) while the dashboard has focus. The percentage button resets to 100%. Zooming out below 100% only packs commits closer when history is wider than the window. To move through history, drag with the mouse in any direction, or swipe sideways on a touchpad (Shift + wheel also scrolls sideways); text in the dashboard cannot be selected, so a drag never selects.
 
 ## Agents
 
@@ -97,10 +97,23 @@ When an agent has a checklist — its own plan, your items, or both — a rounde
 
 Cards never grow on the dashboard; the details are a hover or a click away:
 
-- **Hover** the row, its bar or its card on the timeline for the observed state and why, last activity, the **latest message excerpt** (the agent's last reply, or the tool it is running with the tool's own description), review state, tags, notes (line breaks kept) and checklist progress. The card opens beside the label column (below the card on the timeline); move onto it to use its review menu. Hover cards open next to the item you point at and stay put while the pointer moves inside it (on a long bar, where the pointer entered); they move only to stay inside the window.
+- **Hover** the row, its bar or its card on the timeline (the bar and card after half a second, so the pointer can cross the lanes) for the observed state and why, last activity, the **latest message excerpt** (the agent's last reply, or the tool it is running with the tool's own description), review state, tags, notes (line breaks kept) and checklist progress. The card opens beside the label column (below the card on the timeline); move onto it to use its review menu. Hover cards open next to the item you point at and stay put while the pointer moves inside it (on a long bar, where the pointer entered); they move only to stay inside the window.
 - **Select** it (click its name, or Enter) to open it in the details panel.
 
 Excerpts are read mechanically from the provider's files, truncated, with obvious secrets redacted, and never stored; Settings → Privacy turns them off.
+
+### What an agent did
+
+Each agent's line runs from its first to its last activity; an agent active only before the start of the history range shows a small ◂ mark at the left edge, with its card saying when, and a line that began before it starts with ◂ (its earlier steps are left out rather than piled up at the edge). Once its history is read, the line is **solid where the agent was working** and dotted between, with a thin **tick for every tool call** it made. Zoom the history to 300 % or more (or choose **Agents → Activity detail → Always**) and the solid parts show its **activity in detail**, on the same line:
+
+- **Steps:** grey spans while the model was responding (darker with thinking), then its tool calls coloured by kind — blue *read and search*, orange *edit*, aqua *shell* (hatched: tests and builds); other tools (web, MCP, agents, plan, questions to you) in grey. A red underline marks a failed call; a dark line a new prompt; a red × an error; a dashed line a compaction.
+- **Git:** ◆ a Git change (`git commit`, `git push`, …), ○ a Git inspection (`git status`, `git diff`, …).
+
+The agent's hover card and details panel sum it up at any zoom, a line per field. **Tools**, **Commands** and **Time** show their total and a bar split in proportion: tool calls by kind, the commands used (such as `npm test`), and model and tool time. Click a bar to list each part with its amount, plus counts that are not in the bar (failed calls, prompts, responses, errors); click again for each part's share; a third click hides them. **Tokens** (in and out), **Cache hit** and the current **Context** follow. Parts are coloured as on the timeline.
+
+**Agents → Agent line → Height: context used** makes each agent's line as tall as its model's context was full at the time, up to the row height: the share of the window the provider recorded, or else of 200k or 1M tokens (the smallest the agent's peak fits). *Activity detail → Off* keeps the ticks only. Detail reads best in **Timeline → Calendar time**, where steps keep their real lengths; in the other modes an agent's bar is as wide as its columns.
+
+All of this is counted from the agents' own history files on demand: tool names, command names such as `git commit` or `npm test` (from a fixed list; arguments, paths and other programs are never kept), times, outcomes and token counts. Records are parsed in memory and only those fields kept; nothing is stored, and no prompt, reply, thinking or tool output leaves the reader. Settings → Privacy → *Read agents’ activity* turns it off ([ADR 0013](decisions/0013-agent-activity-steps-and-tokens.md)).
 
 **Where agent names appear** — two independent toggles in the **Agents** dropdown:
 
@@ -124,7 +137,7 @@ Select an agent (click its name, or use the keyboard) to open it in the details 
 
 When an [automation rule](#automation) changed the agent, a line under your notes names the rule and when it ran.
 
-Everything saves automatically to the local repobs database. Notes belong to the agent session: they survive restarts, removal of the repository from the dashboard, deletion of the worktree and disappearance of the provider's file. **Clear annotations…** deletes a session's notes after confirmation; Settings → Annotations exports or imports them as JSON.
+Everything saves automatically and quietly to the local repobs database; only a failed save is shown, with *Retry*. Notes belong to the agent session: they survive restarts, removal of the repository from the dashboard, deletion of the worktree and disappearance of the provider's file. **Clear annotations…** (beside the *Checklist* title) deletes a session's notes after confirmation; Settings → Annotations exports or imports them as JSON.
 
 ## Filters and view options
 
@@ -145,7 +158,7 @@ The agent count follows the filters, and **Clear filters** resets them (includin
 
 - **Repositories**: all repositories, or tick the ones this view shows (the same as the ticks in the repositories panel).
 - **Branches**: all branches, checked-out ones, or branches with agents; *Remote-only branches*; *Collapse quiet commits*.
-- **Agents**: *Collapse spawned agents*, *Agent names in list*, *Agent labels on timeline*.
+- **Agents**: *Collapse spawned agents*, *Agent names in list*, *Agent labels on timeline*, *Activity detail* (*Auto* from 300 % zoom, *Always*, or *Off*: tool ticks only), and *Agent line → Height: context used*.
 - **Timeline**: the axis mode and how much history to show.
 - **Legend** explains every mark.
 

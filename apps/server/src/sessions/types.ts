@@ -1,5 +1,6 @@
 import type { AgentPlan, LastMessage, ObservedAgentState, Provider } from '@repobs/contracts'
 import type { Lifecycle } from './status.ts'
+import type { ActivitySources } from './activity/service.ts'
 
 export interface AdapterConfig {
   enabled: boolean
@@ -64,6 +65,8 @@ export interface SessionAdapter {
   /** Directories to watch for changes (non-existent ones are skipped by the monitor). */
   watchTargets(): string[]
   status(): AdapterStatus
+  /** The files holding one session's history, oldest first, for its activity (ADR 0013). */
+  activitySources?(providerSessionId: string): ActivitySources | undefined
 }
 
 /** Collects sanitized problems with counts; messages never include transcript text. */

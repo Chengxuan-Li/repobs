@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Minus, Plus } from 'lucide-react'
 import { type AgentSession, type AnnotationSummary, type ReviewState, type Snapshot, statusNeedsAttention, workflowStatus } from '@repobs/contracts'
 import { wheelPixels } from '../../app/uiScale'
-import { clamp, MAX_ZOOM, MIN_ZOOM, RANGE_MS, type ViewPatch, type ViewState } from '../../app/viewState'
+import { ACTIVITY_DETAIL_ZOOM, clamp, MAX_ZOOM, MIN_ZOOM, RANGE_MS, type ViewPatch, type ViewState } from '../../app/viewState'
 import { pageZoom } from '../../components/placement'
 import { AgentRow } from './AgentRow'
 import type { ChecklistEntry } from './checklistEntries'
@@ -12,8 +12,9 @@ import type { RepoLayout } from './layout'
 import { Legend } from './Legend'
 import { LABEL_W, LABEL_W_NARROW, RepoBoard } from './RepoBoard'
 import type { RepoSummary } from './RepoListPanel'
-import { buildTimeline } from './timeline'
+import { buildTimeline, timeAt } from './timeline'
 import { useDragPan } from './useDragPan'
+import { useActivity } from './useActivity'
 import boardStyles from './board.module.css'
 import styles from './dashboard.module.css'
 
@@ -97,21 +98,22 @@ export function Dashboard({
     [view.axisMode, view.timeRange, view.zoom, layouts, visibleIds, now, viewport, labelW],
   )
 
-  // Horizontal zoom keeps the point under the pointer (or the middle of the lanes) in place.
-  const zoomState = useRef({ zoom: view.zoom, width: timeline.width, labelW })
+  // Horizontal zoom keeps the moment under the pointer (or the middle of the lanes) in place: after
+  // the redraw the view scrolls so that the same time is under the same pixel, on every axis mode.
+  const zoomState = useRef({ zoom: view.zoom, timeline, labelW })
   useLayoutEffect(() => {
-    zoomState.current = { zoom: view.zoom, width: timeline.width, labelW }
+    zoomState.current = { zoom: view.zoom, timeline, labelW }
   })
-  const anchor = useRef<{ frac: number; px: number }>(undefined)
+  const anchor = useRef<{ time: number; px: number }>(undefined)
   const zoomTo = useCallback(
-    (zoom: number, px?: number) => {
+    (zoom: number, px?: number, time?: number) => {
       const el = scrollRef.current
       const next = clamp(Math.round(zoom * 100) / 100, MIN_ZOOM, MAX_ZOOM)
       if (next === zoomState.current.zoom) return
       if (el) {
-        const lw = zoomState.current.labelW
+        const { timeline: t, labelW: lw } = zoomState.current
         const at = px ?? lw + (el.clientWidth - lw) / 2
-        anchor.current = { frac: (el.scrollLeft + at - lw) / zoomState.current.width, px: at }
+        anchor.current = { time: time ?? timeAt(t, el.scrollLeft + at - lw), px: at }
       }
       setView({ zoom: next })
     },
@@ -122,8 +124,20 @@ export function Dashboard({
     const a = anchor.current
     if (!el || !a) return
     anchor.current = undefined
-    el.scrollLeft = a.frac * timeline.width + labelW - a.px
-  }, [timeline.width, labelW])
+    el.scrollLeft = timeline.x(a.time) + labelW - a.px
+  }, [timeline, labelW])
+
+  // The wheel zooms live: notches add up, and the history is redrawn at most once per frame (each
+  // redraw is a few paths per agent, activity.ts), about the moment under the pointer when the
+  // gesture began, so it neither stretches nor drifts.
+  const wheel = useRef<{ zoom: number; time: number; px: number; frame?: number; idle?: ReturnType<typeof setTimeout> }>(undefined)
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(wheel.current?.frame ?? 0)
+      clearTimeout(wheel.current?.idle)
+    },
+    [],
+  )
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
@@ -134,7 +148,24 @@ export function Dashboard({
       if (e.ctrlKey || e.metaKey || (e.target as Element).closest(OWN_WHEEL)) return
       if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
       e.preventDefault()
-      zoomTo(zoomState.current.zoom * Math.pow(1.1, -wheelPixels(e) / 100), (e.clientX - el.getBoundingClientRect().left) / pageZoom())
+      const px = (e.clientX - el.getBoundingClientRect().left) / pageZoom()
+      let g = wheel.current
+      if (!g || Math.abs(g.px - px) > 2) {
+        if (g) cancelAnimationFrame(g.frame ?? 0)
+        const { zoom, timeline: t, labelW: lw } = zoomState.current
+        g = wheel.current = { zoom, time: timeAt(t, el.scrollLeft + px - lw), px }
+        setHover(undefined)
+      }
+      g.zoom = clamp(g.zoom * Math.pow(1.1, -wheelPixels(e) / 100), MIN_ZOOM, MAX_ZOOM)
+      const gesture = g
+      gesture.frame ??= requestAnimationFrame(() => {
+        gesture.frame = undefined
+        zoomTo(gesture.zoom, gesture.px, gesture.time)
+      })
+      clearTimeout(gesture.idle)
+      gesture.idle = setTimeout(() => {
+        if (wheel.current === gesture && gesture.frame === undefined) wheel.current = undefined
+      }, 250)
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
@@ -150,6 +181,17 @@ export function Dashboard({
     el.scrollLeft = el.scrollWidth
   }, [viewport, view.axisMode, view.timeRange, timeline.width])
 
+  // Steps and tokens of the agents this view draws (ADR 0013), fetched as they are needed.
+  const drawnSessions = useMemo(
+    () =>
+      [...layouts.entries()]
+        .filter(([repoId]) => visibleIds.has(repoId) && !view.collapsedRepos.includes(repoId))
+        .flatMap(([, l]) => l.rows.flatMap((r) => (r.kind === 'session' ? [r.session] : []))),
+    [layouts, visibleIds, view.collapsedRepos],
+  )
+  const activity = useActivity(drawnSessions, true)
+  const activityDetail = view.activityDetail === 'on' || (view.activityDetail === 'auto' && view.zoom >= ACTIVITY_DETAIL_ZOOM)
+
   const sessionsById = useMemo(() => new Map(snapshot.sessions.map((s) => [s.id, s])), [snapshot.sessions])
   const childCount = useMemo(() => {
     const m = new Map<string, number>()
@@ -159,14 +201,25 @@ export function Dashboard({
   const collapsed = useMemo(() => new Set(view.collapsedRepos), [view.collapsedRepos])
 
   // Interactive cards (commit lists) stay open briefly so the pointer can move onto them.
+  // Some cards open after a pause (agents in the lanes); leaving before then cancels them.
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const showTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const interactiveOpen = useRef(false)
   const showHover: ShowHover = useCallback((content, e, options) => {
-    clearTimeout(hideTimer.current)
-    interactiveOpen.current = !!options?.interactive
-    setHover(hoverAt(content, e, options))
+    clearTimeout(showTimer.current)
+    // A delayed card lets the open one close as usual meanwhile.
+    if (!options?.delay) clearTimeout(hideTimer.current)
+    const state = hoverAt(content, e, options)
+    const open = () => {
+      clearTimeout(hideTimer.current)
+      interactiveOpen.current = !!options?.interactive
+      setHover(state)
+    }
+    if (options?.delay) showTimer.current = setTimeout(open, options.delay)
+    else open()
   }, [])
   const hideHover = useCallback(() => {
+    clearTimeout(showTimer.current)
     clearTimeout(hideTimer.current)
     hideTimer.current = setTimeout(() => setHover(undefined), interactiveOpen.current ? 250 : 0)
   }, [])
@@ -241,7 +294,7 @@ export function Dashboard({
         shown={filtered.length}
         total={snapshot.sessions.length}
       />
-      {view.legendOpen ? <Legend axisMode={view.axisMode} /> : null}
+      {view.legendOpen ? <Legend axisMode={view.axisMode} activityDetail={activityDetail} contextHeight={view.contextHeight} /> : null}
       <div
         ref={scrollRef}
         className={styles.scroller}
@@ -298,6 +351,9 @@ export function Dashboard({
                 labelWidth={labelW}
                 agentNames={view.agentNames}
                 barLabels={view.barLabels}
+                activity={activity}
+                activityDetail={activityDetail}
+                contextHeight={view.contextHeight}
                 viewportWidth={viewport}
                 now={now}
                 collapsed={collapsed.has(repo.id)}

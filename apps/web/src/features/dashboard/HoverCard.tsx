@@ -9,6 +9,7 @@ import {
   type PullRequest,
   REVIEW_LABELS,
   type ReviewState,
+  type SessionActivity,
   stateLabel,
   WORKFLOW_LABELS,
   WORKFLOW_TONES,
@@ -17,6 +18,7 @@ import {
 import { type Box, boxOf, type Placement, pageZoom, placeFloating, WIDE_ANCHOR, windowSize } from '../../components/placement'
 import { Badge, formatAge } from '../../components/primitives'
 import type { BranchRow } from './layout'
+import { ActivityFields } from './ActivityTrack'
 import { checklistEntries } from './checklistEntries'
 import { ReviewMenu } from './ReviewMenu'
 import styles from './hover.module.css'
@@ -43,7 +45,12 @@ export interface HoverOptions {
   label?: string
   /** Default below the element. */
   placement?: Placement
+  /** Open after the pointer rests this long (ms); leaving first cancels it. */
+  delay?: number
 }
+
+/** Agents in the lanes open their card after this pause; the label column opens it at once. */
+export const AGENT_HOVER_DELAY = 500
 
 export type ShowHover = (content: ReactNode, e: { currentTarget: Element; clientX: number }, options?: HoverOptions) => void
 
@@ -126,9 +133,12 @@ export function AgentHover({
   children,
   onReview,
   onHide,
+  activity,
 }: {
   session: AgentSession
   annotation?: AnnotationSummary
+  /** Steps and tokens, when read (ADR 0013). */
+  activity?: SessionActivity
   now: number
   parentTitle?: string
   children: number
@@ -190,6 +200,14 @@ export function AgentHover({
             <dd>
               {entries.filter((e) => e.done).length}/{total} done
               {agentSteps ? ` · ${agentSteps} from the agent's plan` : ''}
+            </dd>
+          </>
+        ) : null}
+        {activity ? (
+          <>
+            <dt>Activity</dt>
+            <dd>
+              <ActivityFields activity={activity} expandable={!!onReview} scopeNote={false} />
             </dd>
           </>
         ) : null}

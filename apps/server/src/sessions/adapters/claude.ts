@@ -8,6 +8,7 @@ import { JsonlCursor, readSmallJson, scanBackward } from '../jsonl.ts'
 import { claudeRecordPlanEvents } from '../plan.ts'
 import { CLAUDE_PLAN_MARKERS, ClaudePlanReader } from '../claude-plan.ts'
 import { isActivePhase, type Lifecycle, type RegistryEvidence, resolveState } from '../status.ts'
+import type { ActivitySources } from '../activity/service.ts'
 import {
   type AdapterConfig,
   type AdapterStatus,
@@ -42,6 +43,8 @@ export class ClaudeAccumulator {
   version?: string
   gitBranch?: string
   lifecycle: Lifecycle = { phase: 'none' }
+  /** Latest recorded permission mode; `bypassPermissions` never prompts for a tool call. */
+  permissionMode?: string
   unrecognized = 0
   lastMessage?: LastMessage
   readonly excerpts: boolean
@@ -96,8 +99,9 @@ export class ClaudeAccumulator {
     this.version = asString(rec.version, 40) ?? this.version
     this.gitBranch = asString(rec.gitBranch, 250) ?? this.gitBranch
     if (rec.isSidechain === true) return
+    if (rec.type === 'user') this.permissionMode = asString(rec.permissionMode, 40) ?? this.permissionMode
     const phase = claudePhase(rec)
-    if (phase) this.lifecycle = { phase, at: ts ?? this.lifecycle.at }
+    if (phase) this.lifecycle = { phase, at: ts ?? this.lifecycle.at, ...approvalsOf(this.permissionMode) }
     if (this.excerpts && rec.type === 'assistant') this.lastMessage = assistantExcerpt(rec, ts) ?? this.lastMessage
     this.plan?.feedRecord(rec)
   }
@@ -116,6 +120,16 @@ function assistantExcerpt(rec: Record<string, unknown>, at: string | undefined):
   return undefined
 }
 
+/** Tools that stop the turn to ask the person something: pending, they are a request for input. */
+const ASKS_USER = new Set(['AskUserQuestion', 'ExitPlanMode'])
+
+/** Permission modes observed with Claude Code; only `bypassPermissions` never prompts. */
+function approvalsOf(mode: string | undefined): Pick<Lifecycle, 'approvals'> {
+  if (mode === 'bypassPermissions') return { approvals: 'never' }
+  if (mode === 'default' || mode === 'acceptEdits' || mode === 'plan' || mode === 'auto') return { approvals: 'possible' }
+  return {}
+}
+
 function claudePhase(rec: Record<string, unknown>): Lifecycle['phase'] | undefined {
   const message = isRecord(rec.message) ? rec.message : undefined
   if (rec.type === 'assistant') {
@@ -123,7 +137,11 @@ function claudePhase(rec: Record<string, unknown>): Lifecycle['phase'] | undefin
     // record flagged isApiErrorMessage; its stop_reason (stop_sequence) would read as a finished turn.
     if (rec.isApiErrorMessage === true) return 'error_event'
     const stop = message?.stop_reason
-    if (stop === 'tool_use') return 'tool_pending'
+    if (stop === 'tool_use') {
+      const content = Array.isArray(message?.content) ? message.content : []
+      const asks = content.some((c) => isRecord(c) && c.type === 'tool_use' && typeof c.name === 'string' && ASKS_USER.has(c.name))
+      return asks ? 'user_input_requested' : 'tool_pending'
+    }
     if (stop === 'end_turn' || stop === 'stop_sequence' || stop === 'max_tokens' || stop === 'refusal') return 'turn_completed'
     return 'turn_in_progress'
   }
@@ -220,6 +238,14 @@ export class ClaudeAdapter implements SessionAdapter {
   watchTargets(): string[] {
     if (!this.config.enabled) return []
     return [path.join(this.home.root, 'projects'), path.join(this.home.root, 'sessions')]
+  }
+
+  activitySources(providerSessionId: string): ActivitySources | undefined {
+    for (const tracked of this.files.values()) {
+      const sid = tracked.acc.sessionId ?? path.basename(tracked.cursor.file, '.jsonl')
+      if (sid === providerSessionId) return { provider: 'claude', files: [{ file: tracked.cursor.file, compressed: false }] }
+    }
+    return undefined
   }
 
   status(): AdapterStatus {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { type Provider, REVIEW_LABELS, type ReviewState, WORKFLOW_STATUSES, type WorkflowStatus } from '@repobs/contracts'
 import { DEFAULT_FILTERS, type DashboardFilters } from '../features/dashboard/filters'
 import type { BranchMode } from '../features/dashboard/layout'
@@ -9,6 +9,9 @@ import type { AxisMode } from '../features/dashboard/timeline'
 // all views share. Conveniences, not user data: annotations and settings live on the server.
 
 export type TimeRange = '1d' | '7d' | '30d' | '90d' | '365d' | 'all'
+/** Activity detail on agent bars (ADR 0013): `auto` turns on at ACTIVITY_DETAIL_ZOOM and above. */
+export type ActivityDetail = 'auto' | 'on' | 'off'
+export const ACTIVITY_DETAIL_ZOOM = 3
 export type RepoSort = 'activity' | 'active' | 'name' | 'manual'
 
 /** Settings of one view (dashboard tab). */
@@ -18,6 +21,10 @@ export interface ViewState {
   agentNames: boolean
   /** Agent labels at the end of each activity bar on the timeline. */
   barLabels: boolean
+  /** Steps, tool categories and tokens on agent bars instead of plain tool ticks. */
+  activityDetail: ActivityDetail
+  /** Agent lines as tall as the model's context was full at the time (ADR 0013). */
+  contextHeight: boolean
   /** Spawned agents start hidden under their parent (its chevron shows them). */
   collapseSpawned: boolean
   /** Agents whose spawned agents are shown (when collapsing) or hidden (when not); reset when that switch changes. */
@@ -57,6 +64,8 @@ export const DEFAULT_VIEW: ViewState = {
   filters: DEFAULT_FILTERS,
   agentNames: true,
   barLabels: true,
+  activityDetail: 'auto',
+  contextHeight: false,
   collapseSpawned: true,
   toggledAgents: [],
   axisMode: 'sequence',
@@ -97,6 +106,8 @@ export function normalizeView(raw: unknown): ViewState {
     },
     agentNames: p.agentNames !== false,
     barLabels: p.barLabels !== false,
+    activityDetail: p.activityDetail === 'on' || p.activityDetail === 'off' ? p.activityDetail : 'auto',
+    contextHeight: p.contextHeight === true,
     collapseSpawned: p.collapseSpawned !== false,
     toggledAgents: strings(p.toggledAgents),
     axisMode: p.axisMode === 'time' || p.axisMode === 'compressed' ? p.axisMode : 'sequence',
@@ -168,14 +179,39 @@ export interface Workbench {
   replaceViews: (views: Record<string, ViewState>) => void
 }
 
+function persist(state: WorkbenchState) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state))
+  } catch {
+    // storage full or disabled: the views still work for this session
+  }
+}
+
 export function useWorkbenchState(): Workbench {
   const [state, setState] = useState<WorkbenchState>(loadWorkbench)
+  // Saved after a pause rather than on every change (a wheel zoom changes it every frame), and when
+  // the page is hidden or closed, or the workbench unmounts.
+  const latest = useRef(state)
+  const pendingSave = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(state))
-    } catch {
-      // storage full or disabled: the views still work for this session
+    const save = () => {
+      clearTimeout(pendingSave.current)
+      pendingSave.current = undefined
+      persist(latest.current)
     }
+    window.addEventListener('pagehide', save)
+    return () => {
+      window.removeEventListener('pagehide', save)
+      if (pendingSave.current !== undefined) save()
+    }
+  }, [])
+  useEffect(() => {
+    latest.current = state
+    clearTimeout(pendingSave.current)
+    pendingSave.current = setTimeout(() => {
+      pendingSave.current = undefined
+      persist(latest.current)
+    }, 300)
   }, [state])
   const settingsFor = useCallback((viewId: string) => state.views[viewId] ?? state.legacy ?? DEFAULT_VIEW, [state])
   const setView = useCallback((viewId: string, patch: ViewPatch) => {

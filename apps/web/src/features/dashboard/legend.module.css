@@ -51,6 +51,14 @@
   stroke: var(--color-accent);
   stroke-width: 1.5;
 }
+/* An agent's idle stretch, as on the timeline. */
+.idle {
+  stroke: var(--tone-info-text);
+  stroke-width: 1.5;
+  stroke-dasharray: 0 4;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
 .barWorking {
   fill: var(--tone-info-text);
 }

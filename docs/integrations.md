@@ -14,7 +14,7 @@ Observed with Claude Code 2.1.x on Windows (October 2026).
 
 `<home>` is the **Settings → Session sources** override, else `CLAUDE_CONFIG_DIR`, else `%USERPROFILE%\.claude`. The encoded project directory name is never decoded into a path; the working directory comes from the records. Files next to the registry such as `*.key` are never opened. Subagents appear as child sessions (`claude:<session-id>__agent-<agent-id>`) linked to their parent.
 
-Lifecycle mapping (structural fields only): an assistant record with `stop_reason: tool_use` → tool pending; `end_turn` (or a `stop_hook_summary` system record) → turn completed; a user prompt or tool result → turn in progress; Claude Code's fixed interrupt marker → turn interrupted; an assistant record flagged `isApiErrorMessage` (a failed API call: not signed in, rate limit, server error) → error, until the next prompt. The flag is read; the error text is treated like any assistant text. The **latest message excerpt** is the last assistant text item, or the last `tool_use` as `<tool>: <input.description>`. User prompts are never taken. The interrupt marker is compared in memory and discarded.
+Lifecycle mapping (structural fields only): an assistant record with `stop_reason: tool_use` → tool pending (running), or input requested when one of its calls is `AskUserQuestion` or `ExitPlanMode`; the `permissionMode` on prompts says whether a pending tool could be awaiting permission (`bypassPermissions`: never); `end_turn` (or a `stop_hook_summary` system record) → turn completed; a user prompt or tool result → turn in progress; Claude Code's fixed interrupt marker → turn interrupted; an assistant record flagged `isApiErrorMessage` (a failed API call: not signed in, rate limit, server error) → error, until the next prompt. The flag is read; the error text is treated like any assistant text. The **latest message excerpt** is the last assistant text item, or the last `tool_use` as `<tool>: <input.description>`. User prompts are never taken. The interrupt marker is compared in memory and discarded.
 
 **Hooks (not installed).** Claude Code hooks such as `PermissionRequest`, `Stop`, `SubagentStart`, `SessionStart` and `SessionEnd` could report precise state. A future, explicitly opt-in bridge could add a report-only hook with a clear uninstall; it would never approve or deny anything. v1 does not install or require hooks.
 
@@ -36,13 +36,27 @@ Observed with Codex 0.165 (desktop/VS Code originator) on Windows (October 2026)
 
 **State database.** Only the columns `id`, `cwd`, `name`, creation and update times, `source` (for the parent thread), `git_branch`, `cli_version`, `agent_nickname` and `agent_role` are read, and the parent links in `thread_spawn_edges`. `title`, `first_user_message` and `preview` hold the start of your first prompt and are never read; neither are `thread_history_*.sqlite` (the transcripts), `logs_*.sqlite` or the other Codex databases. The database is opened read-only, only when it is in WAL mode, and in a way that creates no file and takes no blocking lock: `mode=ro` while Codex has it open (its `-wal` and `-shm` files exist), else `immutable=1`, discarding the result when the file changed during the read. A thread listed there without a readable rollout is shown with state *Unknown · only thread metadata is available*; its last update time is never read as running or finished. Without the database (Codex 0.165 and earlier) repobs reads rollouts only; another generation (`state_6.sqlite`), another journal mode or an unknown table layout is reported in Diagnostics and not read.
 
-Lifecycle mapping: `event_msg` `task_started` → turn in progress; `task_complete` → completed; `turn_aborted` → interrupted; `*_approval_request` → approval requested; `request_user_input` → input requested; `error` → error. The approval and input request names follow the Codex protocol but were **not observed** in local logs during development; they are covered by synthetic fixtures only.
+Lifecycle mapping: `event_msg` `task_started` → turn in progress; `task_complete` → completed; `turn_aborted` → interrupted; `*_approval_request` → approval requested (not observed in local rollouts); a `request_user_input` function call (observed with 0.166; the non-blocking `request_user_input_async` is not a wait) → input requested until its output; `error` → error. The approval and input request names follow the Codex protocol but were **not observed** in local logs during development; they are covered by synthetic fixtures only.
 
 **App server.** A Codex app-server reports `thread/status/changed` and approval flags only for threads that *that server* owns. repobs does not start one, and passive rollout reading cannot observe every approval wait of an independently running Codex process; such sessions show *Running* or *Unknown*, never a guessed *Awaiting approval*.
 
 ## Latest-message excerpts
 
 On by default (owner decision, [ADR 0003](decisions/0003-dashboard-commit-graph-and-excerpts.md)); Settings → Privacy turns them off, after which adapters stop extracting them. Excerpts are capped at 280 characters, have whitespace collapsed and obvious secrets (private keys, `sk-`/`ghp_`/`github_pat_`/`xox*-` tokens, AWS keys, JWTs, `Bearer` values, `password=…`-style assignments) redacted, and exist only in memory and in the live snapshot sent to your paired browser — never in the database, logs, diagnostics or exports.
+
+## Agent activity
+
+Read on demand for the agents a view draws (`GET /sessions/{id}/activity`, [ADR 0013](decisions/0013-agent-activity-steps-and-tokens.md)), from the session's own files: the last 24 MiB of each (decompressed for `.zst`), at most 4,000 steps and 2,000 token samples, two sessions at a time, cached until the files change.
+
+| | Claude Code | Codex |
+| --- | --- | --- |
+| Tool call | `tool_use` (name, id), ended by the `tool_result` with that id; `is_error` → failed | `function_call` / `custom_tool_call` (name, `call_id`), ended by its `*_output`; outcome unknown |
+| Shell command (classified, then dropped) | `input.command` of `Bash` / `PowerShell` | the `exec` input string, or `cmd` / `command` of `exec_command`-style calls |
+| Model span | from a prompt or tool result to the response's last record; thinking when a `thinking` block is present | from a prompt, user message or tool output to the next `reasoning`, message or call |
+| Marks | prompts; `system` `compact_boundary`; `api_error` and `isApiErrorMessage` | `task_started`; `compacted`; `error` / `stream_error` |
+| Tokens | `message.usage` once per message id: input, cache read, cache creation, output | `token_count.info.last_token_usage` (repeats dropped by the running total); `model_context_window` |
+
+Sidechain records and a forked Codex sub-agent's copy of its parent's history are skipped. Tool names map to categories in `apps/server/src/sessions/activity/classify.ts`; MCP tools are reported by server (`mcp:<server>`). Commands are split on `&&`, `;`, `|` and new lines; setup words (`cd`, `export`, environment assignments) are skipped; Git subcommands, package-manager scripts and a fixed set of programs are named, everything else is *Shell* without a name.
 
 ## Agent plans
 

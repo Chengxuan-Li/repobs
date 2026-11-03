@@ -15,6 +15,7 @@ import {
   type PullRequestStatus,
   type Repository,
   type RepositorySuggestion,
+  type SessionActivity,
   type SessionAnnotation,
   type Settings,
   type Snapshot,
@@ -38,6 +39,7 @@ import {
 import type { AppStore, StoredRepository, StoredSessionRecord } from '../persistence/store.ts'
 import { basenameOf, isWithin, pathKey } from '../platform/paths.ts'
 import { createLimiter } from '../platform/process.ts'
+import { ActivityService, empty } from '../sessions/activity/service.ts'
 import { buildSessions } from '../sessions/registry.ts'
 import type { DiscoveredSession, SessionAdapter } from '../sessions/types.ts'
 import { SnapshotPublisher } from './snapshot.ts'
@@ -114,6 +116,7 @@ export class Monitor extends EventEmitter {
   private readonly limit = createLimiter(4)
   private readonly publisher = new SnapshotPublisher()
   private readonly watchers = new WatchManager()
+  private readonly activityService = new ActivityService()
   private settings: Settings
   private repos = new Map<string, RepoState>()
   private schedules = new Map<string, WorktreeSchedule>()
@@ -774,6 +777,21 @@ export class Monitor extends EventEmitter {
       this.lastMonitorEvent = now
       this.emit('monitor', this.health)
     }
+  }
+
+  /**
+   * One session's steps and tokens, read on demand from its files (ADR 0013). Undefined for an
+   * unknown session; `disabled` when the privacy setting is off, in which case nothing is read.
+   */
+  async activity(sessionId: string): Promise<SessionActivity | undefined> {
+    const session = this.snapshot().sessions.find((s) => s.id === sessionId)
+    if (!session) return undefined
+    if (!this.settings.privacy.readAgentActivity) {
+      this.activityService.clear()
+      return empty(sessionId, 'disabled', 'disabled')
+    }
+    const adapter = this.adapters.find((a) => a.provider === session.provider)
+    return this.activityService.get(sessionId, adapter?.activitySources?.(session.providerSessionId))
   }
 
   snapshot(): Snapshot {

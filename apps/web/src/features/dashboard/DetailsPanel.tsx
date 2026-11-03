@@ -1,11 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   type AgentSession,
   type AnnotationSummary,
   type AutomationApplication,
   type BranchClassification,
-  CONFIDENCE_LABELS,
-  DETAIL_LABELS,
   type Snapshot,
   type Worktree,
 } from '@repobs/contracts'
@@ -15,6 +13,8 @@ import { type ChecklistEntry, checklistEntries, PLAN_SOURCE_LABELS } from './che
 import { entryNote, useOptimisticTicks } from './ChecklistPill'
 import { Badge, CopyButton, formatAge, formatTime, InlineAlert, shortOid, StatusIndicator } from '../../components/primitives'
 import type { BranchRow } from './layout'
+import { ActivityFields } from './ActivityTrack'
+import { useActivity } from './useActivity'
 import styles from './dashboard.module.css'
 
 // Right side panel: details of the selected agent (evidence + your notes) or branch row.
@@ -87,11 +87,14 @@ function AgentPlanSection({
   if (!plan) return null
   return (
     <section className={styles.detailsSection} aria-label="Agent plan">
-      <div className="label">Agent plan</div>
-      <p className="small muted">
-        {PLAN_SOURCE_LABELS[plan.source]}
-        {plan.updatedAt ? `, updated ${formatAge(plan.updatedAt, now)} ago` : ''}. Reported by the agent; your ticks stay in repobs.
-      </p>
+      <div className={styles.sectionHead}>
+        <span className="label">Agent plan</span>
+        {plan.updatedAt ? (
+          <span className="small muted" title={`${PLAN_SOURCE_LABELS[plan.source]}, updated ${formatTime(plan.updatedAt)}`}>
+            {formatAge(plan.updatedAt, now)} ago
+          </span>
+        ) : null}
+      </div>
       <ul className={styles.planList}>
         {shown.map((e) => (
           <li key={e.id}>
@@ -127,6 +130,8 @@ export function SessionDetails({
   const parent = session.parentSessionId ? snapshot.sessions.find((s) => s.id === session.parentSessionId) : undefined
   const children = snapshot.sessions.filter((s) => s.parentSessionId === session.id)
   const st = session.state
+  const sessions = useMemo(() => [session], [session])
+  const activity = useActivity(sessions, true).get(session.id)
   return (
     <div className={styles.details}>
       <header>
@@ -143,10 +148,6 @@ export function SessionDetails({
       <section className={styles.detailsSection}>
         <StatusIndicator state={st} />
         <dl className="facts">
-          <dt>Evidence</dt>
-          <dd>{CONFIDENCE_LABELS[st.confidence]}</dd>
-          <dt>Reason</dt>
-          <dd>{st.detail ? DETAIL_LABELS[st.detail] : '—'}</dd>
           <dt>Evidence time</dt>
           <dd>
             {formatTime(st.observedAt)} {st.observedAt ? <span className="muted">({formatAge(st.observedAt, now)} ago)</span> : null}
@@ -158,10 +159,15 @@ export function SessionDetails({
           <div>
             <div className="label">Latest {session.lastMessage.kind === 'tool' ? 'tool activity' : 'agent message'}</div>
             <p className={styles.excerptFull}>{session.lastMessage.text}</p>
-            <p className="small muted">Excerpt read from the provider's session file; truncated, secrets redacted, not stored.</p>
           </div>
         ) : null}
       </section>
+      {activity ? (
+        <section className={styles.detailsSection}>
+          <div className="label">Activity</div>
+          <ActivityFields key={session.id} activity={activity} />
+        </section>
+      ) : null}
       <AgentPlanSection session={session} annotation={snapshot.annotations.find((a) => a.sessionId === session.id)} now={now} onChecklist={onChecklist} />
       <section className={styles.detailsSection}>
         <div className="label">Your notes</div>

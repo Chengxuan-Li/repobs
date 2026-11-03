@@ -21,6 +21,7 @@ export function Dropdown({
   value,
   active = false,
   icon: Icon,
+  valueOnly = false,
   sections,
   children,
 }: {
@@ -31,6 +32,8 @@ export function Dropdown({
   active?: boolean
   /** Compact button for tight strips: the icon instead of the label and value (both stay in the name and tooltip). */
   icon?: LucideIcon
+  /** The value only on the button, for a label shown beside it (the label stays in the name). */
+  valueOnly?: boolean
   sections?: DropdownSection[]
   /** A panel of controls instead of a menu (role dialog). */
   children?: ReactNode
@@ -123,7 +126,7 @@ export function Dropdown({
           <Icon size={14} aria-hidden="true" />
         ) : (
           <>
-            <span>{label}</span>
+            {valueOnly ? null : <span>{label}</span>}
             {value ? <span className={styles.value}>{value}</span> : null}
           </>
         )}

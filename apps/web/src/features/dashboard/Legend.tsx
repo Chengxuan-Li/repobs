@@ -1,9 +1,12 @@
+import { ACTIVITY_DETAIL_ZOOM } from '../../app/viewState'
 import type { AxisMode } from './timeline'
 import styles from './legend.module.css'
 
 // What the graph marks mean. Shapes and line styles carry the meaning; colours repeat it.
 
-export function Legend({ axisMode }: { axisMode: AxisMode }) {
+const fill = (token: string) => ({ fill: `var(${token})` })
+
+export function Legend({ axisMode, activityDetail, contextHeight }: { axisMode: AxisMode; activityDetail: boolean; contextHeight: boolean }) {
   return (
     <div className={styles.legend} role="region" aria-label="Legend">
       <Item label="Commit on a remote branch (pushed)">
@@ -36,17 +39,63 @@ export function Legend({ axisMode }: { axisMode: AxisMode }) {
       <Item label="Collapsed quiet commits (count; hover to list, click to expand)">
         <rect x="1" y="3" width="18" height="10" rx="5" className={styles.group} />
       </Item>
-      <Item label="Agent activity, first to last message (colour = status)">
-        <rect x="1" y="5" width="7" height="6" className={styles.barWorking} />
-        <rect x="11" y="5" width="7" height="6" className={styles.barAttention} />
+      <Item label="Agent activity, first to last message (colour = status); solid while working, dotted between">
+        <rect x="1" y="5" width="6" height="6" className={styles.barWorking} />
+        <line x1="8" x2="13" y1="8" y2="8" className={styles.idle} />
+        <rect x="13" y="5" width="6" height="6" className={styles.barAttention} />
       </Item>
       <Item label="Agent card at the end of its work: name, last activity, status (click to set your review)">
         <rect x="1" y="6" width="5" height="5" className={styles.barWorking} />
         <rect x="8.5" y="3.5" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1" />
       </Item>
+      <Item label="Agent active before the start of the axis: alone, only then (its card says when); before a line, since then">
+        <path d="M2,8 L8,4 L8,12 Z" className={styles.barWorking} />
+        <line x1="10" x2="19" y1="8" y2="8" className={styles.idle} />
+      </Item>
       <Item label="Spawned by the agent above (indented card; › n on the parent shows them)">
         <path d="M4,0 V9 H12" className={styles.spawn} fill="none" />
       </Item>
+      {activityDetail ? (
+        <>
+          <Item label="On the agent’s line: model responding (an estimate from record times); darker: with thinking">
+            <rect x="1" y="4" width="8" height="8" style={fill('--activity-model')} />
+            <rect x="11" y="4" width="8" height="8" style={fill('--activity-thinking')} />
+          </Item>
+          <Item label="Tool: read or search">
+            <rect x="1" y="4" width="18" height="8" style={fill('--activity-read')} />
+          </Item>
+          <Item label="Tool: edit">
+            <rect x="1" y="4" width="18" height="8" style={fill('--activity-edit')} />
+          </Item>
+          <Item label="Tool: shell; hatched: tests and builds">
+            <rect x="1" y="4" width="8" height="8" style={fill('--activity-shell')} />
+            <rect x="11" y="4" width="8" height="8" style={fill('--activity-shell')} />
+            <path d="M11,8 l4,-4 M11,12 l8,-8 M15,12 l4,-4" stroke="var(--color-bg)" strokeWidth="1.5" />
+          </Item>
+          <Item label="Other tools: web, MCP, agents, plan, questions">
+            <rect x="1" y="4" width="18" height="8" style={fill('--activity-other')} />
+          </Item>
+          <Item label="Git change (commit, push, …) / Git inspection (status, diff, …)">
+            <rect x="2.5" y="4.5" width="6" height="6" transform="rotate(45 5.5 7.5)" fill="var(--color-text)" />
+            <circle cx="15" cy="8" r="3" fill="var(--color-bg)" stroke="var(--color-text)" strokeWidth="1.5" />
+          </Item>
+          <Item label="Prompt (a turn starts) / failed tool call / error">
+            <line x1="3" y1="2" x2="3" y2="14" stroke="var(--color-text)" strokeWidth="1.5" />
+            <rect x="6" y="11" width="6" height="2" fill="var(--tone-danger-text)" />
+            <path d="M14,5 l5,5 m0,-5 l-5,5" stroke="var(--tone-danger-text)" strokeWidth="1.5" />
+          </Item>
+        </>
+      ) : (
+        <Item label={`Tool calls (ticks on the bar). Zoom to ${ACTIVITY_DETAIL_ZOOM * 100} % or more, or Agents → Activity detail, for steps and tool kinds on the line`}>
+          <rect x="1" y="5" width="18" height="6" className={styles.barWorking} />
+          <path d="M5,3 V13 M9,3 V13 M10,3 V13 M15,3 V13" stroke="var(--color-text)" strokeOpacity="0.55" />
+        </Item>
+      )}
+      {contextHeight ? (
+        <Item label="Line height: context used at the time, of the model's window (as recorded, else 200k or 1M, the smallest it fits)">
+          <path d="M1,9.5 V6.5 H7 V4.5 H13 V2 H19 V14 H13 V11.5 H7 V9.5 Z" className={styles.barWorking} />
+        </Item>
+      ) : null}
       <Item label="Now">
         <line x1="10" y1="0" x2="10" y2="16" className={styles.now} />
       </Item>
