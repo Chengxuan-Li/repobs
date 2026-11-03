@@ -459,7 +459,7 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
       els.push(
         <g key={`b-${row.id}`} {...hover}>
           <rect x={x1 - 4} y={y - 8} width={x2 - x1 + 8} height={16} className={styles.hit} />
-          <path d={`M${x1},${y} L${x1 + 6},${y - 4} L${x1 + 6},${y + 4} Z`} className={`${styles.bar} ${styles[`bar_${tone}`]}`} />
+          <path d={`M${x1},${y} L${x1 + 6},${y - 4} L${x1 + 6},${y + 4} Z`} className={`${styles.bar} ${styles[`bar_${tone}`]}`} data-mark="before" />
           <line x1={x1 + 8} x2={x2} y1={y} y2={y} className={`${styles.bar} ${styles[`bar_${tone}`]} ${styles.idle}`} />
         </g>,
       )
@@ -469,7 +469,7 @@ function Overlay(props: RepoBoardProps & { geo: Geometry }) {
     els.push(
       <g key={`b-${row.id}`} {...hover}>
         <rect x={x1} y={y - 8} width={x2 - x1} height={16} className={styles.hit} />
-        {span.earlier ? <path d={`M${x1 - 8},${y} L${x1 - 2},${y - 4} L${x1 - 2},${y + 4} Z`} className={`${styles.bar} ${styles[`bar_${tone}`]}`} /> : null}
+        {span.earlier ? <path d={`M${x1 - 8},${y} L${x1 - 2},${y - 4} L${x1 - 2},${y + 4} Z`} className={`${styles.bar} ${styles[`bar_${tone}`]}`} data-mark="earlier" /> : null}
         <AgentLine
           activity={act}
           timeline={timeline}

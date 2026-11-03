@@ -2,6 +2,25 @@
 
 Dated implementation checkpoints against the [product handoff](product-handoff.md). Conversation memory is not project state; this page is.
 
+## Checkpoint 43 — 2026-11-03: smooth wheel zoom (branch `feature/agent-activity`)
+
+Owner request: smoother zoom; every wheel notch redrew the dashboard. A first attempt previewed the zoom by stretching the drawn lanes with a CSS transform and redrew once the wheel settled; the owner saw it as "a resize and a shift, blinking things" (shapes snapped from stretched to drawn, and the commit kept the same *fraction* of the width under the pointer, which is not the same moment on the ordinal or compressed axes). Replaced.
+
+Profiled in headless Edge against the preview server (CPU profile of zoom clicks, `chromium.launch({ channel: 'msedge' })`): the redraw was DOM work, not our maths — 18,928 SVG elements in the lanes, 10,792 of them tool-tick `<line>`s and 1,288 activity `<rect>`s; axis maths about 7 ms.
+
+| Change | Where |
+| --- | --- |
+| Each agent's ticks, solid spans, detail runs (per fill, hatch, failed) and marks (per kind) are one `<path>` each | `activity.ts` (`spansPath`, `strokesPath`, `runPaths`, `markPaths`), `ActivityTrack.tsx` |
+| Live wheel zoom: notches accumulate and `zoomTo` runs at most once per animation frame; no stretch preview | `Dashboard.tsx` |
+| Zoom keeps the *moment* under the pointer: `timeAt` (bisection of `timeline.x`), then scroll to `timeline.x(t)` after the redraw | `timeline.ts`, `Dashboard.tsx` |
+| The workbench is written to localStorage 300 ms after the last change (and on page hide or unmount), not on every frame | `app/viewState.ts` |
+
+Measured on the full default view (195 rows, 123 agent cards): 6,997 lane elements (from 18,928); a zoom click 50–57 ms to the second frame (about 100 ms before); a 30-notch wheel gesture redraws at a median 31 ms per frame, worst 63 ms.
+
+Tests: unit `timeAt` round trip on all three axes and two zooms, path builders; e2e selectors for ticks and detail paths, `data-mark="before"` / `"earlier"` on the ◂ marks. Commands: `npm run typecheck`, `npm run lint`, `npm run test` (275 passed), `npm run build`, `npx playwright test` (39 passed), `npm run docs:build`.
+
+**Open:** the owner tried this and still sees the same problem (zoom reads as a resize, a shift and blinking); left for later at the owner's request. Next to look at, by measurement in a visible browser rather than headless: what visibly changes between frames (hover and card placement, ticks, the activity-detail threshold at 300 %), and the remaining cost — commits are still a group, a hit circle and a node each (about 4,500 elements on this view). The − / + buttons zoom in one step (not animated).
+
 ## Checkpoint 42 — 2026-11-03: activity on the agent's line; figures as chips; delayed lane hover (branch `feature/agent-activity`)
 
 Owner review of the checkpoint 41 preview: no separate track for the agent's activity, it replaces the agent's line, with a faint line where the agent was idle; no context band; the summary folded into one line of chips (`label | value`, styled like the status badge) that expands on a click and folds on another; agent details from the lanes only after a 0.5 s hover, still at once from the label column. [ADR 0013](../decisions/0013-agent-activity-steps-and-tokens.md) updated.

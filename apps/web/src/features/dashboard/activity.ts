@@ -102,6 +102,55 @@ export function stepMarks(steps: ActivityStep[], x: (ms: number) => number): Mar
   return out
 }
 
+// Drawing in bulk: each kind of mark of an agent is one SVG path, not an element per tick or step,
+// so a zoom redraw sets a few attributes per agent instead of hundreds (checkpoint 43).
+const f1 = (n: number) => n.toFixed(1)
+
+/** Rectangles from `y - half` to `y + half` as one path. */
+export function spansPath(spans: Array<{ x1: number; x2: number }>, y: number, half: number): string {
+  return spans.map((s) => `M${f1(s.x1)},${f1(y - half)}h${f1(s.x2 - s.x1)}v${f1(half * 2)}h${f1(s.x1 - s.x2)}z`).join('')
+}
+
+/** Vertical strokes at each x, from `y1` to `y2`, as one path. */
+export function strokesPath(xs: number[], y1: number, y2: number): string {
+  return xs.map((x) => `M${f1(x)},${f1(y1)}V${f1(y2)}`).join('')
+}
+
+/** Detail runs as one path per fill, plus the hatched (tests and builds) and failed parts. */
+export function runPaths(runs: Run[], y: number, half: number): { fills: Array<[Run['fill'], string]>; hatch: string; failed: string } {
+  const by = new Map<Run['fill'], Run[]>()
+  for (const r of runs) by.set(r.fill, [...(by.get(r.fill) ?? []), r])
+  return {
+    fills: [...by.entries()].map(([fill, rs]) => [fill, spansPath(rs, y, half)]),
+    hatch: spansPath(
+      runs.filter((r) => r.hatch),
+      y,
+      half,
+    ),
+    failed: runs
+      .filter((r) => r.failed)
+      .map((r) => `M${f1(r.x1)},${f1(y + half - 2)}h${f1(r.x2 - r.x1)}v2h${f1(r.x1 - r.x2)}z`)
+      .join(''),
+  }
+}
+
+/** Git, prompt, compaction and error marks as one path per kind, about the line at `y`. */
+export function markPaths(marks: Mark[], y: number, half: number): Record<MarkKind, string> {
+  const out: Record<MarkKind, string> = { git_write: '', git_read: '', prompt: '', compaction: '', error: '' }
+  const top = y - half
+  for (const { x, kind } of marks) {
+    out[kind] +=
+      kind === 'git_write'
+        ? `M${f1(x)},${f1(y - 5)}l5,5l-5,5l-5,-5z`
+        : kind === 'git_read'
+          ? `M${f1(x - 3)},${f1(y)}a3,3 0 1,0 6,0a3,3 0 1,0 -6,0z`
+          : kind === 'error'
+            ? `M${f1(x - 3)},${f1(top - 8)}l6,6m0,-6l-6,6`
+            : `M${f1(x)},${f1(top - 3)}V${f1(y + half + 3)}`
+  }
+  return out
+}
+
 /**
  * When the agent was working (model or tool steps), as pixel spans; spans less than `gap` px apart
  * merge. Between them the agent's line is drawn faint.

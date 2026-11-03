@@ -59,6 +59,21 @@ export interface TimelineInput {
 export const PAD = 16
 const DAY = 86_400_000
 
+/**
+ * The time drawn at lanes pixel `px`: the inverse of `timeline.x` (monotonic), by bisection between
+ * a year before the axis start and its end. Used to keep the moment under the pointer while zooming.
+ */
+export function timeAt(timeline: Timeline, px: number): number {
+  let lo = timeline.start - 365 * DAY
+  let hi = timeline.end
+  for (let i = 0; i < 48 && hi - lo > 1; i++) {
+    const mid = (lo + hi) / 2
+    if (timeline.x(mid) < px) lo = mid
+    else hi = mid
+  }
+  return (lo + hi) / 2
+}
+
 export function buildTimeline(input: TimelineInput): Timeline {
   return input.mode === 'time' ? timeAxis(input) : input.mode === 'compressed' ? compressedAxis(input) : sequenceAxis(input)
 }

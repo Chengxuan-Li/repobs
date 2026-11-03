@@ -446,7 +446,8 @@
   stroke-linecap: round;
   opacity: 0.8;
 }
-.ticks line {
+.ticks {
+  fill: none;
   stroke: var(--color-text);
   stroke-width: 1;
   opacity: 0.55;
@@ -489,10 +490,12 @@
   stroke-width: 1.5;
 }
 .actPrompt {
+  fill: none;
   stroke: var(--color-text);
   stroke-width: 1.5;
 }
 .actCompaction {
+  fill: none;
   stroke: var(--color-text-muted);
   stroke-width: 1;
   stroke-dasharray: 2 2;

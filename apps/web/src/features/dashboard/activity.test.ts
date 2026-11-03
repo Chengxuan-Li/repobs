@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ActivityStep, SessionActivity } from '@repobs/contracts'
-import { activeSpans, activityFields, contextClip, contextScale, formatTokens, groupOf, stepMarks, stepRuns, summarize, toolTicks } from './activity'
+import { activeSpans, activityFields, contextClip, contextScale, formatTokens, markPaths, runPaths, spansPath, strokesPath, groupOf, stepMarks, stepRuns, summarize, toolTicks } from './activity'
 
 const x = (ms: number) => ms / 1000 // 1 px per second
 
@@ -92,6 +92,19 @@ describe('activity drawing', () => {
       { x1: 0, x2: 7 }, // the 1 s tool call takes the 2 px minimum
       { x1: 100, x2: 110 },
     ])
+  })
+
+  it('draws each kind of mark of an agent as one path', () => {
+    expect(spansPath([{ x1: 0, x2: 4 }, { x1: 10, x2: 12 }], 10, 3)).toBe('M0.0,7.0h4.0v6.0h-4.0zM10.0,7.0h2.0v6.0h-2.0z')
+    expect(strokesPath([5, 9], 4, 16)).toBe('M5.0,4.0V16.0M9.0,4.0V16.0')
+    const runs = runPaths(stepRuns(steps, x), 10, 5)
+    expect(runs.fills.map(([fill]) => fill)).toEqual(['thinking', 'model', 'read', 'shell', 'other'])
+    expect(runs.hatch).toBe('M40.0,5.0h10.0v10.0h-10.0z')
+    expect(runs.failed).toBe('M32.0,13.0h8.0v2h-8.0z')
+    const marks = markPaths(stepMarks(steps, x), 10, 5)
+    expect(marks.git_write).toBe('M32.0,5.0l5,5l-5,5l-5,-5z')
+    expect(marks.prompt).toBe('M0.0,2.0V18.0')
+    expect(marks.git_read).toBe('')
   })
 
   it('summarizes tools, commands, time and tokens', () => {

@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import type { SessionActivity } from '@repobs/contracts'
 import type { Timeline } from './timeline'
-import { activeSpans, type ActivityField, activityFields, type Chip, contextClip, contextScale, type Part, stepMarks, stepRuns, summarize, toolTicks } from './activity'
+import { activeSpans, type ActivityField, activityFields, type Chip, contextClip, contextScale, markPaths, type Part, runPaths, spansPath, stepMarks, stepRuns, strokesPath, summarize, toolTicks } from './activity'
 import styles from './board.module.css'
 
 // An agent's line on the timeline (ADR 0013): first to last activity. With its activity read, the
 // line is solid where the agent was working and faint between. Default: one status colour and a
 // tick per tool call. Detail: the solid parts are model and tool spans with Git, prompt and error
 // marks, on the same line. Optionally the solid parts are as tall as the context was full.
+// Default and detail lines are drawn with one path per kind of mark.
 
 /** Half the line's height: default and detail. */
 const HALF = { line: 3, detail: 5 }
@@ -57,6 +58,7 @@ export function AgentLine({
   // A truncated read misses the start: draw it solid, as without activity.
   const unread = activity.truncated && first > x1 ? <rect x={x1} y={y - half} width={first - x1} height={half * 2} className={barClass} /> : null
   const idle = <line x1={x1} x2={x2} y1={y} y2={y} className={`${barClass} ${styles.idle}`} />
+  // Each kind of mark is one path (activity.ts), so a redraw touches a few attributes per agent.
   if (!detail) {
     return (
       <g className={styles.agentTrace}>
@@ -64,48 +66,32 @@ export function AgentLine({
         {idle}
         <g clipPath={clipped}>
           {unread}
-          {activeSpans(steps, timeline.x).map((s, i) => (
-            <rect key={i} x={s.x1} y={y - half} width={s.x2 - s.x1} height={half * 2} className={barClass} />
-          ))}
+          <path d={spansPath(activeSpans(steps, timeline.x), y, half)} className={barClass} />
         </g>
-        <g className={styles.ticks}>
-          {toolTicks(steps, timeline.x).map((x) => (
-            <line key={x} x1={x} x2={x} y1={y - 6} y2={y + 6} />
-          ))}
-        </g>
+        <path d={strokesPath(toolTicks(steps, timeline.x), y - 6, y + 6)} className={styles.ticks} />
       </g>
     )
   }
   // Runs at the line's height (full when scaled by context); marks at the detail height.
-  const h = HALF.detail * 2
-  const top = y - HALF.detail
+  const runs = runPaths(stepRuns(steps, timeline.x), y, half)
+  const marks = markPaths(stepMarks(steps, timeline.x), y, HALF.detail)
   return (
     <g className={`${styles.agentTrace} ${styles.actBand}`}>
       {clipDef}
       {idle}
       <g clipPath={clipped}>
         {unread}
-        {stepRuns(steps, timeline.x).map((r, i) => (
-          <g key={i}>
-            <rect x={r.x1} y={y - half} width={r.x2 - r.x1} height={half * 2} className={styles[`act_${r.fill}`]} />
-            {r.hatch ? <rect x={r.x1} y={y - half} width={r.x2 - r.x1} height={half * 2} fill={`url(#${hatchId})`} /> : null}
-            {r.failed ? <rect x={r.x1} y={y + half - 2} width={r.x2 - r.x1} height={2} className={styles.actFailed} /> : null}
-          </g>
+        {runs.fills.map(([fill, d]) => (
+          <path key={fill} d={d} className={styles[`act_${fill}`]} />
         ))}
+        {runs.hatch ? <path d={runs.hatch} fill={`url(#${hatchId})`} /> : null}
+        {runs.failed ? <path d={runs.failed} className={styles.actFailed} /> : null}
       </g>
-      {stepMarks(steps, timeline.x).map((m) =>
-        m.kind === 'git_write' ? (
-          <rect key={`${m.kind}${m.x}`} x={m.x - 3.5} y={y - 3.5} width={7} height={7} transform={`rotate(45 ${m.x} ${y})`} className={styles.actGitWrite} />
-        ) : m.kind === 'git_read' ? (
-          <circle key={`${m.kind}${m.x}`} cx={m.x} cy={y} r={3} className={styles.actGitRead} />
-        ) : m.kind === 'prompt' ? (
-          <line key={`${m.kind}${m.x}`} x1={m.x} x2={m.x} y1={top - 3} y2={top + h + 3} className={styles.actPrompt} />
-        ) : m.kind === 'compaction' ? (
-          <line key={`${m.kind}${m.x}`} x1={m.x} x2={m.x} y1={top - 3} y2={top + h + 3} className={styles.actCompaction} />
-        ) : (
-          <path key={`${m.kind}${m.x}`} d={`M${m.x - 3},${top - 8} l6,6 m0,-6 l-6,6`} className={styles.actError} />
-        ),
-      )}
+      {marks.prompt ? <path d={marks.prompt} className={styles.actPrompt} /> : null}
+      {marks.compaction ? <path d={marks.compaction} className={styles.actCompaction} /> : null}
+      {marks.git_read ? <path d={marks.git_read} className={styles.actGitRead} /> : null}
+      {marks.git_write ? <path d={marks.git_write} className={styles.actGitWrite} /> : null}
+      {marks.error ? <path d={marks.error} className={styles.actError} /> : null}
     </g>
   )
 }

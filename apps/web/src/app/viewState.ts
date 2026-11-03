@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { type Provider, REVIEW_LABELS, type ReviewState, WORKFLOW_STATUSES, type WorkflowStatus } from '@repobs/contracts'
 import { DEFAULT_FILTERS, type DashboardFilters } from '../features/dashboard/filters'
 import type { BranchMode } from '../features/dashboard/layout'
@@ -179,14 +179,39 @@ export interface Workbench {
   replaceViews: (views: Record<string, ViewState>) => void
 }
 
+function persist(state: WorkbenchState) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state))
+  } catch {
+    // storage full or disabled: the views still work for this session
+  }
+}
+
 export function useWorkbenchState(): Workbench {
   const [state, setState] = useState<WorkbenchState>(loadWorkbench)
+  // Saved after a pause rather than on every change (a wheel zoom changes it every frame), and when
+  // the page is hidden or closed, or the workbench unmounts.
+  const latest = useRef(state)
+  const pendingSave = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(state))
-    } catch {
-      // storage full or disabled: the views still work for this session
+    const save = () => {
+      clearTimeout(pendingSave.current)
+      pendingSave.current = undefined
+      persist(latest.current)
     }
+    window.addEventListener('pagehide', save)
+    return () => {
+      window.removeEventListener('pagehide', save)
+      if (pendingSave.current !== undefined) save()
+    }
+  }, [])
+  useEffect(() => {
+    latest.current = state
+    clearTimeout(pendingSave.current)
+    pendingSave.current = setTimeout(() => {
+      pendingSave.current = undefined
+      persist(latest.current)
+    }, 300)
   }, [state])
   const settingsFor = useCallback((viewId: string) => state.views[viewId] ?? state.legacy ?? DEFAULT_VIEW, [state])
   const setView = useCallback((viewId: string, patch: ViewPatch) => {

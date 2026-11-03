@@ -599,11 +599,11 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
   test('agent lines tick each tool call; activity detail draws steps on the line; the card shows tools, commands and time as bars (ADR 0013)', async ({ page }) => {
     await pair(page)
     const svg = board(page, 'git-status-kit').locator('svg[data-lanes]')
-    await expect(svg.locator('g[class*="agentTrace"] g[class*="ticks"] line').first()).toBeAttached()
+    await expect(svg.locator('g[class*="agentTrace"] path[class*="ticks"]').first()).toHaveAttribute('d', /^M/)
     await expect(svg.locator('g[class*="actBand"]')).toHaveCount(0)
     await setOption(page, 'Agents', 'Always')
-    await expect(svg.locator('g[class*="actBand"] rect').first()).toBeAttached()
-    await expect(svg.locator('g[class*="ticks"]')).toHaveCount(0)
+    await expect(svg.locator('g[class*="actBand"] path').first()).toBeAttached()
+    await expect(svg.locator('path[class*="ticks"]')).toHaveCount(0)
     // Two plan updates and a shell call, from the synthetic transcript; never its text. Tools as a
     // stacked bar with its total; clicks on it list the parts with amounts, then shares, then hide them.
     await row(page, /^Tighten status parser/).getByText('Tighten status parser', { exact: true }).hover()
@@ -685,7 +685,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     const top = await scroller.evaluate((el) => el.scrollTop)
     await page.mouse.move(box.x + box.width - 100, box.y + box.height / 2)
     await page.mouse.wheel(0, -300)
-    // Three notches: 1.1³ ≈ 1.33.
+    // Three notches: 1.1³ ≈ 1.33, redrawn live (at most once per frame).
     await expect.poll(width).toBeGreaterThan(before * 1.3)
     expect(await scroller.evaluate((el) => el.scrollTop)).toBe(top)
     await page.mouse.wheel(0, 300)
@@ -980,7 +980,7 @@ test.describe.serial('repobs dashboard (synthetic data)', () => {
     // The bulk agents of storefront-web were last active up to two weeks ago.
     const b = board(page, 'storefront-web')
     await b.getByText(/^Show \d+ more agents/).click()
-    await expect(b.locator('svg[data-lanes] path[class*="bar_"]').first()).toBeAttached()
+    await expect(b.locator('svg[data-lanes] path[data-mark="before"]').first()).toBeAttached()
     const rows = await b.locator('[data-session-id]').count()
     expect(rows).toBeGreaterThan(0)
     await expect(b.locator('[data-bar-label]')).toHaveCount(rows)
