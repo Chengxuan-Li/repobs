@@ -10,7 +10,10 @@ import { readE2EState } from './state.ts'
 // Regenerates the tutorial's pictures (docs/assets/tutorial/<name>.png and <name>-dark.png) from the
 // real app on synthetic demo data: the steps a reader follows, in the order of the tutorial.
 // Run alone:  REPOBS_DOCS_SCREENSHOT=1 npx playwright test docs-tutorial
+// With REPOBS_DOCS_SCREENSHOT=check it walks the same steps without taking pictures: CI runs it so
+// a tutorial step that no longer works in the app fails the build (AGENTS.md).
 test.skip(!process.env.REPOBS_DOCS_SCREENSHOT, 'documentation screenshots only on request')
+const CHECK_ONLY = process.env.REPOBS_DOCS_SCREENSHOT === 'check'
 test.setTimeout(240_000)
 
 const OUT = path.resolve('docs/assets/tutorial')
@@ -18,7 +21,7 @@ const PAD = 12
 
 test('tutorial screenshots', async ({ page }) => {
   const state = readE2EState(Number(process.env.REPOBS_E2E_PORT ?? 47399))
-  fs.mkdirSync(OUT, { recursive: true })
+  if (!CHECK_ONLY) fs.mkdirSync(OUT, { recursive: true })
 
   // Synthetic material the demo lacks: a folder without Git with one agent, and an agent with a
   // long working history (tools of every kind, Git commands, tests, thinking and token counts).
@@ -64,6 +67,8 @@ test('tutorial screenshots', async ({ page }) => {
       const bottom = Math.min(vp.height, Math.max(...boxes.map((b) => b.y + b.height)) + pad)
       clip = { x, y, width: right - x, height: bottom - y }
     }
+    // Checking: every element pictured is there and has a size; no pictures are written.
+    if (CHECK_ONLY) return expect(clip === undefined || (clip.width > 0 && clip.height > 0)).toBe(true)
     await page.screenshot({ path: path.join(OUT, `${name}.png`), clip, animations: 'disabled' })
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.screenshot({ path: path.join(OUT, `${name}-dark.png`), clip, animations: 'disabled' })
@@ -74,7 +79,7 @@ test('tutorial screenshots', async ({ page }) => {
     await page.mouse.move(2, 400)
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
     await expect(page.getByRole('dialog', { name: 'Agent details' })).toBeHidden()
-    await page.waitForTimeout(300)
+    await expect(page.getByRole('tooltip')).toHaveCount(0)
   }
   const menu = (name: string) => page.getByRole('menu', { name })
   const openMenu = async (name: string) => {

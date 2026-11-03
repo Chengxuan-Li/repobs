@@ -33,7 +33,7 @@ Click an agent to open it in the details panel, with its activity and your notes
 
 ## See what an agent did
 
-**On the timeline**, an agent's line is solid while it was working and dotted while it waited. Each tool call adds a small tick.
+On the timeline, an agent's line is solid while it was working and dotted while it waited. Each tool call adds a small tick.
 
 Zoom to 300 % or more, or choose **Agents → Activity detail → Always**, to see its steps on the line:
 
@@ -47,7 +47,7 @@ Zoom to 300 % or more, or choose **Agents → Activity detail → Always**, to s
 
 Detail is easiest to read on **Timeline → Calendar time**, where each step keeps its real length.
 
-**In the details panel**, *Activity* sums up the agent:
+In the details panel, *Activity* sums up the agent:
 
 - **Tools**, **Commands** and **Time** show a total and a bar split by kind.
 - **Tokens** shows how much went in and out, **Cache hit** how much of the input was reused, and **Context** how full the model's context is now.

@@ -14,7 +14,7 @@ Each repository is a section of the dashboard. Its branches are rows on the left
     - filled: pushed;
     - hollow amber with a dashed line: only on this computer;
     - grey dashed: on the upstream, not pulled yet.
-- **A dashed diamond** after a branch head means uncommitted changes in its worktree (red: conflicts).
+- A dashed diamond after a branch head means uncommitted changes in its worktree (red: conflicts).
 
 Hover a commit for its message, id, date and push state:
 

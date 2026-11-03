@@ -16,6 +16,8 @@ Owner request: move the legend and the control guide into a popup opened from th
 
 Commands: `npm run typecheck`, `npm run lint`, `npm run test` (275 passed), `npm run build`, `npx playwright test` (39 passed, 2 skipped: the two screenshot specs), `npm run docs:build` (strict). Checked: every picture by eye; the built site's *Follow your agents* and *Review and take notes* pages in the browser.
 
+Keeping the tutorial in step with the app (owner decision): `AGENTS.md` now requires a change to a user-visible control, label, menu or workflow to update its chapter and regenerate its screenshots in the same change, and `.github/pull_request_template.md` lists it. Two checks enforce it: `tests/docs/tutorial-labels.test.ts` (unit, under a second) fails when a **bold** control name in `docs/tutorial/*.md` (menu paths split on →; keys, marks and lead-ins skipped) is no longer in the app's source; `REPOBS_DOCS_SCREENSHOT=check npx playwright test docs-tutorial` walks every tutorial step without taking pictures, in CI on the Ubuntu job only (about 20 s; the Windows job sets the pace). The spec's fixed delay is replaced by waits for hover cards and tooltips to close. Measured: check mode passed four times in a row locally (19.8–23.2 s); `npm run test` 282 passed; `npx playwright test` 39 passed, 2 skipped.
+
 Not done: the old page addresses `/getting-started/` and `/user-guide/` are gone (no redirect plugin); views side by side are described, not pictured.
 
 ## Checkpoint 43 — 2026-11-03: smooth wheel zoom (branch `feature/agent-activity`)

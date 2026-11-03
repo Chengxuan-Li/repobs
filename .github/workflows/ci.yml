@@ -52,6 +52,13 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: End-to-end tests (synthetic data only)
         run: npm run test:e2e
+      # Every step of the tutorial still works in the app (docs/tutorial, AGENTS.md); no pictures
+      # are taken. Ubuntu only: it finishes well before the Windows job.
+      - name: Tutorial steps (synthetic data only)
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          REPOBS_DOCS_SCREENSHOT: check
+        run: npx playwright test docs-tutorial
       - name: Upload Playwright report (synthetic data only)
         if: failure()
         uses: actions/upload-artifact@v4
